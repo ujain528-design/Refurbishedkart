@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Tabs, Field, Toggle, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
+import { Tabs, Toggle, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import {
   MASTER_TABLES, PROCESSOR_FAMILIES, PROCESSOR_MODELS, GENERATIONS, DISPLAY_SIZES, RESOLUTIONS,
   PANEL_TYPES, REFRESH_RATES, STORAGE_TYPES, OS_OPTIONS, BATTERY_CAPACITIES, BATTERY_LIVES,
@@ -11,114 +11,211 @@ import {
 import { CATEGORY_SLUGS } from "@/lib/data";
 import PortBuilder from "@/components/admin/PortBuilder";
 
-const Drop = ({ label, options, value, onChange }) => (
-  <Field label={label}>
-    <select value={value ?? ""} onChange={(e) => onChange?.(e.target.value)} className={inputCls}>
-      <option value="">— Select —</option>
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
-    </select>
-  </Field>
-);
-const Group = ({ title, children, cols = 2 }) => (
-  <div>
-    <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-brand">{title}</h3>
-    <div className={`grid gap-4 ${cols === 2 ? "sm:grid-cols-2" : ""}`}>{children}</div>
-  </div>
-);
-
 const TABS = ["Basic Info", "Pricing & Variants", "Images", "Specs", "Inspection", "Tags", "SEO"];
 const RAM_TIERS = [4, 8, 16, 32, 64];
 const SSD_TIERS = ["256GB", "512GB", "1TB", "2TB"];
 const ALL_TAGS = ["Bestseller", "Flash Sale", "New Arrival", "Best for Students", "Recommended", "Best for WFH"];
 const INSPECTION_ROWS = ["Display", "Keyboard", "Trackpad", "Battery", "Ports", "Speakers", "Webcam", "Hinges", "Body / Chassis", "Storage", "RAM", "Cooling", "Data Wipe", "BIOS"];
+const STORAGE_KEY = "admin_product_draft";
+
+const EMPTY = {
+  brand: "", model: "", category: "Laptops", status: "Draft", description: "",
+  listedPrice: "", ram: [8], ssd: ["256GB"], onboardRam: false, ramExpandable: true, touch: false,
+  specs: {}, ports: {}, tags: [], salePrice: "", saleEnd: "", metaTitle: "", metaDesc: "",
+};
+
+/* ── validation: which required fields are valid, with messages ── */
+const VALIDATORS = {
+  brand: (v) => (v ? "" : "Brand is required"),
+  model: (v) => (v.trim() ? "" : "Model is required"),
+  category: (v) => (v ? "" : "Category is required"),
+  description: (v) => (v.trim().length >= 100 ? "" : `Description needs ${100 - v.trim().length} more characters`),
+  listedPrice: (v) => (Number(v) > 0 ? "" : "Listed price must be greater than 0"),
+};
+const FIELD_TAB = { brand: "Basic Info", model: "Basic Info", category: "Basic Info", description: "Basic Info", listedPrice: "Pricing & Variants" };
 
 export default function ProductEditor() {
   const toast = useToast();
   const router = useRouter();
   const [tab, setTab] = useState(TABS[0]);
-  const [desc, setDesc] = useState("");
-  const [ram, setRam] = useState(new Set([8]));
-  const [ssd, setSsd] = useState(new Set(["256GB"]));
-  const [tags, setTags] = useState(new Set());
-  const [naRows, setNaRows] = useState(new Set());
-  const [onboardRam, setOnboardRam] = useState(false);
-  const [ramExpandable, setRamExpandable] = useState(true);
-  const [touch, setTouch] = useState(false);
-  // specs tab structured state
-  const [family, setFamily] = useState("");
-  const [model, setModel] = useState("");
-  const [touchSpec, setTouchSpec] = useState(false);
+  const [f, setF] = useState(EMPTY);
+  const [touched, setTouched] = useState({});
+  const [dirty, setDirty] = useState(false);
+  const [restore, setRestore] = useState(null); // { savedAt }
+  const debounce = useRef(null);
+  const hydrated = useRef(false);
 
-  const toggleSet = (setter) => (v) => setter((s) => { const n = new Set(s); n.has(v) ? n.delete(v) : n.add(v); return n; });
+  // errors map (always computed live)
+  const errors = Object.fromEntries(Object.keys(VALIDATORS).map((k) => [k, VALIDATORS[k](f[k] ?? "")]));
+  const isValid = Object.values(errors).every((e) => !e);
+
+  /* On mount: offer to restore an existing draft. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        setRestore({ savedAt: saved.__savedAt, data: saved });
+      }
+    } catch {}
+    hydrated.current = true;
+  }, []);
+
+  /* Debounced auto-save (500ms) on any form change. */
+  useEffect(() => {
+    if (!hydrated.current || !dirty) return;
+    clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...f, __savedAt: new Date().toISOString() })); } catch {}
+    }, 500);
+    return () => clearTimeout(debounce.current);
+  }, [f, dirty]);
+
+  /* Warn before leaving with unsaved changes. */
+  useEffect(() => {
+    const handler = (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  const flushSave = () => {
+    if (dirty) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...f, __savedAt: new Date().toISOString() })); } catch {} }
+  };
+
+  const update = (key, value) => { setF((s) => ({ ...s, [key]: value })); setDirty(true); };
+  const updateSpec = (key, value) => { setF((s) => ({ ...s, specs: { ...s.specs, [key]: value } })); setDirty(true); };
+  const blur = (key) => setTouched((t) => ({ ...t, [key]: true }));
+  const toggleArr = (key, v) => update(key, f[key].includes(v) ? f[key].filter((x) => x !== v) : [...f[key], v]);
+
+  const switchTab = (t) => { flushSave(); setTab(t); };
+
+  const restoreDraft = () => { const { __savedAt, ...data } = restore.data; setF({ ...EMPTY, ...data }); setDirty(true); setRestore(null); toast("Draft restored"); };
+  const startFresh = () => { localStorage.removeItem(STORAGE_KEY); setRestore(null); };
+
+  const clearAndLeave = (status) => { localStorage.removeItem(STORAGE_KEY); setDirty(false); toast(`Product saved as ${status}`); setTimeout(() => router.push("/admin/products"), 50); };
 
   const save = (status) => {
-    if (desc.length < 100) { toast("Description must be at least 100 characters", "error"); setTab("Basic Info"); return; }
-    toast(`Product saved as ${status}`);
+    flushSave();
+    setTouched(Object.fromEntries(Object.keys(VALIDATORS).map((k) => [k, true])));
+    if (!isValid) {
+      const firstBad = Object.keys(VALIDATORS).find((k) => errors[k]);
+      setTab(FIELD_TAB[firstBad]);
+      setTimeout(() => {
+        const el = document.getElementById(`field-${firstBad}`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.classList.add("ring-2", "ring-red-400");
+        setTimeout(() => el?.classList.remove("ring-2", "ring-red-400"), 1500);
+      }, 60);
+      toast("Fix the highlighted fields before publishing", "error");
+      return;
+    }
+    clearAndLeave(status);
+  };
+
+  const leaveEditor = () => {
+    if (dirty && !window.confirm("You have unsaved changes. Leave without saving?")) return;
     router.push("/admin/products");
   };
 
+  /* validated input field */
+  const VField = ({ k, label, type = "text", placeholder, textarea, options, min, hint }) => {
+    const err = errors[k];
+    const show = touched[k];
+    const ok = !err && (f[k] !== "" && f[k] != null);
+    const ring = show && err ? "border-red-400 focus:ring-red-200" : ok ? "border-brand/40" : "border-black/10";
+    return (
+      <label className="block" id={`field-${k}`}>
+        <span className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-neutral-600">
+          {label} {VALIDATORS[k] && <span className="text-red-500">*</span>}
+          {ok && <span className="text-brand">✓</span>}
+        </span>
+        {options ? (
+          <select value={f[k]} onChange={(e) => { update(k, e.target.value); blur(k); }} className={`${inputCls} ${ring}`}>{options.map((o) => <option key={o}>{o}</option>)}</select>
+        ) : textarea ? (
+          <textarea value={f[k]} onChange={(e) => update(k, e.target.value)} onBlur={() => blur(k)} rows={5} placeholder={placeholder} className={`${inputCls} ${ring}`} />
+        ) : (
+          <input type={type} min={min} value={f[k]} onChange={(e) => update(k, e.target.value)} onBlur={() => blur(k)} placeholder={placeholder} className={`${inputCls} ${ring}`} />
+        )}
+        {show && err ? <span className="mt-1 block text-[11px] font-semibold text-red-600">{err}</span> : hint ? <span className="mt-1 block text-[11px] text-neutral-400">{hint}</span> : null}
+      </label>
+    );
+  };
+
+  const Drop = ({ label, options, specKey }) => (
+    <label className="block">
+      <span className="mb-1 block text-[12px] font-semibold text-neutral-600">{label}</span>
+      <select value={f.specs[specKey] ?? ""} onChange={(e) => updateSpec(specKey, e.target.value)} className={inputCls}>
+        <option value="">— Select —</option>{options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </label>
+  );
+  const Group = ({ title, children, cols = 2 }) => (
+    <div><h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-brand">{title}</h3><div className={`grid gap-4 ${cols === 2 ? "sm:grid-cols-2" : ""}`}>{children}</div></div>
+  );
+
   return (
     <div>
+      {/* restore banner */}
+      {restore && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-card border border-amber-200 bg-amber-50 px-4 py-3">
+          <span className="text-sm font-semibold text-amber-800">You have an unsaved draft from {new Date(restore.savedAt).toLocaleString("en-IN")}. Restore it?</span>
+          <div className="ml-auto flex gap-2">
+            <button onClick={restoreDraft} className="rounded-full bg-brand px-4 py-1.5 text-[13px] font-bold text-white">Restore Draft</button>
+            <button onClick={startFresh} className="rounded-full border border-black/10 px-4 py-1.5 text-[13px] font-bold text-ink">Start Fresh</button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight text-ink">Add New Product</h1>
-          <button onClick={() => router.push("/admin/products")} className="mt-1 text-[13px] font-semibold text-neutral-400 hover:text-ink">← Back to products</button>
+          <h1 className="text-xl font-extrabold tracking-tight text-ink">Add New Product{dirty && <span className="ml-2 text-[12px] font-semibold text-amber-600">● unsaved</span>}</h1>
+          <button onClick={leaveEditor} className="mt-1 text-[13px] font-semibold text-neutral-400 hover:text-ink">← Back to products</button>
         </div>
         <div className="flex gap-2">
           <button onClick={() => toast("Opening storefront preview…")} className={btnGhost}>Preview</button>
           <button onClick={() => save("Draft")} className={btnGhost}>Save as Draft</button>
-          <button onClick={() => save("Published")} className={btnPrimary}>Publish</button>
+          <button onClick={() => save("Published")} disabled={!isValid} className={`${btnPrimary} disabled:cursor-not-allowed disabled:opacity-40`} title={!isValid ? "Fill all required fields" : ""}>Publish</button>
         </div>
       </div>
 
       <div className="rounded-card border border-black/5 bg-white p-6 shadow-card">
-        <Tabs tabs={TABS} active={tab} onChange={setTab} />
+        <Tabs tabs={TABS} active={tab} onChange={switchTab} />
 
         <div className="mt-6">
           {tab === "Basic Info" && (
             <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
-              <Field label="Brand"><select className={inputCls}>{MASTER_TABLES.Brands.map((b) => <option key={b}>{b}</option>)}</select></Field>
-              <Field label="Model"><input className={inputCls} placeholder="ThinkPad T14" /></Field>
-              <Field label="Category"><select className={inputCls}>{Object.values(CATEGORY_SLUGS).map((c) => <option key={c}>{c}</option>)}</select></Field>
-              <Field label="Status"><select className={inputCls}><option>Draft</option><option>Active</option><option>Out of Stock</option></select></Field>
-              <div className="sm:col-span-2">
-                <Field label={`Description (${desc.length}/100 min)`} hint="Rich text · minimum 100 characters enforced">
-                  <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={5} className={`${inputCls} ${desc.length > 0 && desc.length < 100 ? "border-red-400" : ""}`} placeholder="Describe the device, condition, and what's included…" />
-                </Field>
-              </div>
+              <VField k="brand" label="Brand" options={["", ...MASTER_TABLES.Brands]} />
+              <VField k="model" label="Model" placeholder="ThinkPad T14" />
+              <VField k="category" label="Category" options={Object.values(CATEGORY_SLUGS)} />
+              <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Status</span><select value={f.status} onChange={(e) => update("status", e.target.value)} className={inputCls}><option>Draft</option><option>Active</option><option>Out of Stock</option></select></label>
+              <div className="sm:col-span-2"><VField k="description" label={`Description (${f.description.trim().length}/100 min)`} textarea placeholder="Describe the device, condition, and what's included…" /></div>
             </div>
           )}
 
           {tab === "Pricing & Variants" && (
             <div className="max-w-2xl space-y-6">
-              <Field label="Listed Price (₹)" hint="Price of the default configuration"><input type="number" className={`${inputCls} max-w-[200px]`} placeholder="27499" /></Field>
+              <div className="max-w-[220px]"><VField k="listedPrice" label="Listed Price (₹)" type="number" min={0} placeholder="27499" hint="Price of the default configuration" /></div>
               <div>
                 <p className="mb-2 text-[12px] font-semibold text-neutral-600">Available RAM (with stock per tier)</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {RAM_TIERS.map((r) => (
                     <label key={r} className="flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-sm">
-                      <input type="checkbox" checked={ram.has(r)} onChange={() => toggleSet(setRam)(r)} className="accent-brand" />
-                      {r}GB
-                      {ram.has(r) && <input type="number" placeholder="stock" className="ml-auto w-16 rounded border border-black/10 px-1.5 py-0.5 text-[12px]" />}
+                      <input type="checkbox" checked={f.ram.includes(r)} onChange={() => toggleArr("ram", r)} className="accent-brand" />{r}GB
+                      {f.ram.includes(r) && <input type="number" placeholder="stock" className="ml-auto w-16 rounded border border-black/10 px-1.5 py-0.5 text-[12px]" />}
                     </label>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-[12px] font-semibold text-neutral-600">Available SSD (with stock per tier)</p>
+                <p className="mb-2 text-[12px] font-semibold text-neutral-600">Available SSD</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {SSD_TIERS.map((s) => (
-                    <label key={s} className="flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-sm">
-                      <input type="checkbox" checked={ssd.has(s)} onChange={() => toggleSet(setSsd)(s)} className="accent-brand" />
-                      {s}
-                    </label>
-                  ))}
+                  {SSD_TIERS.map((s) => <label key={s} className="flex items-center gap-2 rounded-lg border border-black/10 px-3 py-2 text-sm"><input type="checkbox" checked={f.ssd.includes(s)} onChange={() => toggleArr("ssd", s)} className="accent-brand" />{s}</label>)}
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">Onboard RAM</span><Toggle on={onboardRam} onChange={setOnboardRam} /></div>
-                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">RAM Expandable</span><Toggle on={ramExpandable} onChange={setRamExpandable} /></div>
-                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">Touchscreen</span><Toggle on={touch} onChange={setTouch} /></div>
+                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">Onboard RAM</span><Toggle on={f.onboardRam} onChange={(v) => update("onboardRam", v)} /></div>
+                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">RAM Expandable</span><Toggle on={f.ramExpandable} onChange={(v) => update("ramExpandable", v)} /></div>
+                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">Touchscreen</span><Toggle on={f.touch} onChange={(v) => update("touch", v)} /></div>
               </div>
             </div>
           )}
@@ -138,63 +235,41 @@ export default function ProductEditor() {
 
           {tab === "Specs" && (
             <div className="max-w-3xl space-y-7">
-              <p className="text-[12px] text-neutral-400">All spec fields are structured — dropdowns or toggles only, no free text. Values come from Master Data.</p>
-
+              <p className="text-[12px] text-neutral-400">All spec fields are structured — dropdowns or toggles only, no free text.</p>
               <Group title="Processor">
-                <Drop label="Processor Family" options={PROCESSOR_FAMILIES} value={family} onChange={(v) => { setFamily(v); setModel(""); }} />
-                <Drop label="Processor Model" options={family ? (PROCESSOR_MODELS[family] || []) : []} value={model} onChange={setModel} />
-                <Drop label="Processor Generation" options={GENERATIONS} />
+                <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Family</span><select value={f.specs.family ?? ""} onChange={(e) => { updateSpec("family", e.target.value); updateSpec("model", ""); }} className={inputCls}><option value="">— Select —</option>{PROCESSOR_FAMILIES.map((o) => <option key={o}>{o}</option>)}</select></label>
+                <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Model</span><select value={f.specs.model ?? ""} onChange={(e) => updateSpec("model", e.target.value)} className={inputCls}><option value="">— Select —</option>{(f.specs.family ? PROCESSOR_MODELS[f.specs.family] || [] : []).map((o) => <option key={o}>{o}</option>)}</select></label>
+                <Drop label="Processor Generation" options={GENERATIONS} specKey="gen" />
               </Group>
-
               <Group title="Display">
-                <Drop label="Display Size" options={DISPLAY_SIZES} />
-                <Drop label="Resolution" options={RESOLUTIONS} />
-                <Drop label="Panel Type" options={PANEL_TYPES} />
-                <Drop label="Refresh Rate" options={REFRESH_RATES} />
-                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">Touchscreen</span><Toggle on={touchSpec} onChange={setTouchSpec} /></div>
+                <Drop label="Display Size" options={DISPLAY_SIZES} specKey="size" />
+                <Drop label="Resolution" options={RESOLUTIONS} specKey="res" />
+                <Drop label="Panel Type" options={PANEL_TYPES} specKey="panel" />
+                <Drop label="Refresh Rate" options={REFRESH_RATES} specKey="refresh" />
+                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">Touchscreen</span><Toggle on={!!f.specs.touch} onChange={(v) => updateSpec("touch", v)} /></div>
               </Group>
-
-              <Group title="Memory">
-                <Drop label="RAM Type" options={MASTER_TABLES["RAM Type"]} />
-              </Group>
-
-              <Group title="Storage">
-                <Drop label="Storage Type" options={STORAGE_TYPES} />
-              </Group>
-
-              <Group title="Operating System">
-                <Drop label="OS" options={OS_OPTIONS} />
-              </Group>
-
-              <Group title="Battery">
-                <Drop label="Battery Capacity" options={BATTERY_CAPACITIES} />
-                <Drop label="Battery Life (approx)" options={BATTERY_LIVES} />
-              </Group>
-
-              <Group title="Physical">
-                <Drop label="Weight" options={WEIGHTS} />
-              </Group>
-
-              <Group title="Ports" cols={1}>
-                <PortBuilder />
-              </Group>
-
-              <Group title="Warranty">
-                <Drop label="Warranty Period" options={WARRANTY_PERIODS} />
-                <Drop label="Data Wipe Standard" options={DATA_WIPE_STANDARDS} />
-              </Group>
+              <Group title="Memory"><Drop label="RAM Type" options={MASTER_TABLES["RAM Type"]} specKey="ramType" /></Group>
+              <Group title="Storage"><Drop label="Storage Type" options={STORAGE_TYPES} specKey="storageType" /></Group>
+              <Group title="Operating System"><Drop label="OS" options={OS_OPTIONS} specKey="os" /></Group>
+              <Group title="Battery"><Drop label="Battery Capacity" options={BATTERY_CAPACITIES} specKey="batCap" /><Drop label="Battery Life (approx)" options={BATTERY_LIVES} specKey="batLife" /></Group>
+              <Group title="Physical"><Drop label="Weight" options={WEIGHTS} specKey="weight" /></Group>
+              <Group title="Ports" cols={1}><PortBuilder value={f.ports} onChange={(v) => update("ports", v)} /></Group>
+              <Group title="Warranty"><Drop label="Warranty Period" options={WARRANTY_PERIODS} specKey="warranty" /><Drop label="Data Wipe Standard" options={DATA_WIPE_STANDARDS} specKey="dataWipe" /></Group>
             </div>
           )}
 
           {tab === "Inspection" && (
             <div className="max-w-2xl space-y-2">
-              {INSPECTION_ROWS.map((r) => (
-                <div key={r} className="flex items-center gap-3 rounded-lg border border-black/10 px-3 py-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-ink">{r}</span>
-                  <input disabled={naRows.has(r)} className={`${inputCls} disabled:opacity-40`} placeholder="Condition text…" />
-                  <label className="flex shrink-0 items-center gap-1.5 text-[12px] text-neutral-500"><input type="checkbox" checked={naRows.has(r)} onChange={() => toggleSet(setNaRows)(r)} className="accent-brand" />N/A</label>
-                </div>
-              ))}
+              {INSPECTION_ROWS.map((r) => {
+                const na = (f.specs.na || []).includes(r);
+                return (
+                  <div key={r} className="flex items-center gap-3 rounded-lg border border-black/10 px-3 py-2">
+                    <span className="w-32 shrink-0 text-sm font-semibold text-ink">{r}</span>
+                    <input disabled={na} value={f.specs[`insp_${r}`] ?? ""} onChange={(e) => updateSpec(`insp_${r}`, e.target.value)} className={`${inputCls} disabled:opacity-40`} placeholder="Condition text…" />
+                    <label className="flex shrink-0 items-center gap-1.5 text-[12px] text-neutral-500"><input type="checkbox" checked={na} onChange={() => updateSpec("na", na ? (f.specs.na || []).filter((x) => x !== r) : [...(f.specs.na || []), r])} className="accent-brand" />N/A</label>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -202,14 +277,12 @@ export default function ProductEditor() {
             <div className="max-w-2xl">
               <p className="mb-2 text-[12px] font-semibold text-neutral-600">Tags</p>
               <div className="flex flex-wrap gap-2">
-                {ALL_TAGS.map((t) => (
-                  <button key={t} onClick={() => toggleSet(setTags)(t)} className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${tags.has(t) ? "bg-brand text-white" : "border border-black/10 text-ink hover:border-brand"}`}>{t}</button>
-                ))}
+                {ALL_TAGS.map((t) => <button key={t} onClick={() => toggleArr("tags", t)} className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${f.tags.includes(t) ? "bg-brand text-white" : "border border-black/10 text-ink hover:border-brand"}`}>{t}</button>)}
               </div>
-              {tags.has("Flash Sale") && (
+              {f.tags.includes("Flash Sale") && (
                 <div className="mt-5 grid gap-4 rounded-lg bg-[#FBEAEA] p-4 sm:grid-cols-2">
-                  <Field label="Sale Price (₹)"><input type="number" className={inputCls} placeholder="Lower than listed price" /></Field>
-                  <Field label="Sale End Date"><input type="datetime-local" className={inputCls} /></Field>
+                  <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Sale Price (₹)</span><input type="number" value={f.salePrice} onChange={(e) => update("salePrice", e.target.value)} className={inputCls} placeholder="Lower than listed price" /></label>
+                  <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Sale End Date</span><input type="datetime-local" value={f.saleEnd} onChange={(e) => update("saleEnd", e.target.value)} className={inputCls} /></label>
                 </div>
               )}
             </div>
@@ -217,8 +290,8 @@ export default function ProductEditor() {
 
           {tab === "SEO" && (
             <div className="grid max-w-2xl gap-4">
-              <Field label="Meta Title"><input className={inputCls} /></Field>
-              <Field label="Meta Description"><textarea rows={3} className={inputCls} /></Field>
+              <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Meta Title</span><input value={f.metaTitle} onChange={(e) => update("metaTitle", e.target.value)} className={inputCls} /></label>
+              <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Meta Description</span><textarea value={f.metaDesc} onChange={(e) => update("metaDesc", e.target.value)} rows={3} className={inputCls} /></label>
             </div>
           )}
         </div>

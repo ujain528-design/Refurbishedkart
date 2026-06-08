@@ -1,14 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { PORT_DEFS, portsToString } from "@/lib/admin-data";
 
-/* Structured port selector — counts/toggles/selects per port type.
-   Auto-generates the buyer-facing display string (zero/None hidden). */
-export default function PortBuilder() {
-  const [ports, setPorts] = useState({});
-  const set = (key, val) => setPorts((p) => ({ ...p, [key]: val }));
-  const preview = portsToString(ports);
+/* Structured port selector — controlled so its state is part of the form
+   (captured by auto-save). Auto-generates the buyer-facing display string. */
+export default function PortBuilder({ value = {}, onChange }) {
+  const set = (key, val) => onChange?.({ ...value, [key]: val });
+  const preview = portsToString(value);
 
   return (
     <div>
@@ -17,17 +15,17 @@ export default function PortBuilder() {
           <div key={d.key} className="flex items-center justify-between gap-2 rounded-lg border border-black/10 px-3 py-1.5 text-sm">
             <span className="text-ink">{d.label}</span>
             {d.type === "count" && (
-              <select value={ports[d.key] ?? 0} onChange={(e) => set(d.key, +e.target.value)} className="rounded border border-black/10 px-2 py-1 text-[13px]">
+              <select value={value[d.key] ?? 0} onChange={(e) => set(d.key, +e.target.value)} className="rounded border border-black/10 px-2 py-1 text-[13px]">
                 {Array.from({ length: d.max + 1 }).map((_, n) => <option key={n} value={n}>{n}</option>)}
               </select>
             )}
             {d.type === "toggle" && (
-              <select value={ports[d.key] ? "Yes" : "No"} onChange={(e) => set(d.key, e.target.value === "Yes")} className="rounded border border-black/10 px-2 py-1 text-[13px]">
+              <select value={value[d.key] ? "Yes" : "No"} onChange={(e) => set(d.key, e.target.value === "Yes")} className="rounded border border-black/10 px-2 py-1 text-[13px]">
                 <option>No</option><option>Yes</option>
               </select>
             )}
             {d.type === "select" && (
-              <select value={ports[d.key] ?? "None"} onChange={(e) => set(d.key, e.target.value)} className="rounded border border-black/10 px-2 py-1 text-[13px]">
+              <select value={value[d.key] ?? "None"} onChange={(e) => set(d.key, e.target.value)} className="rounded border border-black/10 px-2 py-1 text-[13px]">
                 {d.options.map((o) => <option key={o}>{o}</option>)}
               </select>
             )}
