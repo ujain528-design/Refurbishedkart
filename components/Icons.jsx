@@ -41,6 +41,12 @@ export const ChevronDown = (props) => (
   </svg>
 );
 
+export const ChevronRight = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <path d="m9 6 6 6-6 6" />
+  </svg>
+);
+
 export const ArrowRight = (props) => (
   <svg viewBox="0 0 24 24" {...base} {...props}>
     <path d="M4 12h16m-6-6 6 6-6 6" />
@@ -111,6 +117,15 @@ export const EraseIcon = (props) => (
   </svg>
 );
 
+export const TruckIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <path d="M3 6.5h10v8H3z" />
+    <path d="M13 9h4l3 3v2.5h-7z" />
+    <circle cx="7" cy="17" r="1.6" />
+    <circle cx="17" cy="17" r="1.6" />
+  </svg>
+);
+
 export const WhatsAppIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path d="M12 2a9.9 9.9 0 0 0-8.5 15L2 22l5.2-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-3 .8.8-3-.2-.3A8 8 0 1 1 12 20Zm4.4-6c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.5 6.5 0 0 1-3.2-2.8c-.2-.4 .2-.4.5-1.1.1-.2 0-.4 0-.5l-.7-1.7c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.9.9-1.1 2.2-.2 3.9a11 11 0 0 0 4.6 4.3c1.8.8 2.5.7 3.4.6.5-.1 1.4-.6 1.6-1.2.2-.6.2-1.1.1-1.2l-.7-.6Z" />
@@ -172,6 +187,86 @@ export const ClipboardIcon = (props) => (
   </svg>
 );
 
+/* ── Component icons for the inspection report / checkpoint cards ── */
+export const MonitorIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <rect x="3" y="4" width="18" height="12" rx="1.5" />
+    <path d="M9 20h6M12 16v4" />
+  </svg>
+);
+export const KeyboardIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <rect x="2.5" y="6" width="19" height="12" rx="2" />
+    <path d="M6 9.5h.01M9.5 9.5h.01M13 9.5h.01M16.5 9.5h.01M6 13h.01M16.5 13h.01M9 15.5h6" />
+  </svg>
+);
+export const TrackpadIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <path d="M12 14v2" />
+  </svg>
+);
+export const BatteryIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <rect x="3" y="8" width="16" height="8" rx="1.5" />
+    <path d="M21 11v2" />
+    <path d="M6 10.5v3" />
+  </svg>
+);
+export const PlugIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <path d="M9 3v5M15 3v5" />
+    <path d="M6 8h12v3a6 6 0 0 1-12 0V8Z" />
+    <path d="M12 17v4" />
+  </svg>
+);
+export const SpeakerIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <path d="M4 9v6h3l5 4V5L7 9H4Z" />
+    <path d="M16 9a3 3 0 0 1 0 6M18.5 7a6 6 0 0 1 0 10" />
+  </svg>
+);
+export const CameraIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <rect x="3" y="6" width="18" height="13" rx="2" />
+    <circle cx="12" cy="12.5" r="3" />
+    <path d="M8 6l1.2-2h5.6L16 6" />
+  </svg>
+);
+export const HingeIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <path d="M5 4v16M5 4l9 2v12l-9 2" />
+    <circle cx="5" cy="12" r="1.3" />
+  </svg>
+);
+export const LaptopIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <rect x="4" y="5" width="16" height="10" rx="1.5" />
+    <path d="M2 19h20l-1.5-2H3.5L2 19Z" />
+  </svg>
+);
+export const DriveIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <rect x="3" y="7" width="18" height="10" rx="2" />
+    <path d="M7 12h7" />
+    <circle cx="17.5" cy="12" r="1" />
+  </svg>
+);
+export const ChipIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <rect x="6" y="6" width="12" height="12" rx="1.5" />
+    <rect x="9.5" y="9.5" width="5" height="5" rx="0.5" />
+    <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" />
+  </svg>
+);
+export const FanIcon = (props) => (
+  <svg viewBox="0 0 24 24" {...base} {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="1.6" />
+    <path d="M12 10.5c0-3 .5-5.5-2-6.5M13.5 12c3 0 5.5-.5 6.5-3M12 13.5c0 3-.5 5.5 2 6.5M10.5 12c-3 0-5.5.5-6.5 3" />
+  </svg>
+);
+
 export const PlusMinusIcon = ({ open, className = "" }) => (
   <svg viewBox="0 0 24 24" {...base} className={className} aria-hidden="true">
     <path d="M5 12h14" />
@@ -181,3 +276,22 @@ export const PlusMinusIcon = ({ open, className = "" }) => (
     />
   </svg>
 );
+
+/* Inspection component key → icon. Used by the inspection panel and the
+   checkpoint cards so both stay visually consistent (no emoji). */
+export const COMPONENT_ICONS = {
+  display: MonitorIcon,
+  keyboard: KeyboardIcon,
+  trackpad: TrackpadIcon,
+  battery: BatteryIcon,
+  ports: PlugIcon,
+  speakers: SpeakerIcon,
+  webcam: CameraIcon,
+  hinges: HingeIcon,
+  body: LaptopIcon,
+  storage: DriveIcon,
+  ram: ChipIcon,
+  cooling: FanIcon,
+  datawipe: ShieldIcon,
+  bios: ChipIcon,
+};

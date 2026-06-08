@@ -5,13 +5,10 @@ import Footer from "@/components/Footer";
 import PolicyStrip from "@/components/PolicyStrip";
 import ProductRow from "@/components/ProductRow";
 import BulkEnquiryModal from "@/components/BulkEnquiryModal";
-import StarRating from "@/components/StarRating";
 import Gallery from "@/components/pdp/Gallery";
 import PurchasePanel from "@/components/pdp/PurchasePanel";
-import TrustBadges from "@/components/pdp/TrustBadges";
-import { ALL_PRODUCTS, CATEGORY_SLUGS, formatINR } from "@/lib/data";
+import { ALL_PRODUCTS, CATEGORY_SLUGS } from "@/lib/data";
 import ReviewsSection from "@/components/pdp/ReviewsSection";
-import AddToCartButton from "@/components/AddToCartButton";
 import { variantsFor, specRowsFor, descriptionFor, reviewsFor, reviewSummary } from "@/lib/pdp";
 
 export function generateStaticParams() {
@@ -79,57 +76,8 @@ export default function ProductDetailPage({ params }) {
                   {product.name}
                 </h1>
 
-                {variants ? (
-                  /* spec summary + rating render inside the panel so they track the selected variant */
-                  <PurchasePanel product={product} variants={variants} rating={rating} ratingCount={ratingCount} />
-                ) : (
-                  /* no configurable variants (e.g. monitors) — flat price */
-                  <div>
-                    <p className="mt-2 text-[15px] text-neutral-500">{product.specs}</p>
-                    <div className="mt-3">
-                      <StarRating rating={rating} count={ratingCount} />
-                    </div>
-                    <div className="mt-6">
-                    <div className="flex items-baseline gap-3">
-                      <span className="text-3xl font-extrabold tracking-tight text-ink">
-                        {formatINR(product.price)}
-                      </span>
-                      <span className="text-base text-neutral-400 line-through">
-                        {formatINR(product.mrp)}
-                      </span>
-                    </div>
-                    {product.stock > 0 && product.stock <= 5 && (
-                      <p className="mt-2 text-[13px] font-bold text-red-600">
-                        Only {product.stock} left
-                      </p>
-                    )}
-                    {product.stock === 0 ? (
-                      <p className="mt-6 rounded-lg bg-neutral-100 px-4 py-3 text-center text-sm font-semibold text-neutral-500">
-                        Out of stock
-                      </p>
-                    ) : (
-                      <div className="mt-6 space-y-3">
-                        <AddToCartButton
-                          product={product}
-                          className="w-full rounded-full border-2 border-brand py-3 text-sm font-bold text-brand transition-colors hover:bg-brand-softer"
-                          addedLabel="Added to Cart ✓"
-                        >
-                          Add to Cart
-                        </AddToCartButton>
-                        <AddToCartButton
-                          product={product}
-                          redirectTo="/checkout"
-                          className="w-full rounded-full bg-brand py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark"
-                        >
-                          Buy Now
-                        </AddToCartButton>
-                      </div>
-                    )}
-                    </div>
-                  </div>
-                )}
-
-                <TrustBadges warranty={product.attrs.warranty} />
+                {/* Unified right-column purchase area (handles variant + flat products) */}
+                <PurchasePanel product={product} variants={variants} rating={rating} ratingCount={ratingCount} />
               </div>
             </div>
 

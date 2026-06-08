@@ -33,6 +33,32 @@
   .animate-check-pop {
     animation: checkPop 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
+
+  /* Inspection panel: slides up (mobile) / in from right (desktop) */
+  @keyframes panelUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes panelRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+  .animate-panel-up { animation: panelUp 0.3s ease both; }
+  .animate-panel-right { animation: panelRight 0.3s ease both; }
+
+  /* Inspection inline button: background fades F1F8E9 ↔ DCEDC8 (via overlay
+     opacity) every 1.5s, and the chevron slides 4px back and forth. */
+  @keyframes bgFade {
+    0%, 100% { opacity: 0; }
+    50% { opacity: 1; }
+  }
+  .animate-bg-fade { animation: bgFade 1.5s ease-in-out infinite; }
+
+  @keyframes chevronSlide {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(4px); }
+  }
+  .animate-chevron-slide { animation: chevronSlide 1s ease-in-out infinite; }
 }
 
 @layer components {

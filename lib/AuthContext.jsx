@@ -8,7 +8,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 const KEY = "rk_auth_v1";
 const AuthContext = createContext(null);
 
-const MOCK_USER = { name: "Utkarsh Jain", email: "ujain528@gmail.com", phone: "+91 98765 43210" };
+const MOCK_USER = { name: "Utkarsh Jain", email: "ujain528@gmail.com", phone: "+91 98765 43210", role: "superadmin" };
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ ready, user, isLoggedIn: !!user, login, logout }}>
+    <AuthContext.Provider value={{ ready, user, isLoggedIn: !!user, isAdmin: user?.role === "admin" || user?.role === "superadmin", isSuperAdmin: user?.role === "superadmin", login, logout }}>
       {children}
     </AuthContext.Provider>
   );
