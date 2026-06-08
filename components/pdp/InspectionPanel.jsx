@@ -13,8 +13,9 @@ const waHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
    (checkpoint cards / promise row). ESC + backdrop close, scroll lock.
    Right drawer on desktop, bottom sheet on mobile. */
 export default function InspectionPanel({ product, warranty, open, onClose }) {
-  const [expanded, setExpanded] = useState("display");
-  const rows = inspectionFor(product);
+  // Buyer-facing: non-applicable components are HIDDEN entirely (not greyed).
+  const rows = inspectionFor(product).filter((r) => r.applicable);
+  const [expanded, setExpanded] = useState(rows[0]?.key ?? "display");
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();

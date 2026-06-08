@@ -3,8 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, Field, Toggle, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
-import { MASTER_TABLES } from "@/lib/admin-data";
+import {
+  MASTER_TABLES, PROCESSOR_FAMILIES, PROCESSOR_MODELS, GENERATIONS, DISPLAY_SIZES, RESOLUTIONS,
+  PANEL_TYPES, REFRESH_RATES, STORAGE_TYPES, OS_OPTIONS, BATTERY_CAPACITIES, BATTERY_LIVES,
+  WEIGHTS, WARRANTY_PERIODS, DATA_WIPE_STANDARDS,
+} from "@/lib/admin-data";
 import { CATEGORY_SLUGS } from "@/lib/data";
+import PortBuilder from "@/components/admin/PortBuilder";
+
+const Drop = ({ label, options, value, onChange }) => (
+  <Field label={label}>
+    <select value={value ?? ""} onChange={(e) => onChange?.(e.target.value)} className={inputCls}>
+      <option value="">— Select —</option>
+      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+    </select>
+  </Field>
+);
+const Group = ({ title, children, cols = 2 }) => (
+  <div>
+    <h3 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-brand">{title}</h3>
+    <div className={`grid gap-4 ${cols === 2 ? "sm:grid-cols-2" : ""}`}>{children}</div>
+  </div>
+);
 
 const TABS = ["Basic Info", "Pricing & Variants", "Images", "Specs", "Inspection", "Tags", "SEO"];
 const RAM_TIERS = [4, 8, 16, 32, 64];
@@ -24,6 +44,10 @@ export default function ProductEditor() {
   const [onboardRam, setOnboardRam] = useState(false);
   const [ramExpandable, setRamExpandable] = useState(true);
   const [touch, setTouch] = useState(false);
+  // specs tab structured state
+  const [family, setFamily] = useState("");
+  const [model, setModel] = useState("");
+  const [touchSpec, setTouchSpec] = useState(false);
 
   const toggleSet = (setter) => (v) => setter((s) => { const n = new Set(s); n.has(v) ? n.delete(v) : n.add(v); return n; });
 
@@ -113,10 +137,52 @@ export default function ProductEditor() {
           )}
 
           {tab === "Specs" && (
-            <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
-              {["Processor", "Generation", "RAM Type", "Display Size", "Resolution", "Operating System", "Battery", "Ports", "Weight", "Warranty Period"].map((f) => (
-                <Field key={f} label={f}><input className={inputCls} /></Field>
-              ))}
+            <div className="max-w-3xl space-y-7">
+              <p className="text-[12px] text-neutral-400">All spec fields are structured — dropdowns or toggles only, no free text. Values come from Master Data.</p>
+
+              <Group title="Processor">
+                <Drop label="Processor Family" options={PROCESSOR_FAMILIES} value={family} onChange={(v) => { setFamily(v); setModel(""); }} />
+                <Drop label="Processor Model" options={family ? (PROCESSOR_MODELS[family] || []) : []} value={model} onChange={setModel} />
+                <Drop label="Processor Generation" options={GENERATIONS} />
+              </Group>
+
+              <Group title="Display">
+                <Drop label="Display Size" options={DISPLAY_SIZES} />
+                <Drop label="Resolution" options={RESOLUTIONS} />
+                <Drop label="Panel Type" options={PANEL_TYPES} />
+                <Drop label="Refresh Rate" options={REFRESH_RATES} />
+                <div className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5"><span className="text-sm">Touchscreen</span><Toggle on={touchSpec} onChange={setTouchSpec} /></div>
+              </Group>
+
+              <Group title="Memory">
+                <Drop label="RAM Type" options={MASTER_TABLES["RAM Type"]} />
+              </Group>
+
+              <Group title="Storage">
+                <Drop label="Storage Type" options={STORAGE_TYPES} />
+              </Group>
+
+              <Group title="Operating System">
+                <Drop label="OS" options={OS_OPTIONS} />
+              </Group>
+
+              <Group title="Battery">
+                <Drop label="Battery Capacity" options={BATTERY_CAPACITIES} />
+                <Drop label="Battery Life (approx)" options={BATTERY_LIVES} />
+              </Group>
+
+              <Group title="Physical">
+                <Drop label="Weight" options={WEIGHTS} />
+              </Group>
+
+              <Group title="Ports" cols={1}>
+                <PortBuilder />
+              </Group>
+
+              <Group title="Warranty">
+                <Drop label="Warranty Period" options={WARRANTY_PERIODS} />
+                <Drop label="Data Wipe Standard" options={DATA_WIPE_STANDARDS} />
+              </Group>
             </div>
           )}
 
