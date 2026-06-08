@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useAuth } from "@/lib/AuthContext";
-import { post } from "@/lib/api";
 
 function GoogleGlyph() {
   return (
@@ -18,75 +16,22 @@ function GoogleGlyph() {
   );
 }
 
-const OTP_LEN = 6;
-
 export default function LoginView() {
-  const router = useRouter();
   const params = useSearchParams();
   // ?redirect= (checkout gate) takes priority over ?next= (account gate)
   const redirect = params.get("redirect");
   const next = redirect || params.get("next") || "/account";
-  const { login } = useAuth();
 
-  const [phone, setPhone] = useState("");
-  const [sent, setSent] = useState(false);
-  const [otp, setOtp] = useState(Array(OTP_LEN).fill(""));
-  const [seconds, setSeconds] = useState(30);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [devCode, setDevCode] = useState("");
-  const boxRefs = useRef([]);
-
-  useEffect(() => {
-    if (!sent || seconds <= 0) return;
-    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [sent, seconds]);
-
-  const sendOtp = async () => {
-    if (phone.replace(/\D/g, "").length < 10) return;
-    setError(""); setBusy(true);
-    try {
-      const r = await post("/api/auth/otp/send", { phone });
-      setSent(true); setSeconds(30); setOtp(Array(OTP_LEN).fill(""));
-      setDevCode(r.devCode || ""); // dev convenience: no SMS gateway yet
-      setTimeout(() => boxRefs.current[0]?.focus(), 50);
-    } catch (e) { setError(e.message); }
-    finally { setBusy(false); }
-  };
-
-  const setDigit = (i, v) => {
-    const d = v.replace(/\D/g, "").slice(-1);
-    setOtp((prev) => {
-      const n = [...prev];
-      n[i] = d;
-      return n;
-    });
-    if (d && i < OTP_LEN - 1) boxRefs.current[i + 1]?.focus();
-  };
-
-  const onKeyDown = (i, e) => {
-    if (e.key === "Backspace" && !otp[i] && i > 0) boxRefs.current[i - 1]?.focus();
-  };
-
-  const verifyOtp = async () => {
-    setError(""); setBusy(true);
-    try {
-      const r = await post("/api/auth/otp/verify", { phone, code: otp.join("") });
-      login(r.token);
-      router.push(next);
-    } catch (e) { setError(e.message); }
-    finally { setBusy(false); }
-  };
 
   const googleLogin = () => {
-    setError(""); setBusy(true);
+    setError("");
+    setBusy(true);
     // NextAuth handles the Google OAuth round-trip; on return, GoogleSessionBridge
     // hands the session's app-JWT to AuthContext. callbackUrl brings us back to `next`.
     signIn("google", { callbackUrl: next });
   };
-
-  const otpComplete = otp.every((d) => d !== "");
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16">
@@ -97,7 +42,7 @@ export default function LoginView() {
             Please sign in to complete your order
           </p>
         ) : (
-          <p className="mt-1.5 text-center text-sm text-neutral-500">New here? Signing in with your phone creates your account.</p>
+          <p className="mt-1.5 text-center text-sm text-neutral-500">New here? Signing in with Google creates your account.</p>
         )}
 
         {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-center text-[13px] font-semibold text-red-600">{error}</p>}
@@ -118,67 +63,14 @@ export default function LoginView() {
           <span className="h-px flex-1 bg-black/10" />
         </div>
 
-        {/* phone OTP */}
-        {!sent ? (
-          <div>
-            <label className="mb-1.5 block text-[12px] font-semibold text-neutral-600">Phone number</label>
-            <div className="flex overflow-hidden rounded-full border border-black/10 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/15">
-              <span className="flex items-center bg-neutral-100 px-4 text-sm font-semibold text-neutral-600">+91</span>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                inputMode="numeric"
-                placeholder="98765 43210"
-                className="w-full bg-transparent px-4 py-3 text-sm text-ink focus:outline-none"
-              />
-            </div>
-            <button
-              onClick={sendOtp}
-              disabled={phone.length < 10 || busy}
-              className="mt-4 w-full rounded-full bg-brand py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-40"
-            >
-              {busy ? "Sending…" : "Send OTP"}
-            </button>
+        {/* phone OTP — coming soon (email-OTP backend exists; disabled per spec) */}
+        <div className="rounded-card border border-dashed border-black/15 bg-neutral-50 px-4 py-5 text-center">
+          <div className="mb-2 flex items-center justify-center gap-2">
+            <span className="text-sm font-bold text-ink">Phone OTP login</span>
+            <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-neutral-500">Coming soon</span>
           </div>
-        ) : (
-          <div>
-            <p className="mb-3 text-center text-sm text-neutral-500">
-              Enter the 6-digit code sent to <span className="font-semibold text-ink">+91 {phone}</span>
-            </p>
-            {devCode && <p className="mb-3 text-center text-[12px] text-neutral-400">Dev OTP (no SMS gateway yet): <span className="font-mono font-bold text-brand">{devCode}</span></p>}
-            <div className="flex justify-center gap-2">
-              {otp.map((d, i) => (
-                <input
-                  key={i}
-                  ref={(el) => (boxRefs.current[i] = el)}
-                  value={d}
-                  onChange={(e) => setDigit(i, e.target.value)}
-                  onKeyDown={(e) => onKeyDown(i, e)}
-                  inputMode="numeric"
-                  maxLength={1}
-                  className="h-12 w-11 rounded-lg border border-black/15 text-center text-lg font-bold text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
-                />
-              ))}
-            </div>
-            <div className="mt-3 text-center text-[13px] text-neutral-400">
-              {seconds > 0 ? (
-                <span>Resend OTP in 0:{String(seconds).padStart(2, "0")}</span>
-              ) : (
-                <button onClick={sendOtp} className="font-bold text-brand hover:underline">Resend OTP</button>
-              )}
-            </div>
-            <button
-              onClick={verifyOtp}
-              disabled={!otpComplete || busy}
-              className="mt-4 w-full rounded-full bg-brand py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-40"
-            >
-              Verify OTP
-            </button>
-            <button onClick={() => setSent(false)} className="mt-3 w-full text-[13px] font-semibold text-neutral-500 hover:text-ink">
-              ← Change number
-            </button>
-          </div>
-        )}
+          <p className="text-[13px] text-neutral-500">Sign in with Google for now — phone OTP is on the way.</p>
+        </div>
       </div>
 
       <p className="mt-5 max-w-xs text-center text-[12px] leading-relaxed text-neutral-400">

@@ -5,7 +5,6 @@ import PolicyStrip from "@/components/PolicyStrip";
 import Countdown from "@/components/Countdown";
 import ListingClient from "@/components/ListingClient";
 import BulkEnquiryModal from "@/components/BulkEnquiryModal";
-import { FLASH_SALE_PRODUCTS } from "@/lib/data";
 
 export const metadata = {
   title: "Flash Sale — RefurbishedKart",
@@ -37,7 +36,7 @@ export default function FlashSalePage() {
         <section className="py-14">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <Suspense fallback={null}>
-              <ListingClient products={FLASH_SALE_PRODUCTS} categoryName="flash sale products" />
+              <ListingClient query={{ tags: "flash-sale" }} categoryName="flash sale products" />
             </Suspense>
           </div>
         </section>

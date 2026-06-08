@@ -11,6 +11,7 @@ import CheckpointCards from "@/components/pdp/CheckpointCards";
 import { useCart } from "@/lib/CartContext";
 import { useWishlist } from "@/lib/WishlistContext";
 import { useAuth } from "@/lib/AuthContext";
+import { calculatePrice } from "@/lib/api";
 
 const selectCls =
   "w-full rounded-lg border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 disabled:opacity-50";
@@ -63,13 +64,30 @@ export default function PurchasePanel({ product, variants, rating = 4.5, ratingC
 
   const a = product.attrs;
 
-  // stock + price (variant-aware or flat)
-  const stock = hasVariants
+  // Server-authoritative price/stock for the selected variant (PRD §5.3).
+  // Local priceFor() is the immediate fallback so the price never flickers blank.
+  const [serverPrice, setServerPrice] = useState(null);
+  const [serverStock, setServerStock] = useState(null);
+  const [pricing, setPricing] = useState(false);
+  useEffect(() => {
+    if (!hasVariants) return;
+    let alive = true;
+    setPricing(true);
+    calculatePrice(product.id, sel.ram, sel.ssd)
+      .then((r) => { if (alive) { setServerPrice(r.unitPrice); setServerStock(r.sellable); } })
+      .catch(() => {})
+      .finally(() => { if (alive) setPricing(false); });
+    return () => { alive = false; };
+  }, [hasVariants, product.id, sel.ram, sel.ssd]);
+
+  // stock + price (variant-aware or flat) — prefer server values when present
+  const localStock = hasVariants
     ? Math.min(variants.unitStock, variants.ramStock[sel.ram] ?? 0, variants.ssdStock[sel.ssd] ?? 0)
     : product.stock;
+  const stock = hasVariants && serverStock != null ? serverStock : localStock;
   const unavailable = stock === 0;
   const lowStock = stock > 0 && stock <= 5;
-  const total = hasVariants ? priceFor(product, sel.ram, sel.ssd) : product.price;
+  const total = hasVariants ? (serverPrice ?? priceFor(product, sel.ram, sel.ssd)) : product.price;
 
   const ramAvailable = (ram) => (variants.ramStock[ram] ?? 0) > 0;
   const ssdAvailable = (ssd) => (variants.ssdStock[ssd] ?? 0) > 0;
@@ -132,7 +150,7 @@ export default function PurchasePanel({ product, variants, rating = 4.5, ratingC
         <div>
           <p className="text-[13px] text-neutral-400 line-through">{formatINR(product.mrp)}</p>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-ink">{formatINR(total)}</span>
+            <span className={`text-3xl font-extrabold tracking-tight text-ink transition-opacity ${pricing ? "opacity-50" : ""}`}>{formatINR(total)}</span>
             <span className="text-sm font-bold text-brand-mid">{Math.round((1 - total / product.mrp) * 100)}% off</span>
           </div>
         </div>

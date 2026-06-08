@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import { formatINR } from "@/lib/data";
+import { calculatePrice } from "@/lib/api";
 import { BrokenDeviceIcon, CartIcon } from "@/components/Icons";
 
 const FREE_DELIVERY_ABOVE = 999;
@@ -50,6 +51,24 @@ export default function CartView() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [couponError, setCouponError] = useState("");
+  const [applying, setApplying] = useState(false);
+  const [stockIssues, setStockIssues] = useState([]); // names whose real stock < requested
+
+  // Validate each line against real server stock (PRD §5.3) via the pricing API.
+  useEffect(() => {
+    let alive = true;
+    const variantItems = items.filter((it) => !it.outOfStock);
+    if (!variantItems.length) { setStockIssues([]); return; }
+    Promise.all(
+      variantItems.map((it) =>
+        calculatePrice(it.productId, it.ram, it.ssd)
+          .then((r) => (r.sellable < it.qty ? { name: it.name, sellable: r.sellable } : null))
+          .catch(() => null)
+      )
+    ).then((res) => { if (alive) setStockIssues(res.filter(Boolean)); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(items.map((i) => [i.productId, i.ram, i.ssd, i.qty]))]);
 
   // login gate before checkout (FIX 3)
   const goToCheckout = () => router.push(isLoggedIn ? "/checkout" : "/login?redirect=/checkout");
@@ -78,19 +97,31 @@ export default function CartView() {
   const delivery = subtotal > FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
   const total = subtotal - discount + delivery;
 
-  const handleApply = () => {
-    if (applyCoupon(code)) {
-      setCouponError("");
-      setCode("");
-    } else {
+  const handleApply = async () => {
+    setApplying(true);
+    setCouponError("");
+    try {
+      const r = await applyCoupon(code);
+      if (r.ok) setCode("");
+      else { clearCoupon(); setCouponError(r.error || "Invalid coupon code"); }
+    } catch (e) {
       clearCoupon();
-      setCouponError("Invalid coupon code");
+      setCouponError(e.message || "Couldn't validate coupon");
+    } finally {
+      setApplying(false);
     }
   };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <h1 className="section-heading">Your Cart</h1>
+
+      {stockIssues.length > 0 && (
+        <div className="mt-5 rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="font-bold">Stock changed:</span>{" "}
+          {stockIssues.map((s) => `${s.name} (only ${s.sellable} left)`).join(", ")}. Adjust quantity before checkout.
+        </div>
+      )}
 
       <div className="mt-8 gap-8 lg:grid lg:grid-cols-[1fr_minmax(320px,35%)]">
         {/* ── items list ── */}
@@ -182,9 +213,10 @@ export default function CartView() {
                   />
                   <button
                     onClick={handleApply}
-                    className="shrink-0 rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-black"
+                    disabled={applying || !code}
+                    className="shrink-0 rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-black disabled:opacity-40"
                   >
-                    Apply
+                    {applying ? "…" : "Apply"}
                   </button>
                 </div>
                 {couponError && <p className="mt-1.5 text-[13px] font-semibold text-red-600">{couponError}</p>}

@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { formatINR, INDIAN_STATES } from "@/lib/data";
-import { MOCK_ORDERS, STATUS_STYLES, MOCK_COUPONS, MOCK_ADDRESSES, MOCK_PROFILE } from "@/lib/account-data";
+import { MOCK_COUPONS } from "@/lib/account-data";
+import {
+  getOrders, cancelOrder,
+  getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
+  getUserProfile, updateProfile,
+} from "@/lib/api";
+import { ErrorState, EmptyState } from "@/components/ui/States";
 import { ChevronDown, BrokenDeviceIcon } from "@/components/Icons";
 
-// Wishlist moved to its own public /wishlist page — no longer an account tab.
 const TABS = [
   { id: "orders", label: "My Orders" },
   { id: "coupons", label: "Coupons" },
@@ -16,59 +21,104 @@ const TABS = [
   { id: "profile", label: "My Profile" },
 ];
 
-const variantText = (it) =>
-  it.ram ? `${it.ram}GB${it.ssd ? ` · ${it.ssd} SSD` : ""}` : it.ssd ? it.ssd : "";
+const STATUS_COLOR = {
+  Pending: "bg-amber-100 text-amber-700",
+  Confirmed: "bg-blue-100 text-blue-700",
+  Shipped: "bg-indigo-100 text-indigo-700",
+  Delivered: "bg-green-100 text-green-700",
+  Cancelled: "bg-neutral-200 text-neutral-600",
+};
+const CANCELLABLE = ["Pending", "Confirmed"];
+const variantText = (it) => (it.ram ? `${it.ram}GB${it.ssd ? ` · ${it.ssd} SSD` : ""}` : it.ssd ? it.ssd : "");
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
 /* ── Orders ── */
 function OrdersTab() {
+  const [status, setStatus] = useState("loading");
+  const [orders, setOrders] = useState([]);
   const [open, setOpen] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
+
+  const load = useCallback(() => {
+    setStatus("loading");
+    getOrders().then((o) => { setOrders(o); setStatus("ready"); }).catch(() => setStatus("error"));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const doCancel = async (id) => {
+    setCancelling(id);
+    try {
+      const updated = await cancelOrder(id);
+      setOrders((os) => os.map((o) => (o.id === id ? updated : o)));
+    } catch (e) {
+      alert(e.message || "Couldn't cancel this order.");
+    } finally {
+      setCancelling(null);
+    }
+  };
+
+  if (status === "loading") return <div className="py-16 text-center text-sm text-neutral-400">Loading your orders…</div>;
+  if (status === "error") return <ErrorState message="Couldn't load your orders." onRetry={load} />;
+  if (!orders.length)
+    return (
+      <EmptyState title="No orders yet" message="When you place an order it'll show up here.">
+        <Link href="/products/laptops" className="rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-dark">Start shopping</Link>
+      </EmptyState>
+    );
+
   return (
     <div className="space-y-4">
-      {MOCK_ORDERS.map((o) => (
-        <div key={o.id} className="overflow-hidden rounded-card border border-black/5 bg-white shadow-card">
-          <button onClick={() => setOpen(open === o.id ? null : o.id)} className="flex w-full flex-wrap items-center gap-3 px-5 py-4 text-left">
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-ink">#{o.id}</p>
-              <p className="text-[12px] text-neutral-400">{o.date} · {o.items.length} item{o.items.length > 1 ? "s" : ""}</p>
-            </div>
-            <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_STYLES[o.status]}`}>{o.status}</span>
-            <span className="ml-auto text-sm font-bold text-ink">{formatINR(o.total)}</span>
-            <ChevronDown style={{ width: 16, height: 16 }} className={`text-neutral-400 transition-transform ${open === o.id ? "rotate-180" : ""}`} />
-          </button>
-          {open === o.id && (
-            <div className="border-t border-black/5 px-5 py-4">
-              <div className="space-y-3">
-                {o.items.map((it, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-neutral-100">
-                      {it.image ? <img src={it.image} alt="" className="h-full w-full object-contain p-1" /> : <BrokenDeviceIcon style={{ width: 22, height: 22 }} className="text-neutral-300" />}
+      {orders.map((o) => {
+        const lines = o.lines || [];
+        return (
+          <div key={o.id} className="overflow-hidden rounded-card border border-black/5 bg-white shadow-card">
+            <button onClick={() => setOpen(open === o.id ? null : o.id)} className="flex w-full flex-wrap items-center gap-3 px-5 py-4 text-left">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-ink">#{o.id}</p>
+                <p className="text-[12px] text-neutral-400">{fmtDate(o.createdAt)} · {lines.length} item{lines.length > 1 ? "s" : ""}</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_COLOR[o.status] || "bg-neutral-100 text-neutral-600"}`}>{o.status}</span>
+              <span className="ml-auto text-sm font-bold text-ink">{formatINR(o.total)}</span>
+              <ChevronDown style={{ width: 16, height: 16 }} className={`text-neutral-400 transition-transform ${open === o.id ? "rotate-180" : ""}`} />
+            </button>
+            {open === o.id && (
+              <div className="border-t border-black/5 px-5 py-4">
+                <div className="space-y-3">
+                  {lines.map((it, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-neutral-100">
+                        <BrokenDeviceIcon style={{ width: 22, height: 22 }} className="text-neutral-300" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold text-ink">{it.name}</p>
+                        <p className="text-[12px] text-neutral-500">{variantText(it)} · Qty {it.qty}</p>
+                      </div>
+                      <p className="text-[13px] font-bold text-ink">{formatINR(it.unitPrice * it.qty)}</p>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold text-ink">{it.name}</p>
-                      <p className="text-[12px] text-neutral-500">{variantText(it)} · Qty {it.qty}</p>
-                    </div>
-                    <p className="text-[13px] font-bold text-ink">{formatINR(it.price * it.qty)}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                  <span className="text-[12px] text-neutral-400">Payment: {o.paymentMethod || "—"}</span>
+                  {CANCELLABLE.includes(o.status) && (
+                    <button
+                      onClick={() => doCancel(o.id)}
+                      disabled={cancelling === o.id}
+                      className="ml-auto rounded-full border border-red-200 px-4 py-2 text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {cancelling === o.id ? "Cancelling…" : "Cancel Order"}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2.5">
-                <span className="text-[12px] text-neutral-400">Tracking: <span className="text-brand">RK{o.id.replace(/\D/g, "")}IN</span></span>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2.5">
-                <button className="rounded-full border border-black/10 px-4 py-2 text-[12px] font-bold text-ink hover:border-brand hover:text-brand">Download Invoice</button>
-                {o.status === "Delivered" && (
-                  <button className="rounded-full border border-black/10 px-4 py-2 text-[12px] font-bold text-ink hover:border-brand hover:text-brand">Write a Review</button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-/* ── Coupons ── */
+/* ── Coupons (mock — no coupons-list endpoint specified) ── */
 function CouponsTab() {
   const [copied, setCopied] = useState(null);
   return (
@@ -87,10 +137,7 @@ function CouponsTab() {
               <p className="text-[12px] text-neutral-400">Min order {c.min ? formatINR(c.min) : "—"} · Expires {c.expiry}</p>
             </div>
             {!inactive && (
-              <button
-                onClick={() => { navigator.clipboard?.writeText(c.code); setCopied(c.code); setTimeout(() => setCopied(null), 1500); }}
-                className="rounded-full bg-brand px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-dark"
-              >
+              <button onClick={() => { navigator.clipboard?.writeText(c.code); setCopied(c.code); setTimeout(() => setCopied(null), 1500); }} className="rounded-full bg-brand px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-dark">
                 {copied === c.code ? "Copied ✓" : "Copy Code"}
               </button>
             )}
@@ -102,52 +149,81 @@ function CouponsTab() {
 }
 
 /* ── Addresses ── */
+const BLANK_ADDR = { name: "", phone: "", line1: "", line2: "", city: "", state: "Karnataka", pincode: "" };
+const inputCls = "rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none";
+
 function AddressesTab() {
-  const [list, setList] = useState(MOCK_ADDRESSES);
-  const [adding, setAdding] = useState(false);
+  const [status, setStatus] = useState("loading");
+  const [list, setList] = useState([]);
+  const [editingId, setEditingId] = useState(null); // address _id | "new" | null
+  const [form, setForm] = useState(BLANK_ADDR);
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const atMax = list.length >= 5;
+
+  const load = useCallback(() => {
+    setStatus("loading");
+    getAddresses().then((a) => { setList(a); setStatus("ready"); }).catch(() => setStatus("error"));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const startAdd = () => { setForm(BLANK_ADDR); setEditingId("new"); };
+  const startEdit = (a) => { setForm({ name: a.name || "", phone: a.phone || "", line1: a.line1 || "", line2: a.line2 || "", city: a.city || "", state: a.state || "Karnataka", pincode: a.pincode || "" }); setEditingId(a._id); };
+  const cancel = () => setEditingId(null);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const next = editingId === "new" ? await addAddress(form) : await updateAddress(editingId, form);
+      setList(next);
+      setEditingId(null);
+    } catch (e) { alert(e.message || "Couldn't save address."); }
+    finally { setBusy(false); }
+  };
+  const del = async (id) => { try { setList(await deleteAddress(id)); } catch (e) { alert(e.message); } };
+  const makeDefault = async (id) => { try { setList(await setDefaultAddress(id)); } catch (e) { alert(e.message); } };
+
+  if (status === "loading") return <div className="py-16 text-center text-sm text-neutral-400">Loading addresses…</div>;
+  if (status === "error") return <ErrorState message="Couldn't load addresses." onRetry={load} />;
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         {list.map((a) => (
-          <div key={a.id} className="rounded-card border border-black/5 bg-white p-5 shadow-card">
+          <div key={a._id} className="rounded-card border border-black/5 bg-white p-5 shadow-card">
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-bold text-ink">{a.name}</p>
-              {a.default && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand">DEFAULT</span>}
+              {a.isDefault && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand">DEFAULT</span>}
             </div>
-            <p className="mt-1.5 text-[13px] text-neutral-500">{a.line1}, {a.line2}, {a.city}, {a.state} — {a.pincode}</p>
+            <p className="mt-1.5 text-[13px] text-neutral-500">{[a.line1, a.line2, a.city, a.state].filter(Boolean).join(", ")} — {a.pincode}</p>
             <p className="mt-1 text-[13px] text-neutral-500">{a.phone}</p>
-            <div className="mt-3 flex gap-2">
-              <button className="rounded-full border border-black/10 px-3.5 py-1.5 text-[12px] font-bold text-ink hover:border-brand hover:text-brand">Edit</button>
-              <button onClick={() => setList((l) => l.filter((x) => x.id !== a.id))} className="rounded-full border border-black/10 px-3.5 py-1.5 text-[12px] font-bold text-red-600 hover:border-red-300">Delete</button>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={() => startEdit(a)} className="rounded-full border border-black/10 px-3.5 py-1.5 text-[12px] font-bold text-ink hover:border-brand hover:text-brand">Edit</button>
+              {!a.isDefault && <button onClick={() => makeDefault(a._id)} className="rounded-full border border-black/10 px-3.5 py-1.5 text-[12px] font-bold text-ink hover:border-brand hover:text-brand">Set Default</button>}
+              <button onClick={() => del(a._id)} className="rounded-full border border-black/10 px-3.5 py-1.5 text-[12px] font-bold text-red-600 hover:border-red-300">Delete</button>
             </div>
           </div>
         ))}
       </div>
 
-      {adding ? (
+      {editingId ? (
         <div className="grid gap-4 rounded-card border border-black/5 bg-white p-5 shadow-card sm:grid-cols-2">
-          <input className="rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none" placeholder="Full name" />
-          <input className="rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none" placeholder="Phone" />
-          <input className="rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none sm:col-span-2" placeholder="Address line 1" />
-          <input className="rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none sm:col-span-2" placeholder="Address line 2" />
-          <input className="rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none" placeholder="City" />
-          <input className="rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none" placeholder="Pincode" />
-          <select className="rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none sm:col-span-2" defaultValue="Karnataka">
+          <input className={inputCls} placeholder="Full name" value={form.name} onChange={(e) => set("name", e.target.value)} />
+          <input className={inputCls} placeholder="Phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+          <input className={`${inputCls} sm:col-span-2`} placeholder="Address line 1" value={form.line1} onChange={(e) => set("line1", e.target.value)} />
+          <input className={`${inputCls} sm:col-span-2`} placeholder="Address line 2" value={form.line2} onChange={(e) => set("line2", e.target.value)} />
+          <input className={inputCls} placeholder="City" value={form.city} onChange={(e) => set("city", e.target.value)} />
+          <input className={inputCls} placeholder="Pincode" value={form.pincode} onChange={(e) => set("pincode", e.target.value)} />
+          <select className={`${inputCls} sm:col-span-2`} value={form.state} onChange={(e) => set("state", e.target.value)}>
             {INDIAN_STATES.map((s) => <option key={s}>{s}</option>)}
           </select>
           <div className="flex gap-2 sm:col-span-2">
-            <button onClick={() => setAdding(false)} className="rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-dark">Save Address</button>
-            <button onClick={() => setAdding(false)} className="rounded-full border border-black/10 px-5 py-2.5 text-sm font-bold text-ink">Cancel</button>
+            <button onClick={save} disabled={busy} className="rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50">{busy ? "Saving…" : "Save Address"}</button>
+            <button onClick={cancel} className="rounded-full border border-black/10 px-5 py-2.5 text-sm font-bold text-ink">Cancel</button>
           </div>
         </div>
       ) : (
-        <button
-          onClick={() => setAdding(true)}
-          disabled={atMax}
-          className="rounded-full border-2 border-dashed border-brand/40 px-5 py-2.5 text-sm font-bold text-brand hover:bg-brand-softer/40 disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <button onClick={startAdd} disabled={atMax} className="rounded-full border-2 border-dashed border-brand/40 px-5 py-2.5 text-sm font-bold text-brand hover:bg-brand-softer/40 disabled:cursor-not-allowed disabled:opacity-40">
           + Add New Address
         </button>
       )}
@@ -157,15 +233,55 @@ function AddressesTab() {
 }
 
 /* ── Profile ── */
-function ProfileTab({ onLogout }) {
+function ProfileTab() {
+  const [status, setStatus] = useState("loading");
+  const [user, setUser] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    setStatus("loading");
+    getUserProfile().then((u) => { setUser(u); setStatus("ready"); }).catch(() => setStatus("error"));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const startEdit = () => { setForm({ name: user.name || "", email: user.email || "", phone: user.phone || "" }); setEditing(true); };
+  const save = async () => {
+    setBusy(true);
+    try { const u = await updateProfile(form); setUser(u); setEditing(false); }
+    catch (e) { alert(e.message || "Couldn't save profile."); }
+    finally { setBusy(false); }
+  };
+
+  if (status === "loading") return <div className="py-16 text-center text-sm text-neutral-400">Loading profile…</div>;
+  if (status === "error") return <ErrorState message="Couldn't load your profile." onRetry={load} />;
+
+  if (editing) {
+    return (
+      <div className="max-w-md space-y-4 rounded-card border border-black/5 bg-white p-6 shadow-card">
+        {["name", "email", "phone"].map((k) => (
+          <label key={k} className="block">
+            <span className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-neutral-400">{k}</span>
+            <input className={`${inputCls} w-full`} value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} />
+          </label>
+        ))}
+        <div className="flex gap-2">
+          <button onClick={save} disabled={busy} className="rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
+          <button onClick={() => setEditing(false)} className="rounded-full border border-black/10 px-6 py-2.5 text-sm font-bold text-ink">Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-md rounded-card border border-black/5 bg-white p-6 shadow-card">
       <dl className="space-y-4 text-sm">
-        <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Name</dt><dd className="mt-0.5 font-semibold text-ink">{MOCK_PROFILE.name}</dd></div>
-        <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Email</dt><dd className="mt-0.5 font-semibold text-ink">{MOCK_PROFILE.email}</dd></div>
-        <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Phone</dt><dd className="mt-0.5 font-semibold text-ink">{MOCK_PROFILE.phone}</dd></div>
+        <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Name</dt><dd className="mt-0.5 font-semibold text-ink">{user.name || "—"}</dd></div>
+        <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Email</dt><dd className="mt-0.5 font-semibold text-ink">{user.email || "—"}</dd></div>
+        <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Phone</dt><dd className="mt-0.5 font-semibold text-ink">{user.phone || "—"}</dd></div>
       </dl>
-      <button className="mt-6 rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white hover:bg-brand-dark">Edit Profile</button>
+      <button onClick={startEdit} className="mt-6 rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white hover:bg-brand-dark">Edit Profile</button>
     </div>
   );
 }
@@ -176,7 +292,6 @@ export default function AccountView() {
   const params = useSearchParams();
   const [tab, setTab] = useState(params.get("tab") || "orders");
 
-  // gate: redirect to login if not authenticated
   useEffect(() => {
     if (ready && !isLoggedIn) router.replace("/login?next=/account");
   }, [ready, isLoggedIn, router]);
@@ -190,37 +305,28 @@ export default function AccountView() {
       <h1 className="section-heading">My Account</h1>
 
       <div className="mt-8 gap-8 lg:grid lg:grid-cols-[230px_1fr]">
-        {/* sidebar (desktop) / horizontal scroll (mobile) */}
         <aside className="lg:self-start">
           <nav className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-col lg:gap-1 lg:px-0">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`shrink-0 rounded-full px-4 py-2.5 text-left text-sm font-semibold transition-colors lg:rounded-lg ${
-                  tab === t.id ? "bg-brand text-white" : "text-neutral-600 hover:bg-brand-softer hover:text-brand"
-                }`}
+                className={`shrink-0 rounded-full px-4 py-2.5 text-left text-sm font-semibold transition-colors lg:rounded-lg ${tab === t.id ? "bg-brand text-white" : "text-neutral-600 hover:bg-brand-softer hover:text-brand"}`}
               >
                 {t.label}
               </button>
             ))}
-            <button onClick={doLogout} className="mt-2 hidden shrink-0 rounded-lg px-4 py-2.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50 lg:block">
-              Logout
-            </button>
+            <button onClick={doLogout} className="mt-2 hidden shrink-0 rounded-lg px-4 py-2.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50 lg:block">Logout</button>
           </nav>
         </aside>
 
-        {/* content */}
         <div className="mt-6 lg:mt-0">
           {tab === "orders" && <OrdersTab />}
           {tab === "coupons" && <CouponsTab />}
           {tab === "addresses" && <AddressesTab />}
-          {tab === "profile" && <ProfileTab onLogout={doLogout} />}
+          {tab === "profile" && <ProfileTab />}
 
-          {/* mobile logout */}
-          <button onClick={doLogout} className="mt-8 w-full rounded-full border border-red-200 py-3 text-sm font-bold text-red-600 lg:hidden">
-            Logout
-          </button>
+          <button onClick={doLogout} className="mt-8 w-full rounded-full border border-red-200 py-3 text-sm font-bold text-red-600 lg:hidden">Logout</button>
         </div>
       </div>
     </div>

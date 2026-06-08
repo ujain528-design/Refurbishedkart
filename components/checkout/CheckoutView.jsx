@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/CartContext";
+import { useAuth } from "@/lib/AuthContext";
+import { createOrder, getAddresses, addAddress } from "@/lib/api";
 import { formatINR, INDIAN_STATES, SELLER_STATE, gstBreakup } from "@/lib/data";
 import { BrokenDeviceIcon, LockIcon, ShieldIcon, ReturnIcon, ClipboardIcon, ChevronDown } from "@/components/Icons";
 
@@ -49,17 +51,40 @@ const BANKS = ["HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "K
 const WALLETS = ["Paytm", "PhonePe", "Amazon Pay"];
 
 export default function CheckoutView() {
-  const { ready, items, subtotal, discount, coupon, checkout } = useCart();
+  const { ready, items, subtotal, discount, coupon, orderItems, clearCart } = useCart();
+  const { isLoggedIn } = useAuth();
   const router = useRouter();
 
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddrId, setSelectedAddrId] = useState(null);
   const [useNew, setUseNew] = useState(false);
-  const [state, setState] = useState(SAVED_ADDRESS.state);
+  const [form, setForm] = useState({ name: "", phone: "", email: "", pincode: "", line1: "", line2: "", city: "", state: SELLER_STATE });
+  const [saveAddr, setSaveAddr] = useState(false);
   const [pay, setPay] = useState("upi");
   const [wallet, setWallet] = useState(WALLETS[0]);
   const [codAdvance, setCodAdvance] = useState(COD_ADVANCE_METHODS[0]);
   const [gstin, setGstin] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false); // mobile
   const [gstOpen, setGstOpen] = useState(true);
+  const [placing, setPlacing] = useState(false);
+  const [orderError, setOrderError] = useState("");
+
+  // Fetch the logged-in user's saved addresses (Step 8).
+  useEffect(() => {
+    if (!isLoggedIn) { setUseNew(true); return; }
+    getAddresses()
+      .then((list) => {
+        setAddresses(list);
+        const def = list.find((a) => a.isDefault) || list[0];
+        if (def) setSelectedAddrId(def._id);
+        else setUseNew(true);
+      })
+      .catch(() => setUseNew(true));
+  }, [isLoggedIn]);
+
+  const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const selectedAddr = addresses.find((a) => a._id === selectedAddrId) || null;
+  const shipState = useNew ? form.state : selectedAddr?.state || SELLER_STATE;
 
   if (!ready) return <div className="py-24 text-center text-sm text-neutral-400">Loading…</div>;
 
@@ -77,7 +102,7 @@ export default function CheckoutView() {
 
   const delivery = subtotal > FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
   const goods = subtotal - discount;
-  const interState = state !== SELLER_STATE;
+  const interState = shipState !== SELLER_STATE;
   const gst = gstBreakup(goods, interState);
   const grandTotal = subtotal - discount + delivery;
   const codAllowed = grandTotal <= COD_LIMIT;
@@ -86,9 +111,35 @@ export default function CheckoutView() {
   const payLabel = isCod ? `Pay ${formatINR(COD_ADVANCE)} & Confirm Order` : `Pay ${formatINR(grandTotal)} & Place Order`;
   const methods = PAYMENT_METHODS; // COD always visible (disabled above the limit)
 
-  const placeOrder = () => {
-    checkout();
-    router.push("/order-confirmation");
+  const placeOrder = async () => {
+    if (placing) return;
+    setPlacing(true);
+    setOrderError("");
+    try {
+      let shippingAddress;
+      if (useNew) {
+        if (!form.name || !form.phone || !form.line1 || !form.pincode) {
+          throw new Error("Please fill name, phone, address and pincode.");
+        }
+        shippingAddress = { ...form };
+        if (saveAddr && isLoggedIn) { try { await addAddress(form); } catch {} }
+      } else {
+        shippingAddress = selectedAddr || null;
+      }
+      // Server recomputes every price — client totals are never trusted (PRD §5.3).
+      const order = await createOrder({
+        items: orderItems(),
+        shippingAddress,
+        paymentMethod: pay === "cod" ? "COD" : pay.toUpperCase(),
+        couponCode: coupon?.code || null,
+        buyerGstin: gstin || null,
+      });
+      clearCart();
+      router.push(`/order-confirmation?orderId=${order.id}`);
+    } catch (e) {
+      setOrderError(e.message || "Couldn't place order. Please try again.");
+      setPlacing(false); // stay on page, preserve form (Step 8)
+    }
   };
 
   const Radio = ({ id, label, disabled, children }) => (
@@ -194,9 +245,16 @@ export default function CheckoutView() {
         </Field>
       </div>
 
-      <button onClick={placeOrder} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark">
+      {orderError && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-center text-[13px] font-semibold text-red-600">{orderError}</p>
+      )}
+      <button
+        onClick={placeOrder}
+        disabled={placing}
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-brand py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+      >
         <LockIcon style={{ width: 16, height: 16 }} />
-        {payLabel}
+        {placing ? "Placing order…" : payLabel}
       </button>
 
       {/* trust signals */}
@@ -235,16 +293,26 @@ export default function CheckoutView() {
           <section>
             <h2 className="text-lg font-bold text-ink">Delivery Address</h2>
             <div className="mt-4 space-y-3">
-              {!useNew && (
-                <div className="rounded-card border-2 border-brand bg-brand-softer/40 p-4">
-                  <div className="flex items-start gap-3">
-                    <input type="radio" checked readOnly className="mt-1 h-4 w-4 accent-brand" />
-                    <div className="text-sm">
-                      <p className="font-bold text-ink">{SAVED_ADDRESS.name} · {SAVED_ADDRESS.phone}</p>
-                      <p className="mt-0.5 text-neutral-500">{SAVED_ADDRESS.line}, {SAVED_ADDRESS.city}, {SAVED_ADDRESS.state} — {SAVED_ADDRESS.pincode}</p>
-                    </div>
-                  </div>
+              {!useNew && addresses.length > 0 && (
+                <div className="space-y-3">
+                  {addresses.map((a) => (
+                    <label
+                      key={a._id}
+                      className={`flex cursor-pointer items-start gap-3 rounded-card border-2 p-4 ${selectedAddrId === a._id ? "border-brand bg-brand-softer/40" : "border-black/10"}`}
+                    >
+                      <input type="radio" name="addr" checked={selectedAddrId === a._id} onChange={() => setSelectedAddrId(a._id)} className="mt-1 h-4 w-4 accent-brand" />
+                      <div className="text-sm">
+                        <p className="font-bold text-ink">{a.name}{a.phone ? ` · ${a.phone}` : ""}{a.isDefault ? " · Default" : ""}</p>
+                        <p className="mt-0.5 text-neutral-500">
+                          {[a.line1, a.line2, a.city, a.state].filter(Boolean).join(", ")}{a.pincode ? ` — ${a.pincode}` : ""}
+                        </p>
+                      </div>
+                    </label>
+                  ))}
                 </div>
+              )}
+              {!useNew && addresses.length === 0 && isLoggedIn && (
+                <p className="text-sm text-neutral-500">No saved addresses yet — add one below.</p>
               )}
               <button onClick={() => setUseNew((v) => !v)} className="text-sm font-bold text-brand hover:text-brand-dark">
                 {useNew ? "← Use saved address" : "+ Add New Address"}
@@ -252,21 +320,23 @@ export default function CheckoutView() {
 
               {useNew && (
                 <div className="grid gap-4 rounded-card border border-black/5 bg-white p-5 shadow-card sm:grid-cols-2">
-                  <Field label="Full Name"><input className={inputCls} placeholder="Full name" /></Field>
-                  <Field label="Phone"><input className={inputCls} placeholder="+91" /></Field>
-                  <Field label="Email"><input type="email" className={inputCls} placeholder="you@email.com" /></Field>
-                  <Field label="Pincode"><input className={inputCls} placeholder="560001" /></Field>
-                  <div className="sm:col-span-2"><Field label="Address Line 1"><input className={inputCls} placeholder="House no., building, street" /></Field></div>
-                  <div className="sm:col-span-2"><Field label="Address Line 2" optional><input className={inputCls} placeholder="Area, landmark" /></Field></div>
-                  <Field label="City"><input className={inputCls} placeholder="City" /></Field>
+                  <Field label="Full Name"><input value={form.name} onChange={(e) => setField("name", e.target.value)} className={inputCls} placeholder="Full name" /></Field>
+                  <Field label="Phone"><input value={form.phone} onChange={(e) => setField("phone", e.target.value)} className={inputCls} placeholder="+91" /></Field>
+                  <Field label="Email"><input type="email" value={form.email} onChange={(e) => setField("email", e.target.value)} className={inputCls} placeholder="you@email.com" /></Field>
+                  <Field label="Pincode"><input value={form.pincode} onChange={(e) => setField("pincode", e.target.value)} className={inputCls} placeholder="560001" /></Field>
+                  <div className="sm:col-span-2"><Field label="Address Line 1"><input value={form.line1} onChange={(e) => setField("line1", e.target.value)} className={inputCls} placeholder="House no., building, street" /></Field></div>
+                  <div className="sm:col-span-2"><Field label="Address Line 2" optional><input value={form.line2} onChange={(e) => setField("line2", e.target.value)} className={inputCls} placeholder="Area, landmark" /></Field></div>
+                  <Field label="City"><input value={form.city} onChange={(e) => setField("city", e.target.value)} className={inputCls} placeholder="City" /></Field>
                   <Field label="State">
-                    <select value={state} onChange={(e) => setState(e.target.value)} className={inputCls}>
+                    <select value={form.state} onChange={(e) => setField("state", e.target.value)} className={inputCls}>
                       {INDIAN_STATES.map((s) => <option key={s}>{s}</option>)}
                     </select>
                   </Field>
-                  <label className="flex items-center gap-2 text-sm text-neutral-600 sm:col-span-2">
-                    <input type="checkbox" className="h-4 w-4 rounded accent-brand" /> Save this address for next time
-                  </label>
+                  {isLoggedIn && (
+                    <label className="flex items-center gap-2 text-sm text-neutral-600 sm:col-span-2">
+                      <input type="checkbox" checked={saveAddr} onChange={(e) => setSaveAddr(e.target.checked)} className="h-4 w-4 rounded accent-brand" /> Save this address for next time
+                    </label>
+                  )}
                 </div>
               )}
             </div>
@@ -353,8 +423,8 @@ export default function CheckoutView() {
 
       {/* mobile sticky place-order bar */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/5 bg-white p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] lg:hidden">
-        <button onClick={placeOrder} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-3.5 text-sm font-bold text-white">
-          <LockIcon style={{ width: 16, height: 16 }} /> {payLabel}
+        <button onClick={placeOrder} disabled={placing} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-3.5 text-sm font-bold text-white disabled:opacity-50">
+          <LockIcon style={{ width: 16, height: 16 }} /> {placing ? "Placing order…" : payLabel}
         </button>
       </div>
     </div>

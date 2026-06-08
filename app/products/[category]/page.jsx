@@ -6,7 +6,7 @@ import Footer from "@/components/Footer";
 import PolicyStrip from "@/components/PolicyStrip";
 import ListingClient from "@/components/ListingClient";
 import BulkEnquiryModal from "@/components/BulkEnquiryModal";
-import { CATEGORY_SLUGS, byCategory } from "@/lib/data";
+import { CATEGORY_SLUGS } from "@/lib/data";
 
 export function generateStaticParams() {
   return Object.keys(CATEGORY_SLUGS).map((category) => ({ category }));
@@ -26,9 +26,8 @@ export default function CategoryListingPage({ params }) {
   const categoryName = CATEGORY_SLUGS[params.category];
   if (!categoryName) notFound();
 
-  const products = byCategory(categoryName);
-  // Recommendations live on the PDP only ("Related products" + "Customers
-  // also viewed" carousels, per PRD) — none on listing pages.
+  // Products are fetched client-side from the API inside ListingClient
+  // (with skeleton/error/empty + filters). Recommendations live on the PDP only.
 
   return (
     <>
@@ -55,7 +54,7 @@ export default function CategoryListingPage({ params }) {
         <section className="py-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <Suspense fallback={null}>
-              <ListingClient products={products} categoryName={categoryName} />
+              <ListingClient categorySlug={params.category} categoryName={categoryName} />
             </Suspense>
           </div>
         </section>

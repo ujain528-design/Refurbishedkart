@@ -1,17 +1,22 @@
 "use client";
 
-/* Wishlist — localStorage-backed, stores product ids. Repriced against
-   ALL_PRODUCTS on read so the account grid always shows live data. */
+/* Wishlist. Guests use localStorage (unchanged). On login the guest list is
+   merged into the server wishlist; while logged in, every change hits the API.
+   Product metadata for the grid is hydrated from the catalogue (= DB seed). */
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { ALL_PRODUCTS } from "@/lib/data";
+import { useAuth } from "@/lib/AuthContext";
+import { mergeWishlist, addToWishlist, removeFromWishlist } from "@/lib/api";
 
 const KEY = "rk_wishlist_v1";
 const WishlistContext = createContext(null);
 
 export function WishlistProvider({ children }) {
+  const { isLoggedIn } = useAuth();
   const [ids, setIds] = useState([]);
   const [ready, setReady] = useState(false);
+  const wasLoggedIn = useRef(false);
 
   useEffect(() => {
     try {
@@ -25,17 +30,36 @@ export function WishlistProvider({ children }) {
     if (ready) localStorage.setItem(KEY, JSON.stringify(ids));
   }, [ids, ready]);
 
-  const has = (id) => ids.includes(id);
-  const toggle = (id) => setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  const remove = (id) => setIds((prev) => prev.filter((x) => x !== id));
+  // On login: merge guest list into the server wishlist, then adopt the result.
+  useEffect(() => {
+    if (!ready) return;
+    if (isLoggedIn && !wasLoggedIn.current) {
+      mergeWishlist(ids).then((serverIds) => setIds(serverIds)).catch(() => {});
+    }
+    wasLoggedIn.current = isLoggedIn;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, ready]);
 
-  /* On login, merge the guest (localStorage) wishlist with the server-side
-     wishlist, de-duplicated. No backend yet, so this is a no-op: the guest
-     list already lives in localStorage and is never cleared on login, so it
-     survives the transition. When the backend lands, fetch server ids here
-     and setIds([...new Set([...ids, ...serverIds])]). */
-  const mergeOnLogin = (serverIds = []) =>
-    setIds((prev) => [...new Set([...prev, ...serverIds])]);
+  const has = (id) => ids.includes(Number(id));
+
+  const toggle = (id) => {
+    const n = Number(id);
+    const adding = !ids.includes(n);
+    // optimistic local update
+    setIds((prev) => (prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]));
+    if (isLoggedIn) {
+      const call = adding ? addToWishlist(n) : removeFromWishlist(n);
+      call.then((serverIds) => setIds(serverIds)).catch(() => {});
+    }
+  };
+
+  const remove = (id) => {
+    const n = Number(id);
+    setIds((prev) => prev.filter((x) => x !== n));
+    if (isLoggedIn) removeFromWishlist(n).then((serverIds) => setIds(serverIds)).catch(() => {});
+  };
+
+  const mergeOnLogin = (serverIds = []) => setIds((prev) => [...new Set([...prev, ...serverIds.map(Number)])]);
 
   const items = ids.map((id) => ALL_PRODUCTS.find((p) => p.id === id)).filter(Boolean);
 

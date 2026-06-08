@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PolicyStrip from "@/components/PolicyStrip";
@@ -11,7 +12,9 @@ export default function OrderConfirmationPage() {
     <>
       <Navbar />
       <main>
-        <OrderConfirmation />
+        <Suspense fallback={<div className="py-24 text-center text-sm text-neutral-400">Loading…</div>}>
+          <OrderConfirmation />
+        </Suspense>
         <PolicyStrip />
       </main>
       <Footer />

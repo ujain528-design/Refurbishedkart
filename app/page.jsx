@@ -1,6 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
-import ProductRow from "@/components/ProductRow";
+import LiveProductRow from "@/components/home/LiveProductRow";
 import FlashSaleBanner from "@/components/FlashSaleBanner";
 import BrandStrip from "@/components/BrandStrip";
 import BudgetCards from "@/components/BudgetCards";
@@ -11,7 +11,6 @@ import BulkEnquiryModal from "@/components/BulkEnquiryModal";
 import Faq from "@/components/Faq";
 import PolicyStrip from "@/components/PolicyStrip";
 import Footer from "@/components/Footer";
-import { BESTSELLERS, STUDENT_PICKS, NEW_ARRIVALS } from "@/lib/data";
 
 export default function HomePage() {
   return (
@@ -21,12 +20,13 @@ export default function HomePage() {
       <main>
         <Hero />
 
-        {/* PRD §4.1 default rows: Bestsellers, Flash Sale, Best for Students, New Arrivals */}
+        {/* PRD §4.1 default rows, now fetched live from the DB by tag.
+            Catalogue tag is "student" (not "best-for-students"). */}
         <div className="pt-10">
-          <ProductRow
+          <LiveProductRow
             title="Bestsellers"
             subtitle="The machines our customers keep coming back for."
-            products={BESTSELLERS}
+            tag="bestseller"
           />
         </div>
 
@@ -34,15 +34,15 @@ export default function HomePage() {
         <FlashSaleBanner />
 
         <div>
-          <ProductRow
+          <LiveProductRow
             title="Best for Students"
             subtitle="Budget-friendly picks that survive a full semester of abuse."
-            products={STUDENT_PICKS}
+            tag="student"
           />
-          <ProductRow
+          <LiveProductRow
             title="New Arrivals"
             subtitle="Fresh off the refurbishment line this week."
-            products={NEW_ARRIVALS}
+            tag="new-arrival"
             className="pb-20"
           />
         </div>

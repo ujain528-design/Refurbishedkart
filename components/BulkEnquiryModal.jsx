@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BULK_CATEGORIES, WHATSAPP_NUMBER, WHATSAPP_MESSAGE } from "@/lib/data";
+import { submitBulkEnquiry } from "@/lib/api";
 import { OPEN_BULK_MODAL_EVENT } from "@/components/BulkEnquiryTrigger";
 import { ClipboardIcon, WhatsAppIcon, CloseIcon, ShieldIcon, ArrowRight } from "@/components/Icons";
 
@@ -70,56 +71,72 @@ function OptionsView({ onForm }) {
   );
 }
 
-/* PRD §4.2 Option A fields. Mock submit — no backend yet. */
+/* PRD §4.2 Option A fields — submits to POST /api/bulk-enquiry. */
 function FormView({ onBack, onDone }) {
+  const [form, setForm] = useState({
+    name: "", org: "", email: "", phone: "",
+    category: BULK_CATEGORIES[0], quantity: "", budget: "", message: "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await submitBulkEnquiry(form); // keeps all fields on error
+      onDone();
+    } catch (err) {
+      setError(err.message || "Couldn't submit. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <button onClick={onBack} className="text-[13px] font-semibold text-brand hover:text-brand-dark">
         ← Back to options
       </button>
       <h3 className="mt-3 text-xl font-extrabold tracking-tight text-ink">Bulk enquiry form</h3>
-      <form
-        className="mt-5 grid gap-4 sm:grid-cols-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onDone();
-        }}
-      >
+      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[13px] font-semibold text-red-600">{error}</p>}
+      <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={submit}>
         <Field label="Full Name" required>
-          <input required className={inputCls} placeholder="Utkarsh Jain" />
+          <input required value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} placeholder="Utkarsh Jain" />
         </Field>
         <Field label="Organisation Name" required>
-          <input required className={inputCls} placeholder="Acme School / Co." />
+          <input required value={form.org} onChange={(e) => set("org", e.target.value)} className={inputCls} placeholder="Acme School / Co." />
         </Field>
         <Field label="Email" required>
-          <input type="email" required className={inputCls} placeholder="you@org.com" />
+          <input type="email" required value={form.email} onChange={(e) => set("email", e.target.value)} className={inputCls} placeholder="you@org.com" />
         </Field>
         <Field label="Phone" required>
-          <input type="tel" required pattern="[0-9+ -]{10,}" className={inputCls} placeholder="+91 …" />
+          <input type="tel" required pattern="[0-9+ -]{10,}" value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputCls} placeholder="+91 …" />
         </Field>
         <Field label="Product Category">
-          <select className={inputCls} defaultValue={BULK_CATEGORIES[0]}>
-            {BULK_CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
+          <select value={form.category} onChange={(e) => set("category", e.target.value)} className={inputCls}>
+            {BULK_CATEGORIES.map((c) => (<option key={c}>{c}</option>))}
           </select>
         </Field>
-        <Field label="Approximate Quantity">
-          <input type="number" min="5" className={inputCls} placeholder="5+" />
+        <Field label="Approximate Quantity" required>
+          <input type="number" min="5" required value={form.quantity} onChange={(e) => set("quantity", e.target.value)} className={inputCls} placeholder="5+" />
         </Field>
         <Field label="Budget per Unit (optional)">
-          <input className={inputCls} placeholder="₹20,000" />
+          <input value={form.budget} onChange={(e) => set("budget", e.target.value)} className={inputCls} placeholder="₹20,000" />
         </Field>
         <div className="sm:col-span-2">
           <Field label="Additional Requirements">
-            <textarea rows={3} className={inputCls} placeholder="Specs, delivery timeline, location…" />
+            <textarea rows={3} value={form.message} onChange={(e) => set("message", e.target.value)} className={inputCls} placeholder="Specs, delivery timeline, location…" />
           </Field>
         </div>
         <button
           type="submit"
-          className="rounded-full bg-brand px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark sm:col-span-2 sm:justify-self-start"
+          disabled={busy}
+          className="rounded-full bg-brand px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50 sm:col-span-2 sm:justify-self-start"
         >
-          Submit Enquiry
+          {busy ? "Submitting…" : "Submit Enquiry"}
         </button>
       </form>
     </>
