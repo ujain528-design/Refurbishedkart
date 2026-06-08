@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.refurb-steps { display:flex; gap:2rem; align-items:center; justify-content:center }
+.step { display:flex; flex-direction:column; align-items:center; gap:0.5rem }
+.step .icon { width:64px; height:64px; border-radius:8px; background:#eef2e7; display:flex; align-items:center; justify-content:center }
+@keyframes floatLeftRight { 0% { transform: translateX(0); } 50% { transform: translateX(6px); } 100% { transform: translateX(0); } }
+.refurb-steps .step { animation: floatLeftRight 3s ease-in-out infinite }
+.product-image-wrap { overflow: hidden }
+.product-image-wrap img { transition: transform 300ms ease; }
+.product-card:hover .product-image-wrap img { transform: scale(1.08); }
+.mega-panel { min-width: 640px }
