@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PageHeader, Tabs, Toggle, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { MASTER_TABLES, SPEC_FIELDS, CATEGORY_SPEC_SCHEMA } from "@/lib/admin-data";
 import { CATEGORY_SLUGS } from "@/lib/data";
+import { adminGetMasterData, adminAddMasterDataValue, adminToggleMasterDataValue } from "@/lib/api";
 
 const CORE_FIELDS = ["brand", "model", "price", "category", "status", "description"];
 
@@ -11,9 +12,28 @@ function MasterTables() {
   const toast = useToast();
   const tables = Object.keys(MASTER_TABLES);
   const [active, setActive] = useState(tables[0]);
-  const [values, setValues] = useState(() => Object.fromEntries(tables.map((t) => [t, MASTER_TABLES[t].map((v) => ({ label: v, on: true }))])));
+  const [rows, setRows] = useState([]);
+  const [status, setStatus] = useState("loading");
   const [newVal, setNewVal] = useState("");
-  const add = () => { if (!newVal.trim()) return; setValues((v) => ({ ...v, [active]: [...v[active], { label: newVal.trim(), on: true }] })); setNewVal(""); toast("Value added — now in listing dropdowns"); };
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    setStatus("loading");
+    adminGetMasterData(active).then((r) => { setRows(r); setStatus("ready"); }).catch(() => setStatus("error"));
+  }, [active]);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async () => {
+    if (!newVal.trim()) return;
+    setBusy(true);
+    try { setRows(await adminAddMasterDataValue(active, newVal.trim())); setNewVal(""); toast("Value added"); }
+    catch (e) { toast(e.message || "Add failed", "error"); }
+    finally { setBusy(false); }
+  };
+  const toggle = async (row) => {
+    try { setRows(await adminToggleMasterDataValue(active, row.id, !row.active)); }
+    catch (e) { toast(e.message || "Update failed", "error"); }
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -24,18 +44,24 @@ function MasterTables() {
       </div>
       <div className="rounded-card border border-black/5 bg-white shadow-card">
         <div className="border-b border-black/5 px-5 py-3.5"><h2 className="text-sm font-bold text-ink">{active}</h2></div>
-        <div className="divide-y divide-black/5">
-          {values[active].map((v, i) => (
-            <div key={v.label} className="flex items-center gap-3 px-5 py-2.5">
-              <span className="flex-1 text-sm text-ink">{v.label}</span>
-              <Toggle on={v.on} onChange={() => setValues((all) => ({ ...all, [active]: all[active].map((x, j) => j === i ? { ...x, on: !x.on } : x) }))} />
-              <button onClick={() => { setValues((all) => ({ ...all, [active]: all[active].filter((_, j) => j !== i) })); toast("Value deleted", "error"); }} className="text-[13px] font-bold text-red-600 hover:underline">Delete</button>
-            </div>
-          ))}
-        </div>
+        {status === "loading" ? (
+          <p className="px-5 py-10 text-center text-sm text-neutral-400">Loading…</p>
+        ) : status === "error" ? (
+          <div className="px-5 py-10 text-center"><p className="text-sm text-neutral-500">Couldn't load values.</p><button onClick={load} className="mt-3 rounded-full bg-brand px-5 py-2 text-[13px] font-bold text-white">Retry</button></div>
+        ) : (
+          <div className="divide-y divide-black/5">
+            {rows.map((v) => (
+              <div key={v.id} className="flex items-center gap-3 px-5 py-2.5">
+                <span className={`flex-1 text-sm ${v.active ? "text-ink" : "text-neutral-400 line-through"}`}>{v.value}</span>
+                <Toggle on={v.active} onChange={() => toggle(v)} />
+              </div>
+            ))}
+            {rows.length === 0 && <p className="px-5 py-8 text-center text-sm text-neutral-400">No values.</p>}
+          </div>
+        )}
         <div className="flex gap-2 border-t border-black/5 p-3">
           <input value={newVal} onChange={(e) => setNewVal(e.target.value)} placeholder={`New ${active} value…`} className={inputCls} />
-          <button onClick={add} className={btnPrimary}>Add</button>
+          <button onClick={add} disabled={busy} className={btnPrimary}>{busy ? "…" : "Add"}</button>
         </div>
       </div>
     </div>

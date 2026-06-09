@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/server/mongoose";
-import { Product, Coupon, MasterData, PricingConfig } from "@/lib/server/models";
+import { Product, Coupon, MasterData, PricingConfig, Review, Banner, Tag } from "@/lib/server/models";
 import { ALL_PRODUCTS } from "@/lib/data";
-import { RAM_PRICE_MATRIX, SSD_PRICE_TABLE } from "@/lib/admin-data";
+import { RAM_PRICE_MATRIX, SSD_PRICE_TABLE, ADMIN_REVIEWS, ADMIN_BANNERS, ADMIN_TAGS } from "@/lib/admin-data";
+
+const slugify = (s) => String(s || "").toLowerCase().trim().replace(/\s+/g, "-");
 import { synonymRows } from "@/lib/search-synonyms";
 import { calculateDeviceCost, calculateUpgradePrice, getPriceForCapacity, getSsdPrice, priceForExtraCapacity } from "@/lib/server/pricing-core";
 
@@ -110,6 +112,24 @@ export async function POST() {
       { upsert: true }
     );
 
+    // Reviews / Banners / Tags — seed only when empty so re-seeding never wipes admin edits.
+    let reviewsSeeded = 0, bannersSeeded = 0, tagsSeeded = 0;
+    if ((await Review.countDocuments()) === 0) {
+      const r = await Review.insertMany(ADMIN_REVIEWS.map((x) => {
+        const prod = ALL_PRODUCTS.find((p) => p.name.includes(x.product)); // resolve id from name
+        return { productId: prod?.id ?? null, productName: x.product, reviewer: x.reviewer, rating: x.rating, text: x.text, status: x.status || "pending", featured: !!x.featured };
+      }));
+      reviewsSeeded = r.length;
+    }
+    if ((await Banner.countDocuments()) === 0) {
+      const b = await Banner.insertMany(ADMIN_BANNERS.map((x) => ({ headline: x.headline, active: x.status === "active", clickable: x.clickable !== false, order: x.order ?? 0 })));
+      bannersSeeded = b.length;
+    }
+    if ((await Tag.countDocuments()) === 0) {
+      const t = await Tag.insertMany(ADMIN_TAGS.map((x) => ({ name: x.name, slug: slugify(x.name), type: x.type || "custom", visible: x.visible !== false })));
+      tagsSeeded = t.length;
+    }
+
     const count = await Product.countDocuments();
     return NextResponse.json({
       ok: true,
@@ -120,6 +140,7 @@ export async function POST() {
       productsInDb: count,
       coupons: ["SAVE10"],
       synonyms: synonymRows().length,
+      reviewsSeeded, bannersSeeded, tagsSeeded,
     });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });

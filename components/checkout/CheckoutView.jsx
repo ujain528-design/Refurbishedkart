@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
-import { createOrder, getAddresses, addAddress } from "@/lib/api";
+import { createOrder, getAddresses, addAddress, getPublicSettings } from "@/lib/api";
 import { formatINR, INDIAN_STATES, SELLER_STATE, gstBreakup } from "@/lib/data";
 import { BrokenDeviceIcon, LockIcon, ShieldIcon, ReturnIcon, ClipboardIcon, ChevronDown } from "@/components/Icons";
 
@@ -51,7 +51,7 @@ const BANKS = ["HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "K
 const WALLETS = ["Paytm", "PhonePe", "Amazon Pay"];
 
 export default function CheckoutView() {
-  const { ready, items, subtotal, discount, coupon, orderItems, clearCart } = useCart();
+  const { ready, items, subtotal, discount, coupon, orderItems, clearCart, clearCoupon } = useCart();
   const { isLoggedIn } = useAuth();
   const router = useRouter();
 
@@ -68,6 +68,11 @@ export default function CheckoutView() {
   const [gstOpen, setGstOpen] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState("");
+  const [rules, setRules] = useState({ freeDeliveryAbove: FREE_DELIVERY_ABOVE, deliveryFee: DELIVERY_FEE });
+
+  useEffect(() => {
+    getPublicSettings().then((s) => setRules({ freeDeliveryAbove: s.freeDeliveryAbove ?? FREE_DELIVERY_ABOVE, deliveryFee: s.deliveryFee ?? DELIVERY_FEE })).catch(() => {});
+  }, []);
 
   // Fetch the logged-in user's saved addresses (Step 8).
   useEffect(() => {
@@ -100,7 +105,7 @@ export default function CheckoutView() {
     );
   }
 
-  const delivery = subtotal > FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
+  const delivery = subtotal > rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
   const goods = subtotal - discount;
   const interState = shipState !== SELLER_STATE;
   const gst = gstBreakup(goods, interState);
@@ -197,8 +202,16 @@ export default function CheckoutView() {
         {/* 2. Delivery */}
         <div className="flex justify-between"><dt className="text-neutral-500">Delivery</dt><dd className="font-semibold text-ink">{delivery === 0 ? <span className="text-brand">Free</span> : formatINR(delivery)}</dd></div>
 
-        {/* 3. Coupon discount */}
-        {coupon && <div className="flex justify-between"><dt className="text-brand">Discount ({coupon.value}%)</dt><dd className="font-semibold text-brand">− {formatINR(discount)}</dd></div>}
+        {/* 3. Coupon discount — with remove (carried over from cart) */}
+        {coupon && (
+          <div className="flex items-center justify-between">
+            <dt className="flex items-center gap-1.5 text-brand">
+              {coupon.code} applied{coupon.type === "flat" ? "" : ` (${coupon.value}%)`}
+              <button onClick={clearCoupon} aria-label="Remove coupon" className="flex h-5 w-5 items-center justify-center rounded-full text-brand transition-colors hover:bg-brand/15">✕</button>
+            </dt>
+            <dd className="font-semibold text-brand">− {formatINR(discount)}</dd>
+          </div>
+        )}
 
         {/* 4. Amount after discount */}
         <div className="flex justify-between border-t border-black/5 pt-2.5"><dt className="text-neutral-500">Amount after discount</dt><dd className="font-semibold text-ink">{formatINR(goods)}</dd></div>

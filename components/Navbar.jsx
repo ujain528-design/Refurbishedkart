@@ -11,7 +11,7 @@ import { WishlistNavIcon, CartNavIcon } from "@/components/NavTooltipIcon";
 export default function Navbar() {
   return (
     <>
-    <header className="fixed inset-x-0 top-0 z-50 bg-white shadow-nav">
+    <header className="fixed inset-x-0 top-[var(--ann-h,0px)] z-50 bg-white shadow-nav">
       {/* Top row */}
       <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
@@ -87,6 +87,7 @@ export default function Navbar() {
     </header>
     {/* spacer matching the fixed header's height per breakpoint:
         mobile 68px · tablet 68+54+42=164px · desktop 68+44=112px */}
+    <div aria-hidden="true" style={{ height: "var(--ann-h, 0px)" }} />
     <div aria-hidden="true" className="h-[68px] md:h-[164px] lg:h-[112px]" />
     </>
   );

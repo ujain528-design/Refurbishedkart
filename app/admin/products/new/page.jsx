@@ -10,7 +10,7 @@ import {
 } from "@/lib/admin-data";
 import { CATEGORY_SLUGS } from "@/lib/data";
 import PortBuilder from "@/components/admin/PortBuilder";
-import { adminGetProduct, adminCreateProduct, adminUpdateProduct, adminUpdateStock, adminGetPricingConfig } from "@/lib/api";
+import { adminGetProduct, adminCreateProduct, adminUpdateProduct, adminUpdateStock, adminGetPricingConfig, adminUploadImage } from "@/lib/api";
 import { calculateDeviceCost, calculateUpgradePrice, priceForExtraCapacity, getSsdPrice } from "@/lib/server/pricing-core";
 
 const TABS = ["Basic Info", "Pricing & Variants", "Images", "Specs", "Inspection", "Tags", "SEO"];
@@ -183,6 +183,7 @@ export default function ProductEditor() {
   const [dirty, setDirty] = useState(false);
   const [restore, setRestore] = useState(null);
   const [loadingProduct, setLoadingProduct] = useState(!!editId);
+  const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [pricingCfg, setPricingCfg] = useState({ ram: {}, ssd: {} });
@@ -199,8 +200,13 @@ export default function ProductEditor() {
     (async () => {
       let base = EMPTY;
       if (editId) {
-        try { const p = await adminGetProduct(editId); if (p) { origRef.current = p; base = dbToForm(p); } }
-        catch { toast("Couldn't load product", "error"); }
+        try {
+          const p = await adminGetProduct(editId);
+          if (p) { origRef.current = p; base = dbToForm(p); }
+          else setLoadError("Product not found — has the database been seeded?");
+        } catch (e) {
+          setLoadError(e?.message || "Couldn't load this product from the database.");
+        }
       }
       if (!alive) return;
       setF(base);
@@ -278,6 +284,18 @@ export default function ProductEditor() {
   const deviceCost = calculateDeviceCost(Number(f.listedPrice) || 0, Number(f.defaultRam.cost) || 0, Number(f.defaultSsd.cost) || 0);
   const configAdditional = (c) => (Number(c.price) || 0) - (Number(f.listedPrice) || 0);
 
+  // Image upload → /api/admin/upload, append returned URL to images.
+  const [uploading, setUploading] = useState(false);
+  const uploadImage = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url } = await adminUploadImage(file);
+      update("images", [...f.images, url]);
+    } catch (e) { toast(e.message || "Upload failed", "error"); }
+    finally { setUploading(false); }
+  };
+
   // Chassis stock: immediate save in edit mode, local in new mode.
   const adjustChassis = async (action) => {
     if (editId) {
@@ -328,6 +346,16 @@ export default function ProductEditor() {
   const leaveEditor = () => { if (dirty && !window.confirm("You have unsaved changes. Leave without saving?")) return; router.push("/admin/products"); };
 
   if (loadingProduct) return <div className="py-24 text-center text-sm text-neutral-400">Loading product…</div>;
+  if (loadError) return (
+    <div className="mx-auto max-w-md py-24 text-center">
+      <p className="text-sm font-semibold text-red-600">{loadError}</p>
+      <p className="mt-1 text-[13px] text-neutral-500">The editor stays blank until the product loads — this is the underlying cause, not a missing pre-fill.</p>
+      <div className="mt-5 flex justify-center gap-2">
+        <button onClick={() => window.location.reload()} className="rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-dark">Retry</button>
+        <button onClick={() => router.push("/admin/products")} className="rounded-full border border-black/10 px-5 py-2.5 text-sm font-bold text-ink">Back to products</button>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -473,14 +501,11 @@ export default function ProductEditor() {
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-black/15 text-center text-[11px] text-neutral-400 hover:border-brand">
-                    <span className="text-xl">＋</span>{i === 0 && <span>Primary</span>}
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-[12px] text-neutral-400">Upload wiring (POST /api/admin/upload) is pending — current images above are editable now.</p>
+              <label className={`flex aspect-[4/1] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-black/15 text-center text-[12px] text-neutral-500 hover:border-brand ${uploading ? "opacity-60" : ""}`}>
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading} onChange={(e) => { uploadImage(e.target.files?.[0]); e.target.value = ""; }} />
+                {uploading ? "Uploading…" : <><span className="text-2xl">＋</span><span>Upload image — JPEG / PNG / WebP, ≤ 2MB</span></>}
+              </label>
+              <p className="mt-2 text-[12px] text-neutral-400">First image is the primary thumbnail. Saved to /public/uploads/products/.</p>
             </div>
           )}
 

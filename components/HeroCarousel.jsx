@@ -3,14 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { OPEN_BULK_MODAL_EVENT } from "@/components/BulkEnquiryTrigger";
+import { getBanners } from "@/lib/api";
 
 const AUTOPLAY_MS = 4000;
+const GRADIENTS = [
+  "bg-gradient-to-br from-[#0E3D12] via-brand to-brand-mid",
+  "bg-gradient-to-br from-slate-950 via-blue-950 to-blue-800",
+  "bg-gradient-to-br from-neutral-950 via-neutral-800 to-neutral-600",
+];
 
 /* Poster slides — gradient placeholders until real poster art is ready.
    Swap `gradient` for a bg image per slide when assets arrive. */
 // clickable: whole slide navigates to the CTA target. false = display-only
 // (no navigation anywhere, CTA disabled). Slide 2 is set false to test it.
-const SLIDES = [
+const FALLBACK_SLIDES = [
   {
     id: "laptops",
     gradient: "bg-gradient-to-br from-[#0E3D12] via-brand to-brand-mid",
@@ -41,12 +47,33 @@ const ctaCls =
   "inline-block rounded-full bg-white px-7 py-3 text-sm font-bold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover";
 
 export default function HeroCarousel() {
+  const [slides, setSlides] = useState(FALLBACK_SLIDES);
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const touchX = useRef(null);
   const router = useRouter();
 
-  const go = (i) => setIdx((i + SLIDES.length) % SLIDES.length);
+  // Active banners from the DB (admin-managed); fall back to static slides.
+  useEffect(() => {
+    let alive = true;
+    getBanners()
+      .then((banners) => {
+        if (!alive || !banners.length) return;
+        setSlides(banners.map((b, i) => ({
+          id: b.id,
+          gradient: b.gradient || GRADIENTS[i % GRADIENTS.length],
+          headline: b.headline,
+          sub: b.sub || "",
+          cta: b.cta || { label: "Shop Now", href: "#" },
+          clickable: b.clickable !== false,
+        })));
+        setIdx(0);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const go = (i) => setIdx((i + slides.length) % slides.length);
 
   // whole-slide click → CTA target (FIX 4). No-op for display-only slides.
   const slideClick = (s) => {
@@ -85,12 +112,12 @@ export default function HeroCarousel() {
         className="flex transition-transform duration-700 ease-out"
         style={{ transform: `translateX(-${idx * 100}%)` }}
       >
-        {SLIDES.map((s) => (
+        {slides.map((s) => (
           <div
             key={s.id}
             onClick={() => slideClick(s)}
             className={`relative h-[380px] w-full shrink-0 md:h-[460px] ${s.gradient} ${s.clickable ? "cursor-pointer" : "cursor-default"}`}
-            aria-hidden={SLIDES[idx].id !== s.id}
+            aria-hidden={slides[idx]?.id !== s.id}
           >
             {/* poster copy — bottom-left desktop, centered mobile */}
             <div className="absolute inset-0 flex items-end pb-16 md:pb-20">
@@ -139,7 +166,7 @@ export default function HeroCarousel() {
 
       {/* dot indicators */}
       <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2">
-        {SLIDES.map((s, i) => (
+        {slides.map((s, i) => (
           <button
             key={s.id}
             aria-label={`Go to slide ${i + 1}`}

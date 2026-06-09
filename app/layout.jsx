@@ -1,5 +1,6 @@
 import "./globals.css";
 import Providers from "@/lib/Providers";
+import AnnouncementBar from "@/components/AnnouncementBar";
 
 export const metadata = {
   title: "RefurbishedKart — Certified Refurbished Laptops, Desktops & More",
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
+        <AnnouncementBar />
         <Providers>{children}</Providers>
       </body>
     </html>

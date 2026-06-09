@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
 import { formatINR } from "@/lib/data";
-import { calculatePrice } from "@/lib/api";
+import { calculatePrice, getPublicSettings } from "@/lib/api";
 import { BrokenDeviceIcon, CartIcon } from "@/components/Icons";
 
 const FREE_DELIVERY_ABOVE = 999;
@@ -53,6 +53,12 @@ export default function CartView() {
   const [couponError, setCouponError] = useState("");
   const [applying, setApplying] = useState(false);
   const [stockIssues, setStockIssues] = useState([]); // names whose real stock < requested
+  const [rules, setRules] = useState({ freeDeliveryAbove: FREE_DELIVERY_ABOVE, deliveryFee: DELIVERY_FEE });
+
+  // Delivery thresholds from store settings (admin-managed).
+  useEffect(() => {
+    getPublicSettings().then((s) => setRules({ freeDeliveryAbove: s.freeDeliveryAbove ?? FREE_DELIVERY_ABOVE, deliveryFee: s.deliveryFee ?? DELIVERY_FEE })).catch(() => {});
+  }, []);
 
   // Validate each line against real server stock (PRD §5.3) via the pricing API.
   useEffect(() => {
@@ -94,7 +100,7 @@ export default function CartView() {
     );
   }
 
-  const delivery = subtotal > FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
+  const delivery = subtotal > rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
   const total = subtotal - discount + delivery;
 
   const handleApply = async () => {
@@ -202,32 +208,44 @@ export default function CartView() {
                 </dd>
               </div>
 
-              {/* coupon */}
+              {/* coupon — input when none applied; applied row with remove when applied */}
               <div className="pt-1">
-                <div className="flex gap-2">
-                  <input
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder="Coupon code"
-                    className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm uppercase placeholder:normal-case placeholder:text-neutral-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
-                  />
-                  <button
-                    onClick={handleApply}
-                    disabled={applying || !code}
-                    className="shrink-0 rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-black disabled:opacity-40"
-                  >
-                    {applying ? "…" : "Apply"}
-                  </button>
-                </div>
-                {couponError && <p className="mt-1.5 text-[13px] font-semibold text-red-600">{couponError}</p>}
-                {coupon && (
-                  <p className="mt-1.5 text-[13px] font-semibold text-brand">✓ {coupon.code} applied</p>
+                {coupon ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-brand-soft px-3 py-2">
+                    <span className="text-[13px] font-semibold text-brand">✓ {coupon.code} applied — {formatINR(discount)} off</span>
+                    <button
+                      onClick={() => { clearCoupon(); setCode(""); setCouponError(""); }}
+                      aria-label="Remove coupon"
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-brand transition-colors hover:bg-brand/15"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder="Coupon code"
+                        className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm uppercase placeholder:normal-case placeholder:text-neutral-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
+                      />
+                      <button
+                        onClick={handleApply}
+                        disabled={applying || !code}
+                        className="shrink-0 rounded-lg bg-ink px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-black disabled:opacity-40"
+                      >
+                        {applying ? "…" : "Apply"}
+                      </button>
+                    </div>
+                    {couponError && <p className="mt-1.5 text-[13px] font-semibold text-red-600">{couponError}</p>}
+                  </>
                 )}
               </div>
 
               {coupon && (
                 <div className="flex justify-between">
-                  <dt className="text-brand">Discount ({coupon.value}%)</dt>
+                  <dt className="text-brand">Discount{coupon.type === "flat" ? "" : ` (${coupon.value}%)`}</dt>
                   <dd className="font-semibold text-brand">− {formatINR(discount)}</dd>
                 </div>
               )}

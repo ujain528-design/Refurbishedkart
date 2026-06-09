@@ -1,7 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FOOTER_COLS } from "@/lib/data";
 import NewsletterForm from "@/components/NewsletterForm";
 import { LogoMark } from "@/components/Icons";
+import { getFooterInfo } from "@/lib/api";
 
 /* Map footer link labels to routes. Unmapped labels stay as "#" placeholders. */
 const ROUTE_MAP = {
@@ -14,7 +18,11 @@ const ROUTE_MAP = {
 };
 const hrefFor = (label) => ROUTE_MAP[label] || "#";
 
+const FALLBACK_INFO = { email: "support@refurbishedkart.com", phone: "+91 98765 43210", gstin: "00AAAAA0000A1Z0" };
+
 export default function Footer() {
+  const [info, setInfo] = useState(FALLBACK_INFO);
+  useEffect(() => { getFooterInfo().then((i) => i && setInfo({ ...FALLBACK_INFO, ...i })).catch(() => {}); }, []);
   return (
     <footer className="bg-[#111] text-white">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
@@ -43,12 +51,12 @@ export default function Footer() {
               tested, warrantied and delivered across India.
             </p>
             <p className="mt-6 text-sm text-white/50">
-              support@refurbishedkart.com
+              {info.email}
               <br />
-              +91 98765 43210
+              {info.phone}
             </p>
             <p className="mt-4 text-xs text-white/35">
-              MMT Global Recycling Pvt. Ltd. · GSTIN: 00AAAAA0000A1Z0
+              GSTIN: {info.gstin}
             </p>
           </div>
 

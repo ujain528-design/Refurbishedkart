@@ -3,9 +3,8 @@ import { dbConnect } from "@/lib/server/mongoose";
 import { Order, Coupon, Product, nextOrderId } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
 import { calcPrice } from "@/lib/server/products";
+import { getStoreSettings, deliveryRules } from "@/lib/server/settings";
 import { gstBreakup } from "@/lib/data";
-
-const FREE_DELIVERY_ABOVE = 999, DELIVERY_FEE = 99;
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +35,8 @@ export async function POST(req) {
         appliedCode = c.code;
       }
     }
-    const delivery = subtotal > FREE_DELIVERY_ABOVE ? 0 : DELIVERY_FEE;
+    const { freeDeliveryAbove, deliveryFee } = deliveryRules(await getStoreSettings());
+    const delivery = subtotal > freeDeliveryAbove ? 0 : deliveryFee;
     const total = subtotal - discount + delivery;
     const gst = gstBreakup(subtotal - discount, false);
 
