@@ -5,7 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/CartContext";
 import { useAuth } from "@/lib/AuthContext";
-import { createOrder, getAddresses, addAddress, getPublicSettings } from "@/lib/api";
+import { createOrder, getAddresses, addAddress, getPublicSettings, createRazorpayOrder, verifyPayment } from "@/lib/api";
+
+/* Ensure the Razorpay checkout script is available (layout also lazy-loads it). */
+function loadRazorpay() {
+  return new Promise((resolve) => {
+    if (typeof window !== "undefined" && window.Razorpay) return resolve(true);
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
+}
 import { formatINR, INDIAN_STATES, SELLER_STATE, gstBreakup } from "@/lib/data";
 import { BrokenDeviceIcon, LockIcon, ShieldIcon, ReturnIcon, ClipboardIcon, ChevronDown } from "@/components/Icons";
 
@@ -52,7 +64,7 @@ const WALLETS = ["Paytm", "PhonePe", "Amazon Pay"];
 
 export default function CheckoutView() {
   const { ready, items, subtotal, discount, coupon, orderItems, clearCart, clearCoupon } = useCart();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const router = useRouter();
 
   const [addresses, setAddresses] = useState([]);
@@ -68,6 +80,7 @@ export default function CheckoutView() {
   const [gstOpen, setGstOpen] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState("");
+  const [pendingOrder, setPendingOrder] = useState(null); // created order awaiting payment (for retry)
   const [rules, setRules] = useState({ freeDeliveryAbove: FREE_DELIVERY_ABOVE, deliveryFee: DELIVERY_FEE });
 
   useEffect(() => {
@@ -113,11 +126,56 @@ export default function CheckoutView() {
   const codAllowed = grandTotal <= COD_LIMIT;
   const isCod = pay === "cod" && codAllowed;
   const codRemaining = grandTotal - COD_ADVANCE;
-  const payLabel = isCod ? `Pay ${formatINR(COD_ADVANCE)} & Confirm Order` : `Pay ${formatINR(grandTotal)} & Place Order`;
+  const baseLabel = isCod ? `Pay ${formatINR(COD_ADVANCE)} & Confirm Order` : `Pay ${formatINR(grandTotal)} & Place Order`;
+  const payLabel = pendingOrder ? "Retry Payment" : baseLabel;
   const methods = PAYMENT_METHODS; // COD always visible (disabled above the limit)
+
+  /* Open Razorpay for an order. Non-COD pays the full total; COD pays the ₹500
+     advance. On verified success: clear cart + go to confirmation. On
+     failure/dismiss: keep the order (pending_payment), preserve cart, allow retry. */
+  const startPayment = async (order) => {
+    setPlacing(true);
+    setOrderError("");
+    try {
+      const payAmount = isCod ? COD_ADVANCE : grandTotal;
+      const created = await createRazorpayOrder(order.id, payAmount);
+      const ok = await loadRazorpay();
+      if (!ok || !window.Razorpay) throw new Error("Couldn't load the payment gateway.");
+
+      const rzp = new window.Razorpay({
+        key: created.keyId,
+        amount: created.amount,
+        currency: "INR",
+        order_id: created.razorpayOrderId,
+        name: "RefurbishedKart",
+        description: `Order #${order.id}`,
+        prefill: { name: user?.name || "", email: user?.email || "", contact: user?.phone || "" },
+        theme: { color: "#1B5E20" },
+        handler: async (resp) => {
+          try {
+            const v = await verifyPayment({
+              razorpayOrderId: resp.razorpay_order_id,
+              razorpayPaymentId: resp.razorpay_payment_id,
+              razorpaySignature: resp.razorpay_signature,
+              orderId: order.id,
+            });
+            if (v.success) { clearCart(); router.push(`/order-confirmation?orderId=${order.id}`); }
+            else { setOrderError(v.error || "Payment verification failed."); setPlacing(false); }
+          } catch (e) { setOrderError(e.message || "Verification failed."); setPlacing(false); }
+        },
+        modal: { ondismiss: () => { setOrderError("Payment incomplete. Your order is saved — retry payment or choose a different method."); setPlacing(false); } },
+      });
+      rzp.on("payment.failed", (r) => { setOrderError(r?.error?.description || "Payment failed. Your order is saved — retry."); setPlacing(false); });
+      rzp.open();
+    } catch (e) {
+      setOrderError(e.message || "Couldn't start payment.");
+      setPlacing(false);
+    }
+  };
 
   const placeOrder = async () => {
     if (placing) return;
+    if (pendingOrder) { startPayment(pendingOrder); return; } // retry same order
     setPlacing(true);
     setOrderError("");
     try {
@@ -139,11 +197,11 @@ export default function CheckoutView() {
         couponCode: coupon?.code || null,
         buyerGstin: gstin || null,
       });
-      clearCart();
-      router.push(`/order-confirmation?orderId=${order.id}`);
+      setPendingOrder(order);
+      startPayment(order); // opens Razorpay
     } catch (e) {
       setOrderError(e.message || "Couldn't place order. Please try again.");
-      setPlacing(false); // stay on page, preserve form (Step 8)
+      setPlacing(false); // stay on page, preserve form + cart
     }
   };
 
@@ -187,7 +245,7 @@ export default function CheckoutView() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-ink">{it.name}</p>
               <p className="text-[12px] text-neutral-500">
-                {it.ram ? `${it.ram}GB` : ""}{it.ram && it.ssd ? " · " : ""}{it.ssd ? `${it.ssd}` : ""} · Qty {it.qty}
+                {it.ram || ""}{it.ram && it.ssd ? " · " : ""}{it.ssd ? `${it.ssd}` : ""} · Qty {it.qty}
               </p>
             </div>
             <p className="text-[13px] font-bold text-ink">{formatINR(it.unitPrice * it.qty)}</p>

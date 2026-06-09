@@ -46,7 +46,8 @@ export async function POST(req) {
       couponCode: appliedCode, paymentMethod: paymentMethod || "UPI",
       shippingAddress: shippingAddress || null, buyerGstin: buyerGstin || null,
       customerName: shippingAddress?.name || auth.name || null,
-      status: paymentMethod === "COD" ? "Pending" : "Confirmed",
+      // Created unconfirmed; payment verification flips it to Confirmed.
+      status: "pending_payment",
     });
 
     // Deduct chassis stock: any config sold deducts 1 chassis per unit (qty).

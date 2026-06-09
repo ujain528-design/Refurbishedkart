@@ -1,16 +1,15 @@
 "use client";
 
-/* Cart state — React Context backed by localStorage (unchanged per spec).
-   Product metadata for line display is hydrated from the catalogue (identical
-   to the DB seed); stock + coupon are validated against the API. All prices are
-   GST-INCLUSIVE; no tax is added anywhere. */
+/* Cart state — localStorage. Each line stores its OWN resolved price/details at
+   add-to-cart time (captured from the product's matching config), so the cart
+   page never re-derives prices from catalogue data. Subtotal = Σ price × qty.
+   All prices are GST-INCLUSIVE; no tax is added anywhere. */
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { ALL_PRODUCTS } from "@/lib/data";
 import { cartConfigFor } from "@/lib/pdp";
 import { applyCoupon as applyCouponApi } from "@/lib/api";
 
-const STORAGE_KEY = "rk_cart_v1";
+const STORAGE_KEY = "rk_cart_v2"; // v2: rich lines with stored price
 const COUPON_KEY = "rk_coupon_v1";
 const MAX_QTY = 10;
 
@@ -20,7 +19,7 @@ const lineKey = (productId, ram, ssd) => `${productId}|${ram ?? "-"}|${ssd ?? "-
 
 export function CartProvider({ children }) {
   const [lines, setLines] = useState([]);
-  const [couponData, setCouponData] = useState(null); // { code, type, value }
+  const [couponData, setCouponData] = useState(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -42,34 +41,28 @@ export function CartProvider({ children }) {
     else localStorage.removeItem(COUPON_KEY);
   }, [couponData, ready]);
 
-  const items = lines
-    .map((l) => {
-      const product = ALL_PRODUCTS.find((p) => p.id === l.productId);
-      if (!product) return null;
-      const cfg = cartConfigFor(product, l.ram, l.ssd);
-      const qty = Math.min(l.qty, Math.max(0, cfg.sellable), MAX_QTY);
-      return {
-        key: lineKey(l.productId, l.ram, l.ssd),
-        productId: l.productId, name: product.name, brand: product.brand, category: product.category,
-        image: product.image ?? null, ram: l.ram, ssd: l.ssd, ramType: cfg.ramType,
-        unitPrice: cfg.unitPrice, mrp: product.mrp, sellable: cfg.sellable,
-        outOfStock: cfg.sellable === 0, qty: l.qty, lineTotal: cfg.unitPrice * Math.max(qty, 0),
-      };
-    })
-    .filter(Boolean);
+  // Lines already carry price/name/etc — just normalise qty/derived fields.
+  const items = lines.map((l) => {
+    const price = Number(l.price) || 0;
+    const sellable = l.sellable ?? MAX_QTY;
+    const qty = Math.min(l.qty, Math.max(0, sellable), MAX_QTY);
+    return {
+      key: lineKey(l.productId, l.ram, l.ssd),
+      productId: l.productId, name: l.name, brand: l.brand, category: l.category, image: l.image ?? null,
+      ram: l.ram, ssd: l.ssd, ramType: l.ramType ?? null,
+      unitPrice: price, mrp: l.mrp, sellable,
+      outOfStock: price <= 0 || sellable === 0,
+      qty: l.qty, lineTotal: price * Math.max(qty, 0),
+    };
+  });
 
   const count = items.reduce((a, it) => a + (it.outOfStock ? 0 : it.qty), 0);
   const subtotal = items.reduce((a, it) => a + (it.outOfStock ? 0 : it.lineTotal), 0);
   const coupon = couponData;
   const discount = couponData
-    ? couponData.type === "flat"
-      ? Math.min(couponData.value, subtotal)
-      : Math.round(subtotal * (couponData.value / 100))
+    ? couponData.type === "flat" ? Math.min(couponData.value, subtotal) : Math.round(subtotal * (couponData.value / 100))
     : 0;
 
-  /* Validate the coupon against the API (real SAVE10 etc.). Async — returns
-     { ok } / throws via caller's catch. Percent value is stored so the discount
-     stays correct as the cart subtotal changes. */
   async function applyCoupon(raw) {
     const code = String(raw || "").trim().toUpperCase();
     if (!code) return { ok: false, error: "Enter a coupon code" };
@@ -81,23 +74,27 @@ export function CartProvider({ children }) {
   function clearCoupon() { setCouponData(null); }
   function clearCart() { setLines([]); setCouponData(null); }
 
-  /* Items in the shape POST /api/orders expects (server reprices everything). */
   function orderItems() {
     return items.filter((it) => !it.outOfStock).map((it) => ({ productId: it.productId, ram: it.ram, ssd: it.ssd, qty: it.qty }));
   }
 
+  /* Capture the resolved config price + display fields AT ADD TIME. `product`
+     is the live (DB) product with a configs array, so cartConfigFor returns the
+     correct unit price for the selected ram/ssd. */
   function addItem(product, ram, ssd) {
     const cfg = cartConfigFor(product, ram, ssd);
-    if (cfg.sellable === 0) return false;
+    if (!cfg || cfg.sellable === 0) return false;
     const key = lineKey(product.id, cfg.ram, cfg.ssd);
     setLines((prev) => {
       const existing = prev.find((l) => lineKey(l.productId, l.ram, l.ssd) === key);
       if (existing) {
-        return prev.map((l) =>
-          lineKey(l.productId, l.ram, l.ssd) === key ? { ...l, qty: Math.min(l.qty + 1, cfg.sellable, MAX_QTY) } : l
-        );
+        return prev.map((l) => (lineKey(l.productId, l.ram, l.ssd) === key ? { ...l, qty: Math.min(l.qty + 1, cfg.sellable, MAX_QTY) } : l));
       }
-      return [...prev, { productId: product.id, ram: cfg.ram, ssd: cfg.ssd, qty: 1 }];
+      return [...prev, {
+        productId: product.id, name: product.name, brand: product.brand, category: product.category,
+        image: product.image ?? null, ram: cfg.ram, ssd: cfg.ssd, ramType: cfg.ramType ?? null,
+        price: cfg.unitPrice, mrp: product.mrp, sellable: cfg.sellable, qty: 1,
+      }];
     });
     return true;
   }
@@ -108,17 +105,13 @@ export function CartProvider({ children }) {
         .filter((l) => l.qty > 0)
     );
   }
-
   function removeItem(key) {
     setLines((prev) => prev.filter((l) => lineKey(l.productId, l.ram, l.ssd) !== key));
   }
 
   return (
     <CartContext.Provider
-      value={{
-        ready, items, count, subtotal, coupon, discount,
-        addItem, setQty, removeItem, applyCoupon, clearCoupon, clearCart, orderItems, MAX_QTY,
-      }}
+      value={{ ready, items, count, subtotal, coupon, discount, addItem, setQty, removeItem, applyCoupon, clearCoupon, clearCart, orderItems, MAX_QTY }}
     >
       {children}
     </CartContext.Provider>

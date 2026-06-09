@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/server/mongoose";
-import { Order } from "@/lib/server/models";
+import { Order, Product } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
 
 export const dynamic = "force-dynamic";
 
-const CANCELLABLE = ["Pending", "Confirmed"];
+const CANCELLABLE = ["pending_payment", "Pending", "Confirmed"];
+
+/* Release chassis stock back when an order is cancelled (once). */
+async function releaseStock(order) {
+  if (order.stockReleased) return;
+  const perProduct = {};
+  for (const l of order.lines || []) perProduct[l.productId] = (perProduct[l.productId] || 0) + l.qty;
+  for (const [pid, qty] of Object.entries(perProduct)) {
+    const p = await Product.findOne({ id: Number(pid) });
+    if (p) { const next = (p.chassisStock ?? p.stock ?? 0) + qty; p.chassisStock = next; p.stock = next; await p.save(); }
+  }
+  order.stockReleased = true;
+}
 
 export async function POST(req, { params }) {
   const auth = userFromRequest(req);
@@ -18,6 +30,7 @@ export async function POST(req, { params }) {
     if (!CANCELLABLE.includes(o.status)) {
       return NextResponse.json({ error: `Cannot cancel a ${o.status} order` }, { status: 409 });
     }
+    await releaseStock(o);
     o.status = "Cancelled";
     o.cancelledAt = new Date();
     await o.save();

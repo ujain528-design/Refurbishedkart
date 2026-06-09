@@ -156,7 +156,7 @@ export default function CartView() {
                     <h3 className="truncate text-[15px] font-bold text-ink">{it.name}</h3>
                     {(it.ram || it.ssd) && (
                       <p className="mt-0.5 text-[13px] text-neutral-500">
-                        {it.ram ? `${it.ram}GB${it.ramType ? ` ${it.ramType}` : ""}` : ""}
+                        {it.ram || ""}
                         {it.ram && it.ssd ? " · " : ""}
                         {it.ssd ? `${it.ssd} SSD` : ""}
                       </p>

@@ -1,4 +1,5 @@
 import "./globals.css";
+import Script from "next/script";
 import Providers from "@/lib/Providers";
 import AnnouncementBar from "@/components/AnnouncementBar";
 
@@ -22,6 +23,7 @@ export default function RootLayout({ children }) {
       <body>
         <AnnouncementBar />
         <Providers>{children}</Providers>
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       </body>
     </html>
   );
