@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
+import { useAuth } from "@/lib/AuthContext";
+import { removeToken } from "@/lib/auth";
 
 function GoogleGlyph() {
   return (
@@ -18,10 +20,12 @@ function GoogleGlyph() {
 
 export default function LoginView() {
   const params = useSearchParams();
-  // ?redirect= (checkout gate) takes priority over ?next= (account gate)
+  // Post-login destination: the ?redirect= returnUrl if present (e.g. the checkout
+  // gate sends ?redirect=/checkout), otherwise the homepage.
   const redirect = params.get("redirect");
-  const next = redirect || params.get("next") || "/account";
+  const next = redirect || "/";
 
+  const { ready, isLoggedIn, user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,8 +34,50 @@ export default function LoginView() {
     setBusy(true);
     // NextAuth handles the Google OAuth round-trip; on return, GoogleSessionBridge
     // hands the session's app-JWT to AuthContext. callbackUrl brings us back to `next`.
-    signIn("google", { callbackUrl: next });
+    // 3rd arg = authorizationParams (NextAuth v4): forces the account picker.
+    // (The authOptions provider also sets prompt:"select_account" as the primary guarantee.)
+    signIn("google", { callbackUrl: next }, { prompt: "select_account" });
   };
+
+  // Logout: clear BOTH sessions (our JWT + NextAuth) and land on the homepage.
+  // To sign in with a different account, the user just logs in again normally.
+  const doLogout = async () => {
+    setBusy(true);
+    removeToken();                       // drop our app JWT
+    await signOut({ callbackUrl: "/" }); // clear NextAuth session, redirect home
+  };
+
+  // Avoid flashing the login form before auth state is known.
+  if (!ready) {
+    return <div className="py-24 text-center text-sm text-neutral-400">Loading…</div>;
+  }
+
+  // Already signed in → don't show the login form; offer account or logout.
+  if (isLoggedIn) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16">
+        <div className="w-full rounded-card border border-black/5 bg-white p-7 shadow-card sm:p-8">
+          <h1 className="text-center text-2xl font-extrabold tracking-tight text-ink">You're already signed in</h1>
+          <p className="mt-3 text-center text-sm text-neutral-600">
+            Signed in as <span className="font-bold text-ink">{user?.name || user?.email || "your account"}</span>.
+          </p>
+          <Link
+            href="/account"
+            className="mt-7 block w-full rounded-full bg-brand py-3 text-center text-sm font-bold text-white transition-colors hover:bg-brand-dark"
+          >
+            Go to My Account
+          </Link>
+          <button
+            onClick={doLogout}
+            disabled={busy}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/15 bg-white py-3 text-sm font-bold text-ink transition-colors hover:bg-neutral-50 disabled:opacity-50"
+          >
+            {busy ? "Logging out…" : "Logout"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16">

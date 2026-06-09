@@ -3,6 +3,7 @@ import { dbConnect } from "@/lib/server/mongoose";
 import { Order } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
 import { invoiceFilePath, generateInvoice } from "@/lib/server/invoiceGenerator";
+import { log, logError } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export async function GET(req, { params }) {
   const { orderId } = params;
   await dbConnect();
   const order = await Order.findOne({ orderId }).lean();
-  console.log("[invoice] download request:", orderId, "order found:", !!order);
+  log("[invoice] download request:", orderId, "order found:", !!order);
   if (!order) return Response.json({ error: "Order not found" }, { status: 404 });
 
   const isAdmin = auth.role === "admin" || auth.role === "superadmin";
@@ -29,17 +30,17 @@ export async function GET(req, { params }) {
 
   const invoiceNumber = order.invoiceNumber || order.orderId;
   let filePath = invoiceFilePath(invoiceNumber);
-  console.log("[invoice] looking for file:", filePath, "exists:", fs.existsSync(filePath));
+  log("[invoice] looking for file:", filePath, "exists:", fs.existsSync(filePath));
 
   // Lazily (re)generate if the PDF is missing — e.g. orders placed before the
   // invoice feature, or a file lost on redeploy. Never block on failure.
   if (!fs.existsSync(filePath)) {
     try {
-      console.log("[invoice] file missing — regenerating for", invoiceNumber);
+      log("[invoice] file missing — regenerating for", invoiceNumber);
       await generateInvoice(order);
-      console.log("[invoice] regeneration done, exists now:", fs.existsSync(filePath));
+      log("[invoice] regeneration done, exists now:", fs.existsSync(filePath));
     } catch (e) {
-      console.error("[invoice] (re)generation FAILED:", e.message, e.stack);
+      logError("[invoice] (re)generation FAILED:", e.message, e.stack);
     }
     if (!fs.existsSync(filePath)) {
       return Response.json({ error: "Invoice not available" }, { status: 404 });

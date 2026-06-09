@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Badge, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { formatINR } from "@/lib/admin-data";
+import { paymentMethodLabel } from "@/lib/data";
 import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking } from "@/lib/api";
 
 const STATUSES = ["Pending", "Confirmed", "Packed", "Shipped", "Delivered", "Cancelled", "Returned"];
@@ -43,7 +44,7 @@ export default function Orders() {
 
   const exportCsv = () => {
     const head = ["Order", "Customer", "Items", "Total", "Payment", "Status", "Date"];
-    const lines = orders.map((o) => [o.id, customerOf(o), itemsText(o), o.total, o.paymentMethod, o.status, fmtDate(o.createdAt)]
+    const lines = orders.map((o) => [o.id, customerOf(o), itemsText(o), o.total, paymentMethodLabel(o.paymentMethod), o.status, fmtDate(o.createdAt)]
       .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","));
     const blob = new Blob([[head.join(","), ...lines].join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -83,7 +84,7 @@ export default function Orders() {
                   <td className="px-3 py-3 text-ink">{customerOf(o)}</td>
                   <td className="px-3 py-3 text-[12px] text-neutral-500">{itemsText(o)}</td>
                   <td className="px-3 py-3 font-semibold text-ink">{formatINR(o.total)}</td>
-                  <td className="px-3 py-3 text-neutral-500">{o.paymentMethod}</td>
+                  <td className="px-3 py-3 text-neutral-500">{paymentMethodLabel(o.paymentMethod)}</td>
                   <td className="px-3 py-3"><Badge>{o.status}</Badge></td>
                   <td className="px-3 py-3 text-[12px] text-neutral-400">{fmtDate(o.createdAt)}</td>
                 </tr>

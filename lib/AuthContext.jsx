@@ -3,6 +3,7 @@
 /* Real JWT auth backed by the API. Token in localStorage; user decoded from it. */
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { signOut } from "next-auth/react";
 import { getToken, setToken, removeToken, getUser, isLoggedIn as tokenValid } from "@/lib/auth";
 
 const AuthContext = createContext(null);
@@ -22,8 +23,12 @@ export function AuthProvider({ children }) {
     return getUser();
   };
   const logout = () => {
-    removeToken();
+    removeToken();       // drop our app JWT
     setUser(null);
+    // Also clear the NextAuth (Google) session cookie and land on /login, so the
+    // next Google sign-in always shows the account picker instead of auto-resuming.
+    // Harmless for OTP-only users (no NextAuth session to clear).
+    signOut({ callbackUrl: "/login" });
   };
 
   const role = user?.role;

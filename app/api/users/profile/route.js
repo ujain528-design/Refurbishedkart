@@ -30,11 +30,11 @@ export async function PUT(req) {
   if (!a) return NextResponse.json({ error: "Login required" }, { status: 401 });
   try {
     await dbConnect();
-    const { name, email, phone } = await req.json();
+    // Only `name` is updatable. Email (Google identity) and phone (OTP login) are
+    // verified identity fields — silently ignored even if present in the body.
+    const { name } = await req.json();
     const set = {};
     if (name != null) set.name = name;
-    if (email != null) set.email = email;
-    if (phone != null) set.phone = phone;
     const u = await User.findByIdAndUpdate(a.sub, { $set: set }, { new: true }).lean();
     if (!u) return NextResponse.json({ error: "User not found" }, { status: 404 });
     return NextResponse.json({ user: publicUser(u) });

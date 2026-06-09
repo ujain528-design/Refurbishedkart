@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { formatINR, INDIAN_STATES } from "@/lib/data";
+import { formatINR, INDIAN_STATES, paymentMethodLabel } from "@/lib/data";
 import { MOCK_COUPONS } from "@/lib/account-data";
 import {
   getOrders, cancelOrder, downloadInvoice,
@@ -112,7 +112,7 @@ function OrdersTab() {
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-2.5">
-                  <span className="text-[12px] text-neutral-400">Payment: {o.paymentMethod || "—"}</span>
+                  <span className="text-[12px] text-neutral-400">Payment: {paymentMethodLabel(o.paymentMethod)}</span>
                   <div className="ml-auto flex items-center gap-2.5">
                     {INVOICE_STATUSES.includes(o.status) && (
                       <button
@@ -274,7 +274,7 @@ function ProfileTab() {
   const startEdit = () => { setForm({ name: user.name || "", email: user.email || "", phone: user.phone || "" }); setEditing(true); };
   const save = async () => {
     setBusy(true);
-    try { const u = await updateProfile(form); setUser(u); setEditing(false); }
+    try { const u = await updateProfile({ name: form.name }); setUser(u); setEditing(false); }
     catch (e) { alert(e.message || "Couldn't save profile."); }
     finally { setBusy(false); }
   };
@@ -285,11 +285,24 @@ function ProfileTab() {
   if (editing) {
     return (
       <div className="max-w-md space-y-4 rounded-card border border-black/5 bg-white p-6 shadow-card">
-        {["name", "email", "phone"].map((k) => (
-          <label key={k} className="block">
-            <span className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-neutral-400">{k}</span>
-            <input className={`${inputCls} w-full`} value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} />
-          </label>
+        {/* Name — the only editable identity field */}
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Name</span>
+          <input className={`${inputCls} w-full`} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        </label>
+        {/* Email & Phone — verified identity (Google / OTP), not editable */}
+        {[["Email", user.email], ["Phone", user.phone]].map(([label, val]) => (
+          <div key={label} className="block" title={`${label} cannot be changed`}>
+            <span className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-neutral-400">{label}</span>
+            <div className="flex items-center gap-2 rounded-lg border border-black/10 bg-neutral-100 px-3.5 py-2.5 text-sm text-neutral-500">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 text-neutral-400" aria-hidden="true">
+                <rect x="5" y="11" width="14" height="9" rx="2" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </svg>
+              <span className="flex-1 truncate">{val || "—"}</span>
+            </div>
+            <span className="mt-1 block text-[11px] text-neutral-400">{label} cannot be changed</span>
+          </div>
         ))}
         <div className="flex gap-2">
           <button onClick={save} disabled={busy} className="rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
@@ -323,7 +336,8 @@ export default function AccountView() {
 
   if (!ready || !isLoggedIn) return <div className="py-24 text-center text-sm text-neutral-400">Loading…</div>;
 
-  const doLogout = () => { logout(); router.push("/"); };
+  // logout() clears the app JWT + NextAuth session and redirects to /login itself.
+  const doLogout = () => { logout(); };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">

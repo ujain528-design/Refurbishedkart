@@ -11,11 +11,14 @@
       while the source order still exists in MongoDB.
 - [ ] Access is gated by `GET /api/invoices/[orderId]` (JWT required; customers get
       only their own orders, admins get any). There is **no** public/static path to a PDF.
-- [ ] **Remove the `console.log` statements from the invoice routes before go-live.**
-      Temporary `[invoice]` debug logs were added during testing in:
-      `app/api/payment/verify/route.js` and `app/api/invoices/[orderId]/route.js`.
-      Strip them (or gate behind `NODE_ENV !== "production"`) so order IDs and file
-      paths aren't written to production logs.
+
+> Debug logging note: all logging goes through `lib/logger.js` (`log` / `logError`),
+> which is silent when `NODE_ENV === "production"`. Raw `console.*` is blocked by the
+> `no-console` ESLint rule (`.eslintrc.json`); `lib/logger.js` is the only exception.
+> No manual log removal is required before go-live.
+- [ ] Run `npm install` so `eslint` + `eslint-config-next` are present, then confirm
+      `npm run lint` passes — this is what makes the `no-console` rule actually enforce
+      (ESLint was not previously installed in this project).
 
 ## pdfkit fonts (PDF generation)
 

@@ -24,7 +24,8 @@ export default function AccountIcon() {
   }
 
   const firstName = (user?.name || "there").split(" ")[0];
-  const doLogout = () => { logout(); router.push("/"); };
+  // logout() clears the app JWT + NextAuth session and redirects to /login itself.
+  const doLogout = () => { logout(); };
 
   return (
     <div className="group relative">

@@ -25,7 +25,6 @@ const FREE_DELIVERY_ABOVE = 999;
 const DELIVERY_FEE = 99;
 const COD_LIMIT = 29999; // COD available up to this order total
 const COD_ADVANCE = 500; // advance paid now to confirm a COD order
-const COD_ADVANCE_METHODS = ["UPI", "Card", "Wallet"];
 
 const inputCls =
   "w-full rounded-lg border border-black/10 px-3.5 py-2.5 text-sm text-ink placeholder:text-neutral-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15";
@@ -51,16 +50,13 @@ function Field({ label, optional, children }) {
   );
 }
 
+// Two choices only. "Pay Online" opens the Razorpay modal where the customer
+// picks UPI / Card / Net Banking / Wallet — the real instrument is read back from
+// Razorpay after payment. COD is separate because it changes the order flow (₹500 advance).
 const PAYMENT_METHODS = [
-  { id: "upi", label: "UPI" },
-  { id: "card", label: "Credit / Debit Card" },
-  { id: "netbanking", label: "Net Banking" },
-  { id: "wallet", label: "Wallets" },
+  { id: "online", label: "Pay Online — UPI, Card, Net Banking, Wallets" },
   { id: "cod", label: "Cash on Delivery" },
 ];
-
-const BANKS = ["HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "Kotak Mahindra Bank", "Punjab National Bank"];
-const WALLETS = ["Paytm", "PhonePe", "Amazon Pay"];
 
 export default function CheckoutView() {
   const { ready, items, subtotal, discount, coupon, orderItems, clearCart, clearCoupon } = useCart();
@@ -72,9 +68,7 @@ export default function CheckoutView() {
   const [useNew, setUseNew] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", email: "", pincode: "", line1: "", line2: "", city: "", state: SELLER_STATE });
   const [saveAddr, setSaveAddr] = useState(false);
-  const [pay, setPay] = useState("upi");
-  const [wallet, setWallet] = useState(WALLETS[0]);
-  const [codAdvance, setCodAdvance] = useState(COD_ADVANCE_METHODS[0]);
+  const [pay, setPay] = useState("online"); // "online" | "cod"
   const [gstin, setGstin] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false); // mobile
   const [gstOpen, setGstOpen] = useState(true);
@@ -193,7 +187,9 @@ export default function CheckoutView() {
       const order = await createOrder({
         items: orderItems(),
         shippingAddress,
-        paymentMethod: pay === "cod" ? "COD" : pay.toUpperCase(),
+        // "ONLINE" is a placeholder; the verify route overwrites it with the real
+        // instrument (card/upi/netbanking/wallet) read from Razorpay. COD stays "COD".
+        paymentMethod: pay === "cod" ? "COD" : "ONLINE",
         couponCode: coupon?.code || null,
         buyerGstin: gstin || null,
       });
@@ -419,59 +415,20 @@ export default function CheckoutView() {
             <div className="mt-4 space-y-3">
               {methods.map((m) => (
                 <Radio key={m.id} id={m.id} label={m.label} disabled={m.id === "cod" && !codAllowed}>
-                  {m.id === "upi" && <input className={inputCls} placeholder="yourname@upi" />}
-                  {m.id === "card" && (
-                    <div className="flex items-start gap-2.5 rounded-lg bg-brand-softer/50 px-3.5 py-3 text-[13px] text-neutral-600">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true">
-                        <rect x="5" y="11" width="14" height="9" rx="2" />
-                        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                      </svg>
-                      <span>You'll enter your card details securely in the Razorpay window after you place the order. Your card number and CVV never pass through or get stored on this site.</span>
-                    </div>
+                  {m.id === "online" && (
+                    <p className="text-[13px] text-neutral-600">
+                      Card, UPI, Net Banking and Wallets are all available in the secure payment window after you click Place Order.
+                    </p>
                   )}
-                  {m.id === "netbanking" && (
-                    <select className={inputCls} defaultValue="">
-                      <option value="" disabled>Select your bank</option>
-                      {BANKS.map((b) => <option key={b}>{b}</option>)}
-                    </select>
-                  )}
-                  {m.id === "wallet" && (
-                    <div className="flex flex-wrap gap-2">
-                      {WALLETS.map((w) => (
-                        <button key={w} onClick={() => setWallet(w)} className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${wallet === w ? "border-brand bg-brand text-white" : "border-black/10 text-ink hover:border-brand"}`}>{w}</button>
-                      ))}
-                    </div>
-                  )}
+                  {/* COD keeps its info box. Razorpay collects every payment detail after Place Order. */}
                   {m.id === "cod" && (
                     codAllowed ? (
-                      <div className="space-y-4">
-                        {/* highlighted info box */}
-                        <div className="rounded-lg border border-brand/20 bg-brand-softer p-4 text-[13px] leading-relaxed text-ink">
-                          <p className="font-bold text-brand">Cash on Delivery selected</p>
-                          <p className="mt-1">
-                            Pay {formatINR(COD_ADVANCE)} now to confirm your order. Remaining{" "}
-                            <span className="font-bold">{formatINR(codRemaining)}</span> will be collected at delivery by our courier partner.
-                          </p>
-                        </div>
-                        {/* advance payment sub-options */}
-                        <div>
-                          <p className="mb-2 text-[12px] font-semibold text-neutral-600">
-                            Pay {formatINR(COD_ADVANCE)} advance via
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {COD_ADVANCE_METHODS.map((opt) => (
-                              <button
-                                key={opt}
-                                onClick={() => setCodAdvance(opt)}
-                                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-                                  codAdvance === opt ? "border-brand bg-brand text-white" : "border-black/10 text-ink hover:border-brand"
-                                }`}
-                              >
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                      <div className="rounded-lg border border-brand/20 bg-brand-softer p-4 text-[13px] leading-relaxed text-ink">
+                        <p className="font-bold text-brand">Cash on Delivery selected</p>
+                        <p className="mt-1">
+                          Pay {formatINR(COD_ADVANCE)} now to confirm your order. Remaining{" "}
+                          <span className="font-bold">{formatINR(codRemaining)}</span> will be collected at delivery by our courier partner.
+                        </p>
                       </div>
                     ) : (
                       <p className="text-[13px] font-medium text-neutral-500">
@@ -481,6 +438,10 @@ export default function CheckoutView() {
                   )}
                 </Radio>
               ))}
+            </div>
+            <div className="mt-4 flex items-start gap-2 rounded-lg bg-neutral-50 px-3.5 py-3 text-[13px] text-neutral-600">
+              <span aria-hidden="true">🔒</span>
+              <span>Payment details are collected securely by our payment partner. You will be redirected to complete payment after clicking Place Order.</span>
             </div>
           </section>
         </div>
