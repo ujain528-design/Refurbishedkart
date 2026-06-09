@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { formatINR, INDIAN_STATES } from "@/lib/data";
 import { MOCK_COUPONS } from "@/lib/account-data";
 import {
-  getOrders, cancelOrder,
+  getOrders, cancelOrder, downloadInvoice,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
   getUserProfile, updateProfile,
 } from "@/lib/api";
@@ -29,6 +29,8 @@ const STATUS_COLOR = {
   Cancelled: "bg-neutral-200 text-neutral-600",
 };
 const CANCELLABLE = ["Pending", "Confirmed"];
+// Invoice exists only once payment is confirmed (not for pending_payment / cancelled).
+const INVOICE_STATUSES = ["Confirmed", "Packed", "Shipped", "Delivered", "Returned"];
 const variantText = (it) => (it.ram ? `${it.ram}GB${it.ssd ? ` · ${it.ssd} SSD` : ""}` : it.ssd ? it.ssd : "");
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
@@ -38,6 +40,18 @@ function OrdersTab() {
   const [orders, setOrders] = useState([]);
   const [open, setOpen] = useState(null);
   const [cancelling, setCancelling] = useState(null);
+  const [downloading, setDownloading] = useState(null);
+
+  const doDownload = async (id) => {
+    setDownloading(id);
+    try {
+      await downloadInvoice(id);
+    } catch (e) {
+      alert(e.message || "Invoice isn't available for this order yet.");
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   const load = useCallback(() => {
     setStatus("loading");
@@ -99,15 +113,26 @@ function OrdersTab() {
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-2.5">
                   <span className="text-[12px] text-neutral-400">Payment: {o.paymentMethod || "—"}</span>
-                  {CANCELLABLE.includes(o.status) && (
-                    <button
-                      onClick={() => doCancel(o.id)}
-                      disabled={cancelling === o.id}
-                      className="ml-auto rounded-full border border-red-200 px-4 py-2 text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {cancelling === o.id ? "Cancelling…" : "Cancel Order"}
-                    </button>
-                  )}
+                  <div className="ml-auto flex items-center gap-2.5">
+                    {INVOICE_STATUSES.includes(o.status) && (
+                      <button
+                        onClick={() => doDownload(o.id)}
+                        disabled={downloading === o.id}
+                        className="rounded-full border border-brand/30 px-4 py-2 text-[12px] font-bold text-brand hover:bg-brand-soft disabled:opacity-50"
+                      >
+                        {downloading === o.id ? "Preparing…" : "Download Invoice"}
+                      </button>
+                    )}
+                    {CANCELLABLE.includes(o.status) && (
+                      <button
+                        onClick={() => doCancel(o.id)}
+                        disabled={cancelling === o.id}
+                        className="rounded-full border border-red-200 px-4 py-2 text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {cancelling === o.id ? "Cancelling…" : "Cancel Order"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

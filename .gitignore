@@ -8,6 +8,9 @@ out/
 # local mock data store (runtime)
 data/
 
+# private customer documents (invoices) — never commit, never served statically
+private/
+
 # env / secrets
 .env*
 

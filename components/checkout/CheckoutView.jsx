@@ -421,10 +421,12 @@ export default function CheckoutView() {
                 <Radio key={m.id} id={m.id} label={m.label} disabled={m.id === "cod" && !codAllowed}>
                   {m.id === "upi" && <input className={inputCls} placeholder="yourname@upi" />}
                   {m.id === "card" && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="sm:col-span-2"><input className={inputCls} placeholder="Card number" /></div>
-                      <input className={inputCls} placeholder="MM / YY" />
-                      <input className={inputCls} placeholder="CVV" />
+                    <div className="flex items-start gap-2.5 rounded-lg bg-brand-softer/50 px-3.5 py-3 text-[13px] text-neutral-600">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true">
+                        <rect x="5" y="11" width="14" height="9" rx="2" />
+                        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                      </svg>
+                      <span>You'll enter your card details securely in the Razorpay window after you place the order. Your card number and CVV never pass through or get stored on this site.</span>
                     </div>
                   )}
                   {m.id === "netbanking" && (
