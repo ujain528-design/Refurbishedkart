@@ -1,5 +1,16 @@
 # RefurbishedKart — Deployment Checklist
 
+## Post-launch features (not built yet)
+
+- [ ] **Build the real Bulk Upload route with Excel parsing.** The Bulk Upload admin
+      page (`app/admin/bulk-upload/page.jsx`) is currently a UI mock only — it shows
+      hardcoded validation rows and never calls the server. The `adminBulkUpload`
+      helper points to `/api/admin/products/bulk`, which does not exist. The nav item
+      is disabled with a "Coming Soon" badge (`comingSoon: true` in AdminShell `NAV`).
+      To ship for real: build `POST /api/admin/products/bulk` that parses the uploaded
+      `.xlsx` (SheetJS), validates each row through `validateProduct`, mirrors
+      `listedPrice → price`, and upserts. Then drop the `comingSoon` flag to re-enable.
+
 ## Invoices (private GST PDFs)
 
 - [ ] **`private/` directory is writable** by the Node process. Invoices are written

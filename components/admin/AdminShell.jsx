@@ -9,7 +9,10 @@ import { LogoMark, MenuIcon, CloseIcon } from "@/components/Icons";
 const NAV = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/products", label: "Products" },
-  { href: "/admin/bulk-upload", label: "Bulk Upload" },
+  // Bulk Upload is a UI mock only — there is no server route yet. Shown disabled
+  // with a "Coming Soon" badge so no admin tries to import a catalogue and silently
+  // loses it. Re-enable (drop comingSoon) once the real route is built post-launch.
+  { href: "/admin/bulk-upload", label: "Bulk Upload", comingSoon: true },
   { href: "/admin/banners", label: "Hero Banners" },
   { href: "/admin/tags", label: "Tags & Collections" },
   { href: "/admin/pricing", label: "Pricing Control" },
@@ -46,17 +49,29 @@ export default function AdminShell({ children }) {
 
   const SidebarLinks = () => (
     <nav className="flex flex-col gap-0.5 p-3">
-      {NAV.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-            isActive(item.href) ? "bg-brand text-white" : "text-white/60 hover:bg-white/10 hover:text-white"
-          }`}
-        >
-          {item.label}
-        </Link>
-      ))}
+      {NAV.map((item) =>
+        item.comingSoon ? (
+          <div
+            key={item.href}
+            aria-disabled="true"
+            title="Coming soon — not yet available"
+            className="flex cursor-not-allowed items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium text-white/30"
+          >
+            <span>{item.label}</span>
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/50">Coming Soon</span>
+          </div>
+        ) : (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              isActive(item.href) ? "bg-brand text-white" : "text-white/60 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            {item.label}
+          </Link>
+        )
+      )}
     </nav>
   );
 

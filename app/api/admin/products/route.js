@@ -3,6 +3,7 @@ import { dbConnect } from "@/lib/server/mongoose";
 import { Product } from "@/lib/server/models";
 import { requireAdmin } from "@/lib/server/adminAuth";
 import { calculateDeviceCost } from "@/lib/server/pricing";
+import { validateProduct } from "@/lib/server/productValidation";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,10 @@ export async function POST(req) {
   if (error) return error;
   try {
     await dbConnect();
-    const data = withDeviceCost(await req.json());
+    const raw = await req.json();
+    const errors = validateProduct(raw);
+    if (errors.length) return NextResponse.json({ error: errors.join("; "), errors }, { status: 400 });
+    const data = withDeviceCost(raw);
     let id = Number(data.id);
     if (!id) {
       const last = await Product.findOne({}).sort({ id: -1 }).lean();

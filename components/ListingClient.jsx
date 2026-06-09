@@ -16,18 +16,20 @@ import { CloseIcon } from "@/components/Icons";
 import { SkeletonGrid, ErrorState } from "@/components/ui/States";
 import { getProducts } from "@/lib/api";
 
+// All accessors use optional chaining so a product missing `attrs` can never crash
+// filter-option derivation or rendering (defensive against malformed catalogue rows).
 const FILTER_FIELDS = [
   { key: "brand", label: "Brand", get: (p) => p.brand },
-  { key: "processor", label: "Processor", get: (p) => p.attrs.processor },
-  { key: "gen", label: "Processor Generation", get: (p) => p.attrs.gen },
-  { key: "ram", label: "RAM (GB)", get: (p) => p.attrs.ram, format: (v) => `${v} GB` },
-  { key: "ramType", label: "RAM Type", get: (p) => p.attrs.ramType },
-  { key: "ssd", label: "SSD Capacity", get: (p) => p.attrs.ssd },
-  { key: "screen", label: "Screen Size", get: (p) => p.attrs.screen },
-  { key: "touch", label: "Touchscreen", get: (p) => (p.attrs.touchscreen === undefined ? undefined : p.attrs.touchscreen ? "Yes" : "No") },
-  { key: "gpu", label: "Graphics / GPU", get: (p) => p.attrs.gpu },
-  { key: "os", label: "Operating System", get: (p) => p.attrs.os },
-  { key: "warranty", label: "Warranty Period", get: (p) => p.attrs.warranty },
+  { key: "processor", label: "Processor", get: (p) => p.attrs?.processor },
+  { key: "gen", label: "Processor Generation", get: (p) => p.attrs?.gen },
+  { key: "ram", label: "RAM (GB)", get: (p) => p.attrs?.ram, format: (v) => `${v} GB` },
+  { key: "ramType", label: "RAM Type", get: (p) => p.attrs?.ramType },
+  { key: "ssd", label: "SSD Capacity", get: (p) => p.attrs?.ssd },
+  { key: "screen", label: "Screen Size", get: (p) => p.attrs?.screen },
+  { key: "touch", label: "Touchscreen", get: (p) => (p.attrs?.touchscreen === undefined ? undefined : p.attrs.touchscreen ? "Yes" : "No") },
+  { key: "gpu", label: "Graphics / GPU", get: (p) => p.attrs?.gpu },
+  { key: "os", label: "Operating System", get: (p) => p.attrs?.os },
+  { key: "warranty", label: "Warranty Period", get: (p) => p.attrs?.warranty },
 ];
 
 const SORTS = [
@@ -266,16 +268,21 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
           </div>
         ) : (
           <>
+            <p className="mb-4 text-[13px] text-neutral-500">
+              Showing {shown.length} of {filtered.length} product{filtered.length === 1 ? "" : "s"}
+            </p>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {shown.map((p) => (<ProductCard key={p.id} product={p} className="w-full" />))}
             </div>
-            {filtered.length > visible && (
+            {filtered.length > visible ? (
               <div className="mt-10 text-center">
-                <button onClick={() => setVisible((v) => v + PAGE)} className="rounded-full border border-brand px-8 py-3 text-sm font-bold text-brand transition-colors hover:bg-brand hover:text-white">
+                <button onClick={() => setVisible((v) => Math.min(v + PAGE, filtered.length))} className="rounded-full border border-brand px-8 py-3 text-sm font-bold text-brand transition-colors hover:bg-brand hover:text-white">
                   Load More ({filtered.length - visible} more)
                 </button>
               </div>
-            )}
+            ) : filtered.length > PAGE ? (
+              <p className="mt-10 text-center text-[13px] text-neutral-400">No more products</p>
+            ) : null}
           </>
         )}
       </div>

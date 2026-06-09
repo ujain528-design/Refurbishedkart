@@ -16,18 +16,26 @@ export async function PUT(req, { params }) {
     await dbConnect();
     const { action, quantity } = await req.json();
     const qty = Math.max(0, Math.floor(Number(quantity) || 0));
-    const delta = action === "decrease" ? -qty : qty;
 
-    const product = await Product.findOne({ id: Number(params.id) });
+    const product = await Product.findOne({ id: Number(params.id) }).lean();
     if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
 
     const current = product.chassisStock ?? product.stock ?? 0;
-    const next = Math.max(0, current + delta);
-    product.chassisStock = next;
-    product.stock = next; // mirror
-    await product.save();
+    if (action === "decrease" && current - qty < 0) {
+      return NextResponse.json({ error: "Cannot go below 0" }, { status: 400 });
+    }
+    const next = action === "decrease" ? current - qty : current + qty;
 
-    return NextResponse.json({ product: product.toObject() });
+    // Use $set via findOneAndUpdate — chassisStock/stock are NOT declared schema
+    // paths (Product is strict:false), so a `doc.field = x; doc.save()` would NOT
+    // be tracked as modified and would silently persist nothing. $set writes reliably.
+    const updated = await Product.findOneAndUpdate(
+      { id: Number(params.id) },
+      { $set: { chassisStock: next, stock: next } }, // stock mirrored for storefront/legacy reads
+      { new: true }
+    ).lean();
+
+    return NextResponse.json({ product: updated });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

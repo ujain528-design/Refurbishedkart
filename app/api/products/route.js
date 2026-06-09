@@ -8,7 +8,11 @@ export async function GET(req) {
   const params = Object.fromEntries(sp.entries());
   try {
     const products = await queryProducts(params);
-    return NextResponse.json({ products, count: products.length });
+    // The storefront listing paginates client-side (fetch-all + slice), so the full
+    // matching set is returned in one response. `total` is included for the requested
+    // { products, total, page, limit } shape; page/limit reflect "all in one page".
+    const total = products.length;
+    return NextResponse.json({ products, total, count: total, page: 1, limit: total });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

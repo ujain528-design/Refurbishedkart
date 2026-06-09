@@ -5,11 +5,15 @@ import WishlistButton from "@/components/WishlistButton";
 import AddToCartButton from "@/components/AddToCartButton";
 
 export default function ProductCard({ product, className = "w-[260px] shrink-0 snap-start" }) {
-  const off = Math.round((1 - product.price / product.mrp) * 100);
+  // Price/MRP fallbacks: a product reaching the card without `price` (e.g. only
+  // listedPrice set) must still render. Never let undefined hit formatINR.
+  const price = Number(product.price ?? product.listedPrice ?? 0) || 0;
+  const mrp = Number(product.mrp ?? 0) || 0;
+  const off = mrp > 0 ? Math.round((1 - price / mrp) * 100) : 0;
   const stock = product.chassisStock ?? product.stock;
   const oos = stock === 0;
   const lowStock = stock > 0 && stock <= 5;
-  const href = `/products/${product.category.toLowerCase()}/${product.id}`;
+  const href = `/products/${(product.category || "laptops").toLowerCase()}/${product.id}`;
   // Default-config spec summary, e.g. "16GB DDR4 | 256GB SSD"
   const specSummary = product.defaultRam?.capacity
     ? `${product.defaultRam.capacity} ${product.defaultRam.type || ""}`.trim() +
@@ -86,11 +90,13 @@ export default function ProductCard({ product, className = "w-[260px] shrink-0 s
           {specSummary}
         </p>
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-lg font-bold text-ink">{formatINR(product.price)}</span>
-          <span className="text-[13px] text-neutral-400 line-through">
-            {formatINR(product.mrp)}
-          </span>
-          <span className="ml-auto text-[12px] font-bold text-brand-mid">{off}% off</span>
+          <span className="text-lg font-bold text-ink">{formatINR(price)}</span>
+          {mrp > price && (
+            <>
+              <span className="text-[13px] text-neutral-400 line-through">{formatINR(mrp)}</span>
+              <span className="ml-auto text-[12px] font-bold text-brand-mid">{off}% off</span>
+            </>
+          )}
         </div>
         {lowStock && (
           <p className="mt-2 text-[12px] font-bold text-red-600">
