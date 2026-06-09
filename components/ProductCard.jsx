@@ -6,9 +6,15 @@ import AddToCartButton from "@/components/AddToCartButton";
 
 export default function ProductCard({ product, className = "w-[260px] shrink-0 snap-start" }) {
   const off = Math.round((1 - product.price / product.mrp) * 100);
-  const oos = product.stock === 0;
-  const lowStock = product.stock > 0 && product.stock <= 5;
+  const stock = product.chassisStock ?? product.stock;
+  const oos = stock === 0;
+  const lowStock = stock > 0 && stock <= 5;
   const href = `/products/${product.category.toLowerCase()}/${product.id}`;
+  // Default-config spec summary, e.g. "16GB DDR4 | 256GB SSD"
+  const specSummary = product.defaultRam?.capacity
+    ? `${product.defaultRam.capacity} ${product.defaultRam.type || ""}`.trim() +
+      (product.defaultSsd?.capacity ? ` | ${product.defaultSsd.capacity} SSD` : "")
+    : product.specs;
 
   return (
     <article
@@ -76,8 +82,8 @@ export default function ProductCard({ product, className = "w-[260px] shrink-0 s
         <h3 className="truncate text-[15px] font-semibold text-ink" title={product.name}>
           {product.name}
         </h3>
-        <p className="mt-1 truncate text-[13px] text-neutral-500" title={product.specs}>
-          {product.specs}
+        <p className="mt-1 truncate text-[13px] text-neutral-500" title={specSummary}>
+          {specSummary}
         </p>
         <div className="mt-3 flex items-baseline gap-2">
           <span className="text-lg font-bold text-ink">{formatINR(product.price)}</span>
@@ -88,7 +94,7 @@ export default function ProductCard({ product, className = "w-[260px] shrink-0 s
         </div>
         {lowStock && (
           <p className="mt-2 text-[12px] font-bold text-red-600">
-            Only {product.stock} left
+            Only {stock} left
           </p>
         )}
       </div>

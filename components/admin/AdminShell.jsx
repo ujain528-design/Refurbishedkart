@@ -28,13 +28,17 @@ export default function AdminShell({ children }) {
   const router = useRouter();
   const [drawer, setDrawer] = useState(false);
 
+  // ⚠️ DEV-ONLY: in `next dev` the admin UI opens without login (matches the
+  // server-side bypass in lib/server/adminAuth.js). REMOVE BEFORE PRODUCTION.
+  const DEV_BYPASS = process.env.NODE_ENV === "development";
+
   useEffect(() => {
-    if (ready && (!isLoggedIn || !isAdmin)) router.replace("/login?next=/admin");
-  }, [ready, isLoggedIn, isAdmin, router]);
+    if (!DEV_BYPASS && ready && (!isLoggedIn || !isAdmin)) router.replace("/login?next=/admin");
+  }, [DEV_BYPASS, ready, isLoggedIn, isAdmin, router]);
 
   useEffect(() => setDrawer(false), [pathname]);
 
-  if (!ready || !isLoggedIn || !isAdmin) {
+  if (!DEV_BYPASS && (!ready || !isLoggedIn || !isAdmin)) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-neutral-400">Loading admin…</div>;
   }
 

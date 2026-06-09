@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/server/mongoose";
-import { Order, Coupon, nextOrderId } from "@/lib/server/models";
+import { Order, Coupon, Product, nextOrderId } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
 import { calcPrice } from "@/lib/server/products";
 import { gstBreakup } from "@/lib/data";
@@ -45,8 +45,22 @@ export async function POST(req) {
       orderId, userId: auth.sub, lines, subtotal, discount, delivery, gst, total,
       couponCode: appliedCode, paymentMethod: paymentMethod || "UPI",
       shippingAddress: shippingAddress || null, buyerGstin: buyerGstin || null,
+      customerName: shippingAddress?.name || auth.name || null,
       status: paymentMethod === "COD" ? "Pending" : "Confirmed",
     });
+
+    // Deduct chassis stock: any config sold deducts 1 chassis per unit (qty).
+    const perProduct = {};
+    for (const l of lines) perProduct[l.productId] = (perProduct[l.productId] || 0) + l.qty;
+    for (const [pid, qty] of Object.entries(perProduct)) {
+      const p = await Product.findOne({ id: Number(pid) });
+      if (p) {
+        const next = Math.max(0, (p.chassisStock ?? p.stock ?? 0) - qty);
+        p.chassisStock = next; p.stock = next; // mirror
+        await p.save();
+      }
+    }
+
     return NextResponse.json({ order: { id: order.orderId, ...order.toObject() } }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
