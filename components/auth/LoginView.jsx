@@ -22,8 +22,10 @@ export default function LoginView() {
   const params = useSearchParams();
   // Post-login destination: the ?redirect= returnUrl if present (e.g. the checkout
   // gate sends ?redirect=/checkout), otherwise the homepage.
+  // Return-to-page: ?redirect= (checkout gate) or ?next= (account/admin/401 gate);
+  // fall back to the homepage when a login was started directly.
   const redirect = params.get("redirect");
-  const next = redirect || "/";
+  const next = redirect || params.get("next") || "/";
 
   const { ready, isLoggedIn, user } = useAuth();
   const [busy, setBusy] = useState(false);

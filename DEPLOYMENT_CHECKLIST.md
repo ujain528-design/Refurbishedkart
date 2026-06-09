@@ -40,6 +40,19 @@
 - [ ] `.env*` is git-ignored. Set on the server: `MONGODB_URI`, `JWT_SECRET`,
       `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`,
       `ADMIN_EMAIL`, Google OAuth + SMTP vars.
-- [ ] **Remove the `requireAdmin` DEV bypass** (`NODE_ENV==="development"` mock
-      superadmin in `lib/server/adminAuth.js`) before/at production — `NODE_ENV=production`
-      disables it, but confirm.
+## Security — dev-only backdoors (PERMANENTLY REMOVED)
+
+All three dev backdoors have been deleted from the codebase — not gated, removed.
+There is no longer a `NODE_ENV`-dependent path to admin/superadmin access.
+
+- [x] `app/api/auth/dev-login` — **DELETED** (route file removed). Real auth is Google
+      OAuth via NextAuth; admin role is granted from `ADMIN_EMAIL`.
+- [x] `app/api/dev/seed` — **DELETED** (route file removed). Seeding was a one-time local
+      task; reseed locally from git history if ever needed.
+- [x] `lib/server/adminAuth.js` `requireAdmin` DEV bypass — **REMOVED**. `requireAdmin`
+      now always requires a real JWT with role admin/superadmin; no mock-admin path exists.
+- [ ] (Cosmetic, optional) `components/admin/AdminShell.jsx` still has a client-side
+      `DEV_BYPASS` that only skips the redirect-to-login in dev. It is NOT a security
+      control (the server `requireAdmin` is the real gate, and it now has no bypass), so
+      in dev the admin UI renders but API calls 401 without a real admin login. Remove it
+      if you want dev behaviour to match production exactly.
