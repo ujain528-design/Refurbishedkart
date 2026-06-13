@@ -1,6 +1,9 @@
 import StaticPage, { H2, P, UL } from "@/components/StaticPage";
 
-export const metadata = { title: "Return & Refund Policy — RefurbishedKart" };
+export const metadata = {
+  title: "Return Policy",
+  description: "RefurbishedKart's 7-day return and refund policy for certified refurbished products.",
+};
 
 export default function ReturnPolicyPage() {
   return (

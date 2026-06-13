@@ -82,11 +82,14 @@ function CategorySpecSchema() {
 
   return (
     <div>
+      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-800">
+        <span className="font-bold">Preview only.</span> Per-category schema editing isn&apos;t saved yet — toggles here reset on reload and don&apos;t affect the live editor. Full schema management is coming soon.
+      </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {cats.map((c) => (
           <button key={c} onClick={() => setCat(c)} className={`rounded-full px-4 py-1.5 text-[13px] font-semibold ${cat === c ? "bg-brand text-white" : "border border-black/10 text-ink"}`}>{c}</button>
         ))}
-        <button onClick={() => setAdding(true)} className={`${btnPrimary} ml-auto`}>+ Add Custom Field</button>
+        <button onClick={() => setAdding(true)} className={`${btnPrimary} ml-auto opacity-60`}>+ Add Custom Field</button>
       </div>
 
       <div className="overflow-x-auto rounded-card border border-black/5 bg-white shadow-card">
@@ -118,7 +121,7 @@ function CategorySpecSchema() {
 
       {adding && (
         <Modal title="Add Custom Spec Field" onClose={() => setAdding(false)}
-          footer={<><button onClick={() => setAdding(false)} className={btnGhost}>Cancel</button><button onClick={() => { setAdding(false); toast("Custom field added to selected categories"); }} className={btnPrimary}>Add Field</button></>}>
+          footer={<><button onClick={() => setAdding(false)} className={btnGhost}>Close</button><button onClick={() => { setAdding(false); toast("Custom spec fields are coming soon — not saved yet", "error"); }} className={btnPrimary}>Add Field</button></>}>
           <div className="space-y-3">
             <Field label="Field Name" hint="e.g. Rack Units, Stylus Support, ECC Support"><input className={inputCls} /></Field>
             <Field label="Field Type"><select className={inputCls}><option>Dropdown (from master data)</option><option>Yes/No toggle</option></select></Field>

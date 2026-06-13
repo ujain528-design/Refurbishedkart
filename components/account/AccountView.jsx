@@ -10,6 +10,7 @@ import {
   getOrders, cancelOrder, downloadInvoice,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
   getUserProfile, updateProfile,
+  getReturns, createReturn, uploadReturnPhoto, getReturnReasons, getPublicSettings,
 } from "@/lib/api";
 import { ErrorState, EmptyState } from "@/components/ui/States";
 import { ChevronDown, BrokenDeviceIcon } from "@/components/Icons";
@@ -35,12 +36,25 @@ const variantText = (it) => (it.ram ? `${it.ram}GB${it.ssd ? ` · ${it.ssd} SSD`
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
 /* ── Orders ── */
+const DAY = 24 * 60 * 60 * 1000;
+const RETURN_STATUS_COLOR = {
+  Requested: "bg-amber-100 text-amber-700",
+  Approved: "bg-green-100 text-green-700",
+  Rejected: "bg-red-100 text-red-600",
+  Received: "bg-indigo-100 text-indigo-700",
+  Refunded: "bg-brand-soft text-brand",
+};
+
 function OrdersTab() {
   const [status, setStatus] = useState("loading");
   const [orders, setOrders] = useState([]);
+  const [returnsByOrder, setReturnsByOrder] = useState({});
+  const [returnDays, setReturnDays] = useState(7);
+  const [reasons, setReasons] = useState([]);
   const [open, setOpen] = useState(null);
   const [cancelling, setCancelling] = useState(null);
   const [downloading, setDownloading] = useState(null);
+  const [returnFor, setReturnFor] = useState(null); // order object whose modal is open
 
   const doDownload = async (id) => {
     setDownloading(id);
@@ -55,9 +69,26 @@ function OrdersTab() {
 
   const load = useCallback(() => {
     setStatus("loading");
-    getOrders().then((o) => { setOrders(o); setStatus("ready"); }).catch(() => setStatus("error"));
+    Promise.all([getOrders(), getReturns().catch(() => []), getPublicSettings().catch(() => ({}))])
+      .then(([o, rets, s]) => {
+        setOrders(o);
+        const map = {};
+        (rets || []).forEach((r) => { if (!map[r.orderId]) map[r.orderId] = r; });
+        setReturnsByOrder(map);
+        if (s?.returnDays) setReturnDays(Number(s.returnDays));
+        setStatus("ready");
+      })
+      .catch(() => setStatus("error"));
+    getReturnReasons().then(setReasons).catch(() => setReasons([]));
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Eligible = delivered, within window (deliveredAt → updatedAt → createdAt), no return yet.
+  const returnEligible = (o) => {
+    if (o.status !== "Delivered" || returnsByOrder[o.id]) return false;
+    const base = new Date(o.deliveredAt || o.updatedAt || o.createdAt || Date.now());
+    return Math.floor((Date.now() - base.getTime()) / DAY) <= returnDays;
+  };
 
   const doCancel = async (id) => {
     setCancelling(id);
@@ -111,9 +142,40 @@ function OrdersTab() {
                     </div>
                   ))}
                 </div>
+                {returnsByOrder[o.id] && (
+                  <div className="mt-4 rounded-lg border border-black/5 bg-neutral-50 px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[12px] font-semibold text-ink">Return {returnsByOrder[o.id].id}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${RETURN_STATUS_COLOR[returnsByOrder[o.id].status] || "bg-neutral-200 text-neutral-600"}`}>{returnsByOrder[o.id].status}</span>
+                    </div>
+                    {returnsByOrder[o.id].status === "Requested" && (
+                      <p className="mt-1 text-[12px] text-neutral-500">We&apos;ll review and respond within 2 business days.</p>
+                    )}
+                    {returnsByOrder[o.id].status === "Approved" && (
+                      <p className="mt-1 text-[12px] text-neutral-500">Approved — refund {formatINR(returnsByOrder[o.id].refundAmount)}{returnsByOrder[o.id].deductionAmount ? ` (after ${formatINR(returnsByOrder[o.id].deductionAmount)} deduction)` : ""} once we receive the item.</p>
+                    )}
+                    {returnsByOrder[o.id].status === "Rejected" && returnsByOrder[o.id].adminNotes && (
+                      <p className="mt-1 text-[12px] text-red-600">Reason: {returnsByOrder[o.id].adminNotes}</p>
+                    )}
+                    {returnsByOrder[o.id].status === "Refunded" && (
+                      <p className="mt-1 text-[12px] text-brand">Refund of {formatINR(returnsByOrder[o.id].refundAmount)} processed.</p>
+                    )}
+                  </div>
+                )}
                 <div className="mt-4 flex flex-wrap items-center gap-2.5">
                   <span className="text-[12px] text-neutral-400">Payment: {paymentMethodLabel(o.paymentMethod)}</span>
                   <div className="ml-auto flex items-center gap-2.5">
+                    {returnEligible(o) && (
+                      <button
+                        onClick={() => setReturnFor(o)}
+                        className="rounded-full border border-brand/30 px-4 py-2 text-[12px] font-bold text-brand hover:bg-brand-soft"
+                      >
+                        Request Return
+                      </button>
+                    )}
+                    {o.status === "Delivered" && !returnsByOrder[o.id] && !returnEligible(o) && (
+                      <span className="text-[12px] font-semibold text-neutral-400">Return window closed</span>
+                    )}
                     {INVOICE_STATUSES.includes(o.status) && (
                       <button
                         onClick={() => doDownload(o.id)}
@@ -139,6 +201,133 @@ function OrdersTab() {
           </div>
         );
       })}
+
+      {returnFor && (
+        <RequestReturnModal
+          order={returnFor}
+          reasons={reasons}
+          onClose={() => setReturnFor(null)}
+          onSubmitted={(r) => { setReturnsByOrder((m) => ({ ...m, [r.orderId]: r })); setReturnFor(null); setOpen(r.orderId); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Request Return modal ── */
+function RequestReturnModal({ order, reasons, onClose, onSubmitted }) {
+  const lines = order.lines || [];
+  const [productIdx, setProductIdx] = useState(0);
+  const [reason, setReason] = useState("");
+  const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const addPhotos = async (files) => {
+    const list = Array.from(files || []).slice(0, 3 - photos.length);
+    if (!list.length) return;
+    setUploading(true);
+    try {
+      const urls = [];
+      for (const f of list) { const { url } = await uploadReturnPhoto(f); if (url) urls.push(url); }
+      setPhotos((p) => [...p, ...urls].slice(0, 3));
+    } catch (e) {
+      setError(e.message || "Photo upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const submit = async () => {
+    setError("");
+    if (!reason) { setError("Please select a reason"); return; }
+    if (!description.trim()) { setError("Please describe the issue"); return; }
+    setSubmitting(true);
+    try {
+      const line = lines[productIdx] || lines[0] || {};
+      const r = await createReturn({
+        orderId: order.id,
+        productId: line.productId != null ? String(line.productId) : "",
+        productName: line.name || "",
+        reason,
+        description: description.trim(),
+        photos,
+      });
+      setDone(true);
+      setTimeout(() => onSubmitted(r), 1400);
+    } catch (e) {
+      setError(e.message || "Couldn't submit return");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-card bg-white p-6 shadow-card-hover" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-ink">Request a return</h3>
+          <button onClick={onClose} className="rounded-full p-2 text-neutral-400 hover:bg-neutral-100 hover:text-ink">✕</button>
+        </div>
+        <p className="mt-1 text-[12px] text-neutral-400">Order #{order.id}</p>
+
+        {done ? (
+          <div className="py-8 text-center">
+            <p className="text-2xl">✓</p>
+            <p className="mt-2 text-sm font-semibold text-ink">Return request submitted.</p>
+            <p className="mt-1 text-[13px] text-neutral-500">We&apos;ll review and respond within 2 business days.</p>
+          </div>
+        ) : (
+          <div className="mt-4 space-y-4">
+            {lines.length > 1 && (
+              <label className="block">
+                <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Product</span>
+                <select value={productIdx} onChange={(e) => setProductIdx(Number(e.target.value))} className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-brand focus:outline-none">
+                  {lines.map((l, i) => <option key={i} value={i}>{l.name}</option>)}
+                </select>
+              </label>
+            )}
+            <label className="block">
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Reason</span>
+              <select value={reason} onChange={(e) => setReason(e.target.value)} className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-brand focus:outline-none">
+                <option value="">— Select a reason —</option>
+                {reasons.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Description <span className="text-red-500">*</span></span>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Tell us what's wrong…" className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-brand focus:outline-none" />
+            </label>
+            <div>
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Photos (optional, up to 3)</span>
+              <div className="flex flex-wrap items-center gap-2">
+                {photos.map((src, i) => (
+                  <div key={i} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt={`Return ${i + 1}`} className="h-14 w-14 rounded-lg object-cover ring-1 ring-black/10" />
+                    <button onClick={() => setPhotos((p) => p.filter((_, idx) => idx !== i))} className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">✕</button>
+                  </div>
+                ))}
+                {photos.length < 3 && (
+                  <label className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-lg border border-dashed border-black/20 text-neutral-400 hover:border-brand hover:text-brand">
+                    {uploading ? "…" : "+"}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={(e) => addPhotos(e.target.files)} />
+                  </label>
+                )}
+              </div>
+            </div>
+            {error && <p className="text-[13px] font-semibold text-red-600">{error}</p>}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={onClose} className="rounded-full border border-black/10 px-5 py-2.5 text-sm font-bold text-ink hover:border-brand hover:text-brand">Cancel</button>
+              <button onClick={submit} disabled={submitting || uploading} className="rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50">
+                {submitting ? "Submitting…" : "Submit Request"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

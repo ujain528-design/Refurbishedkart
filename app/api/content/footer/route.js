@@ -8,7 +8,13 @@ export async function GET() {
   try {
     const s = await getStoreSettings();
     return NextResponse.json({
-      info: { gstin: s.gstin, phone: s.supportPhone, email: s.supportEmail, address: s.address },
+      info: {
+        gstin: s.gstin, phone: s.supportPhone, email: s.supportEmail, address: s.address,
+        social: {
+          Facebook: s.facebookUrl, Instagram: s.instagramUrl, "Twitter / X": s.twitterUrl,
+          LinkedIn: s.linkedinUrl, YouTube: s.youtubeUrl, "Google Business": s.googleBusinessUrl,
+        },
+      },
     });
   } catch (e) {
     return NextResponse.json({ info: null, error: e.message }, { status: 500 });

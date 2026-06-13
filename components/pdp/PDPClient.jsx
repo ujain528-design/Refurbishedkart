@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import ProductRow from "@/components/ProductRow";
 import Gallery from "@/components/pdp/Gallery";
 import PurchasePanel from "@/components/pdp/PurchasePanel";
 import ReviewsSection from "@/components/pdp/ReviewsSection";
+import CompareModal from "@/components/pdp/CompareModal";
 import { ErrorState } from "@/components/ui/States";
 import { CATEGORY_SLUGS } from "@/lib/data";
 import { variantsFor, specRowsFor, descriptionFor } from "@/lib/pdp";
+import { generateProductTitle } from "@/lib/generateTitle";
 import { getProduct, getReviews, getProducts } from "@/lib/api";
+
+const singularCat = (c) => (c ? String(c).replace(/s$/, "") : "Product");
 
 function PDPSkeleton() {
   return (
@@ -38,6 +42,8 @@ export default function PDPClient({ category, id }) {
   const [reviewsData, setReviewsData] = useState({ reviews: [], summary: null });
   const [related, setRelated] = useState([]);
   const [alsoViewed, setAlsoViewed] = useState([]);
+  const [compareOpen, setCompareOpen] = useState(false);
+  const compareBtnRef = useRef(null);
 
   const load = useCallback(() => {
     let alive = true;
@@ -48,11 +54,13 @@ export default function PDPClient({ category, id }) {
         if (!p) { setStatus("notfound"); return; }
         setProduct(p);
         setStatus("ready");
-        // secondary fetches — non-blocking, failures degrade gracefully
-        getReviews(id).then((r) => alive && setReviewsData(r)).catch(() => {});
-        getProducts({ category: p.category, limit: 6, exclude: id })
+        // secondary fetches use the resolved NUMERIC id (route param may be a slug),
+        // so reviews + related/also-viewed exclusion key on the real product id.
+        const pid = p.id;
+        getReviews(pid).then((r) => alive && setReviewsData(r)).catch(() => {});
+        getProducts({ category: p.category, limit: 6, exclude: pid })
           .then((rows) => alive && setRelated(rows)).catch(() => {});
-        getProducts({ tags: "bestseller", limit: 6, exclude: id })
+        getProducts({ tags: "bestseller", limit: 6, exclude: pid })
           .then((rows) => alive && setAlsoViewed(rows)).catch(() => {});
       })
       .catch((e) => {
@@ -98,9 +106,35 @@ export default function PDPClient({ category, id }) {
           </nav>
 
           <div className="mt-8 grid gap-10 lg:grid-cols-2">
-            <Gallery images={product.images} alt={product.name} />
+            <Gallery
+              images={product.images}
+              alt={`${generateProductTitle(product)} — Refurbished ${singularCat(product.category)} for sale in India`}
+              altBase={`${product.brand || ""} ${product.name || ""} — Refurbished ${singularCat(product.category)}`.trim()}
+            />
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-ink md:text-3xl">{product.name}</h1>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                {(() => {
+                  const cond = product.condition || product.attrs?.condition || product.attrs?.grade;
+                  if (!cond) return null;
+                  const tone = cond === "Excellent" ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20"
+                    : cond === "Good" ? "bg-amber-50 text-amber-700 ring-amber-600/20"
+                    : "bg-orange-50 text-orange-700 ring-orange-600/20";
+                  return (
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold ring-1 ${tone}`}>
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+                      Condition: {cond}
+                    </span>
+                  );
+                })()}
+                {/* Mobile workstation = a laptop carrying the "workstation" tag. */}
+                {(product.tags || []).map((t) => String(t).toLowerCase()).includes("workstation") && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[12px] font-bold text-indigo-700 ring-1 ring-indigo-600/20">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 12, height: 12 }} aria-hidden="true"><path d="M3 5h18v10H3zM8 19h8M12 15v4" /></svg>
+                    Workstation
+                  </span>
+                )}
+              </div>
+              <h1 className="text-2xl font-extrabold tracking-tight text-ink md:text-3xl">{product.generatedTitle || generateProductTitle(product) || product.name}</h1>
               <PurchasePanel product={product} variants={variants} rating={rating} ratingCount={ratingCount} />
             </div>
           </div>
@@ -150,6 +184,24 @@ export default function PDPClient({ category, id }) {
           <ProductRow title="Customers also viewed" subtitle="Popular picks across the store." products={alsoViewed} className="pb-16" />
         )}
       </div>
+
+      {/* Floating Compare button — opens the same-category compare flow */}
+      <button
+        ref={compareBtnRef}
+        type="button"
+        onClick={() => setCompareOpen(true)}
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-warm-border bg-white px-5 py-3 text-sm font-bold text-ink shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition-colors hover:border-ink"
+        aria-haspopup="dialog"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }} aria-hidden="true">
+          <path d="M4 5h6M4 5l2-2M4 5l2 2M20 19h-6M20 19l-2-2M20 19l-2 2M7 5v14M17 19V5" />
+        </svg>
+        Compare
+      </button>
+
+      {compareOpen && (
+        <CompareModal product={product} onClose={() => { setCompareOpen(false); compareBtnRef.current?.focus(); }} />
+      )}
     </>
   );
 }

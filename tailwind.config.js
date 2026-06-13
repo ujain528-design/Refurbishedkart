@@ -5,19 +5,50 @@ module.exports = {
     "./components/**/*.{js,jsx}",
     "./lib/**/*.{js,jsx}",
   ],
+  // Scroll-reveal / nav primitives are applied dynamically (useReveal) and on
+  // sections not yet built, so keep them from being tree-shaken.
+  safelist: [
+    "fade-up",
+    "fade-in",
+    "visible",
+    "nav-underline",
+    "hero-fade",
+    "hero-rise",
+    "stagger-1",
+    "stagger-2",
+    "stagger-3",
+    "stagger-4",
+    "stagger-5",
+    "stagger-6",
+  ],
   theme: {
     extend: {
+      fontFamily: {
+        // Display serif for major headings; body/UI stays Inter (set on <body>).
+        // var(--font-fraunces) is provided by next/font in app/layout.jsx.
+        display: ["var(--font-fraunces)", "ui-serif", "Georgia", "serif"],
+      },
       colors: {
+        // brand/ink/offwhite resolve to CSS variables so the STOREFRONT uses the new
+        // "Warm Tech" palette (forest green) while the ADMIN panel (scoped by
+        // .admin-shell in globals.css) keeps the original #1B5E20. rgb-channel form
+        // preserves all the existing /opacity modifiers (bg-brand/40 etc.).
         brand: {
-          DEFAULT: "#1B5E20",
-          dark: "#10410F",
-          mid: "#2E7D32",
-          soft: "#E8F2E9",
-          softer: "#F3F8F4",
-          accent: "#66BB6A",
+          DEFAULT: "rgb(var(--c-brand) / <alpha-value>)",
+          dark: "rgb(var(--c-brand-dark) / <alpha-value>)",
+          mid: "rgb(var(--c-brand-mid) / <alpha-value>)",
+          soft: "rgb(var(--c-brand-soft) / <alpha-value>)",
+          softer: "rgb(var(--c-brand-softer) / <alpha-value>)",
+          accent: "rgb(var(--c-brand-accent) / <alpha-value>)",
         },
-        ink: "#141414",
-        offwhite: "#F7F7F4",
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        offwhite: "rgb(var(--c-offwhite) / <alpha-value>)",
+        // New named storefront tokens (Warm Tech palette)
+        primary: { DEFAULT: "#2D5016", light: "#EDF2E8" },
+        accent: { DEFAULT: "#E8A020", light: "#FDF3DC" },
+        warm: { bg: "#FAF8F5", surface: "#FFFFFF", alt: "#F5F2EE", border: "#E8E4DF" },
+        dark: "#1C1C1E",
+        muted: "#8A8A8E",
       },
       borderRadius: {
         card: "12px",
@@ -31,20 +62,20 @@ module.exports = {
         stepPulse: {
           "0%, 18%, 100%": {
             transform: "scale(1)",
-            boxShadow: "0 0 0 0 rgba(27, 94, 32, 0)",
+            boxShadow: "0 0 0 0 rgba(45, 80, 22, 0)",
             backgroundColor: "#ffffff",
-            color: "#1B5E20",
+            color: "#2D5016",
           },
           "6%": {
             transform: "scale(1.12)",
-            boxShadow: "0 0 0 10px rgba(27, 94, 32, 0.12)",
-            backgroundColor: "#1B5E20",
+            boxShadow: "0 0 0 10px rgba(45, 80, 22, 0.12)",
+            backgroundColor: "#2D5016",
             color: "#ffffff",
           },
           "12%": {
             transform: "scale(1.06)",
-            boxShadow: "0 0 0 6px rgba(27, 94, 32, 0.08)",
-            backgroundColor: "#1B5E20",
+            boxShadow: "0 0 0 6px rgba(45, 80, 22, 0.08)",
+            backgroundColor: "#2D5016",
             color: "#ffffff",
           },
         },

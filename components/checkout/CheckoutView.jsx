@@ -18,7 +18,7 @@ function loadRazorpay() {
     document.body.appendChild(s);
   });
 }
-import { formatINR, INDIAN_STATES, SELLER_STATE, gstBreakup } from "@/lib/data";
+import { formatINR, INDIAN_STATES, SELLER_STATE, computeLineTaxes } from "@/lib/data";
 import { BrokenDeviceIcon, LockIcon, ShieldIcon, ReturnIcon, ClipboardIcon, ChevronDown } from "@/components/Icons";
 
 const FREE_DELIVERY_ABOVE = 999;
@@ -75,10 +75,10 @@ export default function CheckoutView() {
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState("");
   const [pendingOrder, setPendingOrder] = useState(null); // created order awaiting payment (for retry)
-  const [rules, setRules] = useState({ freeDeliveryAbove: FREE_DELIVERY_ABOVE, deliveryFee: DELIVERY_FEE });
+  const [rules, setRules] = useState({ freeDeliveryAbove: FREE_DELIVERY_ABOVE, deliveryFee: DELIVERY_FEE, gstRate: 18 });
 
   useEffect(() => {
-    getPublicSettings().then((s) => setRules({ freeDeliveryAbove: s.freeDeliveryAbove ?? FREE_DELIVERY_ABOVE, deliveryFee: s.deliveryFee ?? DELIVERY_FEE })).catch(() => {});
+    getPublicSettings().then((s) => setRules({ freeDeliveryAbove: s.freeDeliveryAbove ?? FREE_DELIVERY_ABOVE, deliveryFee: s.deliveryFee ?? DELIVERY_FEE, gstRate: Number(s.gstRate ?? 18) })).catch(() => {});
   }, []);
 
   // Fetch the logged-in user's saved addresses (Step 8).
@@ -113,9 +113,16 @@ export default function CheckoutView() {
   }
 
   const delivery = subtotal > rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
-  const goods = subtotal - discount;
   const interState = shipState !== SELLER_STATE;
-  const gst = gstBreakup(goods, interState);
+  // GST is a flat store-wide rate (default 18%), identical basis to the invoice
+  // (computeLineTaxes). Inter-state → IGST; intra-state → CGST + SGST (half each).
+  const storeGst = Number(rules.gstRate) || 18;
+  const taxLines = items
+    .filter((it) => !it.outOfStock)
+    .map((it) => ({ unitPrice: it.unitPrice, qty: it.qty, gstRate: storeGst }));
+  const { gst } = computeLineTaxes(taxLines, discount, interState, storeGst);
+  const uniformRate = storeGst;
+  const halfRate = +(storeGst / 2).toFixed(2);
   const grandTotal = subtotal - discount + delivery;
   const codAllowed = grandTotal <= COD_LIMIT;
   const isCod = pay === "cod" && codAllowed;
@@ -279,11 +286,11 @@ export default function CheckoutView() {
           {gstOpen && (
             <div className="mt-1.5 space-y-1 pl-3 text-[13px] text-neutral-400">
               {interState ? (
-                <div className="flex justify-between"><span>IGST 18%</span><span>{formatINR(gst.igst)}</span></div>
+                <div className="flex justify-between"><span>IGST{uniformRate != null ? ` ${uniformRate}%` : ""}</span><span>{formatINR(gst.igst)}</span></div>
               ) : (
                 <>
-                  <div className="flex justify-between"><span>CGST 9%</span><span>{formatINR(gst.cgst)}</span></div>
-                  <div className="flex justify-between"><span>SGST 9%</span><span>{formatINR(gst.sgst)}</span></div>
+                  <div className="flex justify-between"><span>CGST{halfRate != null ? ` ${halfRate}%` : ""}</span><span>{formatINR(gst.cgst)}</span></div>
+                  <div className="flex justify-between"><span>SGST{halfRate != null ? ` ${halfRate}%` : ""}</span><span>{formatINR(gst.sgst)}</span></div>
                 </>
               )}
             </div>

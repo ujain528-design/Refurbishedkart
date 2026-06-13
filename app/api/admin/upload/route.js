@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/server/adminAuth";
 
 export const dynamic = "force-dynamic";
 
-const MAX_BYTES = 2 * 1024 * 1024; // 2MB
+const MAX_BYTES = 3 * 1024 * 1024; // 3MB (hero/banner artwork)
 const ALLOWED = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "products");
 
@@ -19,7 +19,7 @@ export async function POST(req) {
     if (!file || typeof file === "string") return NextResponse.json({ error: "No file provided" }, { status: 400 });
     const ext = ALLOWED[file.type];
     if (!ext) return NextResponse.json({ error: "Only JPEG, PNG or WebP allowed" }, { status: 400 });
-    if (file.size > MAX_BYTES) return NextResponse.json({ error: "Max file size is 2MB" }, { status: 400 });
+    if (file.size > MAX_BYTES) return NextResponse.json({ error: "Max file size is 3MB" }, { status: 400 });
 
     await mkdir(UPLOAD_DIR, { recursive: true });
     const name = `${Date.now()}-${crypto.randomBytes(4).toString("hex")}.${ext}`;

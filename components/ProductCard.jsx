@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { formatINR } from "@/lib/data";
+import { generateProductTitle } from "@/lib/generateTitle";
+import { categoryColor } from "@/lib/categoryColors";
 import { BrokenDeviceIcon } from "@/components/Icons";
+
+// "Laptops" → "Laptop" for natural alt text.
+const singular = (c) => (c ? String(c).replace(/s$/, "") : "Product");
 import WishlistButton from "@/components/WishlistButton";
 import AddToCartButton from "@/components/AddToCartButton";
 
@@ -10,10 +15,15 @@ export default function ProductCard({ product, className = "w-[260px] shrink-0 s
   const price = Number(product.price ?? product.listedPrice ?? 0) || 0;
   const mrp = Number(product.mrp ?? 0) || 0;
   const off = mrp > 0 ? Math.round((1 - price / mrp) * 100) : 0;
+  const seoTitle = generateProductTitle(product);
+  // Display the SEO title (API-provided or computed); fall back to the raw name.
+  const displayTitle = product.generatedTitle || seoTitle || product.name;
+  const imgAlt = `${seoTitle} — Refurbished ${singular(product.category)} for sale in India`;
   const stock = product.chassisStock ?? product.stock;
   const oos = stock === 0;
   const lowStock = stock > 0 && stock <= 5;
-  const href = `/products/${(product.category || "laptops").toLowerCase()}/${product.id}`;
+  // Slug URL for SEO; falls back to numeric id (which 301s to the slug) until backfilled.
+  const href = `/products/${(product.category || "laptops").toLowerCase()}/${product.slug || product.id}`;
   // Default-config spec summary, e.g. "16GB DDR4 | 256GB SSD"
   const specSummary = product.defaultRam?.capacity
     ? `${product.defaultRam.capacity} ${product.defaultRam.type || ""}`.trim() +
@@ -22,21 +32,21 @@ export default function ProductCard({ product, className = "w-[260px] shrink-0 s
 
   return (
     <article
-      className={`${className} group relative overflow-hidden rounded-card border border-black/5 bg-white shadow-card transition-shadow duration-300 hover:shadow-card-hover`}
+      className={`${className} group relative flex flex-col overflow-visible rounded-card border border-warm-border bg-white transition-colors duration-[250ms] ease-out hover:border-brand`}
     >
-      {/* stretched link — whole card opens the PDP; wishlist/cart sit above it */}
+      {/* stretched link — whole card opens the PDP; wishlist sits above it */}
       <Link href={href} className="absolute inset-0 z-[5]" aria-label={`View ${product.name}`} />
-      {/* Image area — zoom on hover, Add to Cart slides up */}
-      <div className="relative h-[190px] overflow-hidden bg-neutral-100">
+      {/* Image area — subtle 1.03 zoom on hover (Apple-restraint; no lift/shadow) */}
+      <div className="relative h-[180px] overflow-hidden rounded-t-card bg-warm-alt">
         <div
-          className={`flex h-full w-full items-center justify-center transition-transform duration-300 ease-out group-hover:scale-[1.08] ${
+          className={`flex h-full w-full items-center justify-center transition-transform duration-[250ms] ease-out group-hover:scale-[1.03] ${
             oos ? "opacity-50 grayscale" : ""
           }`}
         >
           {product.image ? (
             <img
               src={product.image}
-              alt={product.name}
+              alt={imgAlt}
               loading="lazy"
               className="h-full w-full object-contain p-3"
             />
@@ -70,39 +80,38 @@ export default function ProductCard({ product, className = "w-[260px] shrink-0 s
         {/* wishlist stays active even when out of stock */}
         <WishlistButton productId={product.id} />
 
-        {/* slide-up Add to Cart — hidden when out of stock */}
-        {!oos && (
-          <AddToCartButton
-            product={product}
-            className="absolute inset-x-0 bottom-0 z-10 translate-y-full bg-brand py-3 text-sm font-semibold text-white transition-transform duration-300 ease-out hover:bg-brand-dark group-hover:translate-y-0"
-            addedLabel="Added to Cart ✓"
-          >
-            Add to Cart
-          </AddToCartButton>
-        )}
       </div>
 
-      <div className={`p-4 ${oos ? "opacity-50" : ""}`}>
-        <h3 className="truncate text-[15px] font-semibold text-ink" title={product.name}>
-          {product.name}
-        </h3>
-        <p className="mt-1 truncate text-[13px] text-neutral-500" title={specSummary}>
-          {specSummary}
+      {/* Content — flex column. Title grows naturally (full, untruncated); the
+          price + button block is pinned to the card's base via mt-auto so the
+          buttons line up across a stretched row regardless of title length. */}
+      <div className={`flex flex-1 flex-col p-4 ${oos ? "opacity-50" : ""}`}>
+        <p className="flex items-center gap-1.5 text-[0.7rem] font-normal uppercase tracking-[0.08em] text-muted">
+          <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: categoryColor(product.category).color }} aria-hidden="true" />
+          {product.brand}
         </p>
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-lg font-bold text-ink">{formatINR(price)}</span>
-          {mrp > price && (
-            <>
-              <span className="text-[13px] text-neutral-400 line-through">{formatINR(mrp)}</span>
-              <span className="ml-auto text-[12px] font-bold text-brand-mid">{off}% off</span>
-            </>
+        <h3 className="mt-1.5 text-[0.875rem] font-normal leading-[1.5] text-[#2c2c2e]">
+          {displayTitle}
+        </h3>
+        {specSummary && <p className="mt-2 text-[0.78rem] font-normal text-muted">{specSummary}</p>}
+
+        {/* bottom block — pinned to the base of the (stretched) card */}
+        <div className="mt-auto pt-3">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[1.2rem] font-bold text-dark">{formatINR(price)}</span>
+            {mrp > price && <span className="text-[0.8rem] font-normal text-[#b0b0b0] line-through">{formatINR(mrp)}</span>}
+          </div>
+          {lowStock && <p className="mt-2 text-[12px] font-semibold text-red-600">Only {stock} left</p>}
+          {!oos && (
+            <AddToCartButton
+              product={product}
+              className="relative z-10 mt-3 block w-full rounded-md bg-dark py-2.5 text-center text-[0.825rem] font-medium text-white transition-colors hover:bg-[#2c2c2e]"
+              addedLabel="Added ✓"
+            >
+              Add to Cart
+            </AddToCartButton>
           )}
         </div>
-        {lowStock && (
-          <p className="mt-2 text-[12px] font-bold text-red-600">
-            Only {stock} left
-          </p>
-        )}
       </div>
     </article>
   );

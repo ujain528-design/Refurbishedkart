@@ -1,6 +1,9 @@
 import StaticPage, { H2, P, UL } from "@/components/StaticPage";
 
-export const metadata = { title: "About — RefurbishedKart" };
+export const metadata = {
+  title: "About Us",
+  description: "Learn about RefurbishedKart — India's marketplace for certified refurbished laptops, desktops and electronics, with warranty and GST invoice on every order.",
+};
 
 export default function AboutPage() {
   return (
@@ -15,7 +18,7 @@ export default function AboutPage() {
       <UL items={[
         "Up to 70% off retail for the same machine, professionally restored.",
         "Every unit clears a 32-point hardware and cosmetic inspection.",
-        "Storage is wiped to NIST 800-88 standard with a certificate in the box.",
+        "Each device is performance-benchmarked and re-imaged with a genuine OS license.",
         "Minimum 6-month warranty, extendable to 1 year, plus 7-day returns.",
         "Lower e-waste — refurbishing extends a device's life by years.",
       ]} />

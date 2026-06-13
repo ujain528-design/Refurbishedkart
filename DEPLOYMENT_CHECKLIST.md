@@ -1,5 +1,34 @@
 # RefurbishedKart — Deployment Checklist
 
+> ## ⚠️ DEVELOPMENT RULE — read first
+>
+> **After ANY structural change — new routes, new components, config changes,
+> new exports — ALWAYS restart the dev server before testing:**
+>
+> ```
+> Ctrl+C  →  npm run dev
+> ```
+>
+> A stale dev server causes **phantom failures that look like bugs but aren't**
+> (e.g. "route not found", "X is not a function", missing exports). Next.js
+> hot-reload does not reliably pick up new files/exports/config. If something you
+> just added appears broken, restart first — then investigate.
+
+## SEO
+
+- [ ] **Create the social share image: 1200×630px, save to `public/og-image.jpg`.**
+      The metadata references `/og-image.jpg` for OpenGraph/Twitter cards; until the
+      file exists, social shares (WhatsApp, X, LinkedIn) show no preview image.
+- [ ] Replace the Google Search Console verification placeholder in `app/layout.jsx`
+      (`verification.google: "add-google-search-console-code-here"`) with the real code.
+- [ ] Confirm the production domain in `app/layout.jsx` `metadataBase`, `app/sitemap.js`
+      `BASE`, `app/products/[category]/[id]/page.jsx` `SITE`, and `public/robots.txt`
+      Sitemap line all match the live domain.
+- [ ] Submit the sitemap to Google Search Console: `https://refurbishedkart.com/sitemap.xml`.
+- [ ] Register the business on Google Business Profile.
+- [ ] Validate a product page's Product JSON-LD and a category page's FAQ JSON-LD with
+      Google's Rich Results Test after deploy.
+
 ## Post-launch features (not built yet)
 
 - [ ] **Build the real Bulk Upload route with Excel parsing.** The Bulk Upload admin

@@ -9,18 +9,17 @@ import { LogoMark, MenuIcon, CloseIcon } from "@/components/Icons";
 const NAV = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/products", label: "Products" },
-  // Bulk Upload is a UI mock only — there is no server route yet. Shown disabled
-  // with a "Coming Soon" badge so no admin tries to import a catalogue and silently
-  // loses it. Re-enable (drop comingSoon) once the real route is built post-launch.
-  { href: "/admin/bulk-upload", label: "Bulk Upload", comingSoon: true },
+  { href: "/admin/bulk-upload", label: "Bulk Upload" },
   { href: "/admin/banners", label: "Hero Banners" },
   { href: "/admin/tags", label: "Tags & Collections" },
+  { href: "/admin/collections", label: "Collections" },
   { href: "/admin/pricing", label: "Pricing Control" },
   { href: "/admin/coupons", label: "Coupons" },
   { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/returns", label: "Returns" },
   { href: "/admin/reviews", label: "Reviews" },
   { href: "/admin/enquiries", label: "Bulk Enquiries" },
-  { href: "/admin/pages", label: "Pages & Navigation" },
+  { href: "/admin/pages", label: "Pages & Navigation", comingSoon: true },
   { href: "/admin/master-data", label: "Master Data" },
   { href: "/admin/settings", label: "Settings" },
 ];
@@ -76,7 +75,7 @@ export default function AdminShell({ children }) {
   );
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="admin-shell min-h-screen bg-neutral-50">
       {/* desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] overflow-y-auto bg-[#1A1A1A] lg:block">
         <Link href="/admin" className="flex items-center gap-2 px-5 py-5">

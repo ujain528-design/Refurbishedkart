@@ -5,32 +5,68 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, Toggle, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import {
   MASTER_TABLES, PROCESSOR_FAMILIES, PROCESSOR_MODELS, GENERATIONS, DISPLAY_SIZES, RESOLUTIONS,
-  PANEL_TYPES, REFRESH_RATES, STORAGE_TYPES, OS_OPTIONS, BATTERY_CAPACITIES, BATTERY_LIVES,
-  WEIGHTS, WARRANTY_PERIODS, DATA_WIPE_STANDARDS,
+  REFRESH_RATES, STORAGE_TYPES, OS_OPTIONS, BATTERY_CAPACITIES, BATTERY_LIVES,
+  WARRANTY_PERIODS, SERVER_OS, WORKSTATION_CHASSIS,
 } from "@/lib/admin-data";
 import { CATEGORY_SLUGS } from "@/lib/data";
-import PortBuilder from "@/components/admin/PortBuilder";
+import PortsGrid from "@/components/admin/PortsGrid";
+import { normalizePorts } from "@/lib/ports";
 import { adminGetProduct, adminCreateProduct, adminUpdateProduct, adminUpdateStock, adminGetPricingConfig, adminUploadImage } from "@/lib/api";
 import { calculateDeviceCost, calculateUpgradePrice, priceForExtraCapacity, getSsdPrice } from "@/lib/server/pricing-core";
+import { generateProductTitle } from "@/lib/generateTitle";
+import { generateMetaDescription } from "@/lib/generateMetaDescription";
+
+// Build a product-shaped object from the editor form so the SEO generators can
+// preview the auto-generated title/description live as the admin edits.
+function formAsProduct(f) {
+  return {
+    brand: f.brand,
+    name: `${f.brand} ${f.model}`.trim(),
+    model: f.model,
+    category: f.category,
+    listedPrice: Number(f.listedPrice) || 0,
+    attrs: {
+      processor: f.specs?.procModel || f.specs?.family || "",
+      gen: f.specs?.gen || "",
+      screen: f.specs?.size || "",
+      touchscreen: !!f.touch,
+      os: f.specs?.serverOs || f.specs?.os || "",
+      warranty: f.specs?.warranty || "",
+      formFactor: f.specs?.formFactor || "",
+      resolution: f.specs?.res || "",
+      panel: f.specs?.panel || "",
+      refreshRate: f.specs?.refresh || "",
+      chassis: f.specs?.chassis || "",
+      gpu: f.specs?.gpu || "",
+    },
+  };
+}
 
 const TABS = ["Basic Info", "Pricing & Variants", "Images", "Specs", "Inspection", "Tags", "SEO"];
 const RAM_CAPS = ["4GB", "8GB", "16GB", "32GB", "64GB"];
 const RAM_TYPES = MASTER_TABLES["RAM Type"];
 const SSD_CAPS = ["256GB", "512GB", "1TB", "2TB"];
-const ALL_TAGS = ["Bestseller", "Flash Sale", "New Arrival", "Best for Students", "Recommended", "Best for WFH"];
-const INSPECTION_ROWS = ["Display", "Keyboard", "Trackpad", "Battery", "Ports", "Speakers", "Webcam", "Hinges", "Body / Chassis", "Storage", "RAM", "Cooling", "Data Wipe", "BIOS"];
+const ALL_TAGS = ["Bestseller", "Flash Sale", "New Arrival", "Best for Students", "Recommended", "Best for WFH", "Workstation"];
+const INSPECTION_ROWS = ["Display", "Keyboard", "Trackpad", "Battery", "Ports", "Speakers", "Webcam", "Hinges", "Body / Chassis", "Storage", "RAM", "Cooling", "Performance", "BIOS"];
 
-const TAG_SLUG = { Bestseller: "bestseller", "Flash Sale": "flash-sale", "New Arrival": "new-arrival", "Best for Students": "student", Recommended: "recommended", "Best for WFH": "best-for-wfh" };
+const TAG_SLUG = { Bestseller: "bestseller", "Flash Sale": "flash-sale", "New Arrival": "new-arrival", "Best for Students": "student", Recommended: "recommended", "Best for WFH": "best-for-wfh", Workstation: "workstation" };
 const SLUG_TAG = Object.fromEntries(Object.entries(TAG_SLUG).map(([k, v]) => [v, k]));
 
 const EMPTY = {
   brand: "", model: "", category: "Laptops", status: "Draft", description: "",
-  listedPrice: "", chassisStock: 0,
+  listedPrice: "", mrp: "", chassisStock: 0,
   defaultRam: { capacity: "8GB", type: "DDR4", isOnboard: false, cost: 0 },
   defaultSsd: { capacity: "256GB", cost: 0 },
   configs: [], touch: false,
   specs: {}, ports: {}, images: [], tags: [], salePrice: "", saleEnd: "", metaTitle: "", metaDesc: "",
+  seoTitle: "", seoDescription: "",
+  // Warranty & HSN — "" means "use store default" (GST is a flat store-wide rate)
+  warrantyPeriod: "", hsnCode: "",
+  // Refurbished grade (default Excellent).
+  condition: "Excellent",
 };
+
+const CONDITIONS = ["Excellent", "Good", "Fair"];
 
 /* DB document → editor form. The editor's shape diverges from the stored doc, so
    we map every field the DB actually has; the rest stay at EMPTY defaults. */
@@ -44,6 +80,7 @@ function dbToForm(p) {
     status: p.stock === 0 ? "Out of Stock" : "Active",
     description: p.description || p.specs || "",
     listedPrice: p.listedPrice ?? p.price ?? "",
+    mrp: p.mrp ?? "",
     chassisStock: p.chassisStock ?? p.stock ?? 0,
     defaultRam: p.defaultRam
       ? { capacity: p.defaultRam.capacity || "8GB", type: p.defaultRam.type || "DDR4", isOnboard: !!p.defaultRam.isOnboard, cost: p.defaultRam.cost ?? 0 }
@@ -57,7 +94,18 @@ function dbToForm(p) {
       return { ramCap: parts[0] || "", ramType: parts.slice(1).join(" "), ssd: c.ssd || "", price: c.price ?? 0, override: !!c.override, available: c.available !== false, show: c.show !== false };
     }),
     touch: !!a.touchscreen,
-    specs: { gen: a.gen || "", ramType: a.ramType || "", os: a.os || "", warranty: a.warranty || "", size: a.screen || "", ...(p.editorSpecs || {}) },
+    specs: {
+      gen: a.gen || "", ramType: a.ramType || "", os: a.os || "", warranty: a.warranty || "", size: a.screen || "",
+      res: a.resolution || "", panel: a.panel || "", refresh: a.refreshRate || "",
+      chassis: a.chassis || "", serverOs: p.category === "Servers" ? a.os || "" : "", gpu: a.gpu || "",
+      // Finalized spec fields (workstation/laptop/monitor/server).
+      formFactor: a.formFactor || a.chassis || "", ramExpandability: a.ramExpandability || "", batteryHealth: a.batteryHealth || "",
+      backlit: !!a.backlitKeyboard, webcam: !!a.webcam, psu: a.psu || "", weight: a.weight || "",
+      brightness: a.brightness ?? "", responseTime: a.responseTime ?? "", hdr: !!a.hdr,
+      aspectRatio: a.aspectRatio || "", vesaMount: !!a.vesaMount, builtInSpeakers: !!a.builtInSpeakers,
+      driveBays: a.driveBays ?? "", raid: a.raid || "", redundantPower: !!a.redundantPower,
+      ...(p.editorSpecs || {}),
+    },
     ports: p.ports || {},
     images: p.images || (p.image ? [p.image] : []),
     tags: (p.tags || []).map((s) => SLUG_TAG[s] || s),
@@ -65,6 +113,11 @@ function dbToForm(p) {
     saleEnd: p.saleEnd || "",
     metaTitle: p.metaTitle || "",
     metaDesc: p.metaDesc || "",
+    seoTitle: p.seoTitle || "",
+    seoDescription: p.seoDescription || "",
+    warrantyPeriod: p.warrantyPeriod || "",
+    hsnCode: p.hsnCode || "",
+    condition: p.condition || a.condition || a.grade || "Excellent",
   };
 }
 
@@ -88,6 +141,7 @@ function formToDb(f, orig) {
     category: f.category,
     listedPrice: lp,
     price: lp,
+    mrp: f.mrp !== "" && Number(f.mrp) > 0 ? Number(f.mrp) : undefined,
     defaultRam: { capacity: f.defaultRam.capacity, type: f.defaultRam.type, isOnboard: !!f.defaultRam.isOnboard, cost: Number(f.defaultRam.cost) || 0 },
     defaultSsd: { capacity: f.defaultSsd.capacity, cost: Number(f.defaultSsd.cost) || 0 },
     description: f.description,
@@ -101,17 +155,56 @@ function formToDb(f, orig) {
     saleEnd: f.saleEnd || undefined,
     metaTitle: f.metaTitle || undefined,
     metaDesc: f.metaDesc || undefined,
+    seoTitle: f.seoTitle?.trim() || undefined,
+    seoDescription: f.seoDescription?.trim() || undefined,
+    // Per-product warranty + HSN overrides ("" ⇒ store default). GST is no longer
+    // a per-product override — it's a flat store-wide rate.
+    warrantyPeriod: f.warrantyPeriod || "",
+    hsnCode: f.hsnCode?.trim() || "",
+    condition: f.condition || "Excellent",
     images: f.images,
     editorSpecs: f.specs, // preserve the editor's structured spec object
-    ports: f.ports,
+    ports: normalizePorts(f.ports), // { "USB-A": 2, ... } — qty > 0 only
     attrs: {
       ...a,
+      // Mirror to attrs so the PDP badge + Compare "Condition" row pick it up.
+      condition: f.condition || "Excellent",
       ramType: f.specs.ramType || a.ramType,
-      os: f.specs.os || a.os,
+      os: f.specs.serverOs || f.specs.os || a.os, // servers use Server OS dropdown
       warranty: f.specs.warranty || a.warranty,
       gen: f.specs.gen || a.gen,
       screen: f.specs.size || a.screen,
       touchscreen: f.touch,
+      // Monitor + server + workstation specifics (undefined when blank → omitted
+      // on the product page / title by the skip-if-empty rule).
+      resolution: f.specs.res || a.resolution || undefined,
+      panel: f.specs.panel || a.panel || undefined,
+      refreshRate: f.specs.refresh || a.refreshRate || undefined,
+      chassis: f.specs.chassis || a.chassis || undefined,
+      gpu: f.specs.gpu || a.gpu || undefined,
+      ramType: f.specs.ramType || a.ramType || undefined,
+      // Form factor / chassis (desktops + workstations).
+      formFactor: f.specs.formFactor || a.formFactor || undefined,
+      ramExpandability: f.specs.ramExpandability || undefined,
+      // Laptop-only fields.
+      batteryHealth: f.category === "Laptops" ? (f.specs.batteryHealth || undefined) : undefined,
+      backlitKeyboard: f.category === "Laptops" ? !!f.specs.backlit : undefined,
+      webcam: f.category === "Laptops" ? !!f.specs.webcam : undefined,
+      // Weight — laptops + monitors only (workstations are desktop towers).
+      weight: ["Laptops", "Monitors"].includes(f.category) ? (f.specs.weight || undefined) : undefined,
+      // PSU — workstations + desktops.
+      psu: ["Workstations", "Desktops"].includes(f.category) ? (f.specs.psu || undefined) : undefined,
+      // Monitor-only.
+      brightness: f.category === "Monitors" && f.specs.brightness !== "" ? Number(f.specs.brightness) || undefined : undefined,
+      responseTime: f.category === "Monitors" && f.specs.responseTime !== "" ? Number(f.specs.responseTime) || undefined : undefined,
+      hdr: f.category === "Monitors" ? !!f.specs.hdr : undefined,
+      aspectRatio: f.category === "Monitors" ? (f.specs.aspectRatio || undefined) : undefined,
+      vesaMount: f.category === "Monitors" ? !!f.specs.vesaMount : undefined,
+      builtInSpeakers: f.category === "Monitors" ? !!f.specs.builtInSpeakers : undefined,
+      // Server-only.
+      driveBays: f.category === "Servers" && f.specs.driveBays !== "" ? Number(f.specs.driveBays) || undefined : undefined,
+      raid: f.category === "Servers" ? (f.specs.raid || undefined) : undefined,
+      redundantPower: f.category === "Servers" ? !!f.specs.redundantPower : undefined,
     },
   };
 }
@@ -120,10 +213,9 @@ const VALIDATORS = {
   brand: (v) => (v ? "" : "Brand is required"),
   model: (v) => (v.trim() ? "" : "Model is required"),
   category: (v) => (v ? "" : "Category is required"),
-  description: (v) => (v.trim().length >= 100 ? "" : `Description needs ${100 - v.trim().length} more characters`),
   listedPrice: (v) => (Number(v) > 0 ? "" : "Listed price must be greater than 0"),
 };
-const FIELD_TAB = { brand: "Basic Info", model: "Basic Info", category: "Basic Info", description: "Basic Info", listedPrice: "Pricing & Variants" };
+const FIELD_TAB = { brand: "Basic Info", model: "Basic Info", category: "Basic Info", listedPrice: "Pricing & Variants" };
 
 function Group({ title, children, cols = 2 }) {
   return (
@@ -284,17 +376,37 @@ export default function ProductEditor() {
   const deviceCost = calculateDeviceCost(Number(f.listedPrice) || 0, Number(f.defaultRam.cost) || 0, Number(f.defaultSsd.cost) || 0);
   const configAdditional = (c) => (Number(c.price) || 0) - (Number(f.listedPrice) || 0);
 
-  // Image upload → /api/admin/upload, append returned URL to images.
+  // Image upload → /api/admin/upload. Supports MULTIPLE files at once (multi-file
+  // picker + multi-drop): upload sequentially, append each returned URL in order.
   const [uploading, setUploading] = useState(false);
-  const uploadImage = async (file) => {
-    if (!file) return;
+  const [dragOver, setDragOver] = useState(false);
+  const dragIdx = useRef(null);
+  const uploadImages = async (fileList) => {
+    const files = Array.from(fileList || []).filter((file) => file && file.type?.startsWith("image/"));
+    if (!files.length) return;
     setUploading(true);
+    const added = [];
     try {
-      const { url } = await adminUploadImage(file);
-      update("images", [...f.images, url]);
-    } catch (e) { toast(e.message || "Upload failed", "error"); }
-    finally { setUploading(false); }
+      for (const file of files) {
+        try { const { url } = await adminUploadImage(file); if (url) added.push(url); }
+        catch (e) { toast(`${file.name}: ${e.message || "upload failed"}`, "error"); }
+      }
+      if (added.length) {
+        setF((s) => ({ ...s, images: [...s.images, ...added] }));
+        setDirty(true);
+        toast(`${added.length} image${added.length > 1 ? "s" : ""} added — remember to Save`);
+      }
+    } finally { setUploading(false); }
   };
+  // Reorder helpers — first image is the primary/cover.
+  const moveImage = (from, to) => {
+    if (to < 0 || to >= f.images.length || from === to) return;
+    const next = [...f.images];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    update("images", next);
+  };
+  const removeImage = (i) => update("images", f.images.filter((_, idx) => idx !== i));
 
   // Chassis stock: immediate save in edit mode, local in new mode.
   const adjustChassis = async (action) => {
@@ -394,7 +506,78 @@ export default function ProductEditor() {
               <VField ctx={ctx} k="model" label="Model" placeholder="ThinkPad T14" />
               <VField ctx={ctx} k="category" label="Category" options={Object.values(CATEGORY_SLUGS)} />
               <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Status</span><select value={f.status} onChange={(e) => update("status", e.target.value)} className={inputCls}><option>Draft</option><option>Active</option><option>Out of Stock</option></select></label>
-              <div className="sm:col-span-2"><VField ctx={ctx} k="description" label={`Description (${f.description.trim().length}/100 min)`} textarea placeholder="Describe the device, condition, and what's included…" /></div>
+              <div className="sm:col-span-2"><VField ctx={ctx} k="description" label="About This Device (shown on product page)" textarea placeholder="Describe the device, condition, and what's included… (one paragraph per line)" hint="Leave empty to auto-generate from specs" /></div>
+
+              {/* ── Warranty & Tax ── per-product overrides; blank ⇒ store default ── */}
+              <div className="sm:col-span-2 mt-2 rounded-lg border border-black/10 bg-neutral-50 p-4">
+                <p className="text-[12px] font-bold uppercase tracking-wide text-brand">Warranty &amp; Tax</p>
+                <p className="mb-3 mt-0.5 text-[12px] text-neutral-500">Leave on “store default” to inherit the values from Settings → Policies.</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Condition</span>
+                    <select value={f.condition} onChange={(e) => update("condition", e.target.value)} className={inputCls}>
+                      {CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <span className="mt-1 block text-[11px] text-neutral-400">Refurbished grade shown on the product page &amp; in compare.</span>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Warranty Period</span>
+                    <select value={f.warrantyPeriod} onChange={(e) => update("warrantyPeriod", e.target.value)} className={inputCls}>
+                      <option value="">Use store default</option>
+                      <option value="3 months">3 months</option>
+                      <option value="6 months">6 months</option>
+                      <option value="1 year">1 year</option>
+                      <option value="2 years">2 years</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">HSN Code</span>
+                    <input value={f.hsnCode} onChange={(e) => update("hsnCode", e.target.value)} placeholder="Default: 8471" className={inputCls} />
+                    <span className="mt-1 block text-[11px] text-neutral-400">Leave empty to use store default HSN code</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* ── SEO ── auto-filled from the generators; admin can override ── */}
+              <div className="sm:col-span-2 mt-2 rounded-lg border border-black/10 bg-neutral-50 p-4">
+                <p className="text-[12px] font-bold uppercase tracking-wide text-brand">Search Engine Optimization</p>
+                <p className="mb-3 mt-0.5 text-[12px] text-neutral-500">Leave blank to use the auto-generated title &amp; description. Fill in to override.</p>
+
+                <label className="block">
+                  <span className="mb-1 block text-[12px] font-semibold text-neutral-600">SEO Title</span>
+                  <input
+                    className={inputCls}
+                    value={f.seoTitle}
+                    onChange={(e) => update("seoTitle", e.target.value)}
+                    placeholder={generateProductTitle({ ...formAsProduct(f), seoTitle: "" }) || "Auto-generated from product details"}
+                  />
+                </label>
+
+                <label className="mt-3 block">
+                  <span className="mb-1 block text-[12px] font-semibold text-neutral-600">SEO Description ({(f.seoDescription || "").length}/155)</span>
+                  <textarea
+                    rows={2}
+                    className={inputCls}
+                    value={f.seoDescription}
+                    onChange={(e) => update("seoDescription", e.target.value)}
+                    placeholder={generateMetaDescription({ ...formAsProduct(f), seoDescription: "" }) || "Auto-generated from product details"}
+                  />
+                </label>
+
+                {/* Google SERP preview */}
+                <div className="mt-4 rounded-lg border border-black/10 bg-white p-4">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Google preview</p>
+                  <p className="truncate text-[18px] leading-snug text-[#1a0dab]">
+                    {f.seoTitle?.trim() || generateProductTitle({ ...formAsProduct(f), seoTitle: "" }) || "Product title"}
+                  </p>
+                  <p className="text-[13px] text-[#006621]">
+                    refurbishedkart.com › products › {(f.category || "category").toLowerCase()} › {editId || "new"}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-neutral-600">
+                    {f.seoDescription?.trim() || generateMetaDescription({ ...formAsProduct(f), seoDescription: "" }) || "Meta description preview…"}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -428,6 +611,18 @@ export default function ProductEditor() {
                     <p className="mt-1 text-xl font-extrabold text-brand">{"₹" + (Number(deviceCost) || 0).toLocaleString("en-IN")}</p>
                     <p className="text-[11px] text-neutral-400">Listed − RAM cost − SSD cost</p>
                   </div>
+                </div>
+                {/* MRP — original/market price for the strikethrough + % off. Independent
+                    of the pricing engine; leave blank to show no strikethrough. */}
+                <div className="mt-4 max-w-[240px]">
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">MRP / Original Price ₹</span>
+                    <input type="number" min={0} value={f.mrp} onChange={(e) => update("mrp", e.target.value)} placeholder="e.g. 38000" className={inputCls} />
+                    <span className="mt-1 block text-[11px] text-neutral-400">
+                      Shown struck-through with “% off” when above the listed price. Blank = no strikethrough.
+                      {f.mrp && Number(f.mrp) > (Number(f.listedPrice) || 0) && Number(f.listedPrice) > 0 ? ` (${Math.round((1 - Number(f.listedPrice) / Number(f.mrp)) * 100)}% off)` : ""}
+                    </span>
+                  </label>
                 </div>
               </section>
 
@@ -466,9 +661,11 @@ export default function ProductEditor() {
                     ))}
                   </div>
                 )}
-                <div className="mt-3 flex max-w-xs items-center justify-between rounded-lg border border-black/10 px-3 py-2.5">
-                  <span className="text-sm">Touchscreen</span><Toggle on={f.touch} onChange={(v) => update("touch", v)} />
-                </div>
+                {f.category === "Laptops" && (
+                  <div className="mt-3 flex max-w-xs items-center justify-between rounded-lg border border-black/10 px-3 py-2.5">
+                    <span className="text-sm">Touchscreen</span><Toggle on={f.touch} onChange={(v) => update("touch", v)} />
+                  </div>
+                )}
               </section>
 
               {/* SECTION 3 — Chassis Stock */}
@@ -487,25 +684,52 @@ export default function ProductEditor() {
           )}
 
           {tab === "Images" && (
-            <div className="max-w-2xl">
+            <div className="max-w-3xl">
               {f.images.length > 0 && (
                 <div className="mb-4">
-                  <p className="mb-2 text-[12px] font-semibold text-neutral-600">Current images</p>
-                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-[12px] font-semibold text-neutral-600">{f.images.length} image{f.images.length > 1 ? "s" : ""} · drag to reorder</p>
+                    <p className="text-[11px] text-neutral-400">First image = primary/cover</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {f.images.map((src, i) => (
-                      <div key={i} className="relative aspect-square overflow-hidden rounded-lg border border-black/10 bg-neutral-100">
-                        <img src={src} alt="" className="h-full w-full object-contain p-1" />
-                        <button onClick={() => update("images", f.images.filter((_, idx) => idx !== i))} className="absolute right-1 top-1 rounded-full bg-white/90 px-1.5 text-[11px] font-bold text-red-600 shadow">×</button>
+                      <div
+                        key={src + i}
+                        draggable
+                        onDragStart={() => { dragIdx.current = i; }}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); if (dragIdx.current != null) moveImage(dragIdx.current, i); dragIdx.current = null; }}
+                        onDragEnd={() => { dragIdx.current = null; }}
+                        className={`group relative cursor-grab rounded-lg border bg-neutral-100 active:cursor-grabbing ${i === 0 ? "border-brand ring-1 ring-brand/30" : "border-black/10"}`}
+                      >
+                        <div className="aspect-square overflow-hidden rounded-lg">
+                          <img src={src} alt={`Product image ${i + 1}`} className="h-full w-full object-contain p-1.5" />
+                        </div>
+                        {i === 0 && (
+                          <span className="absolute left-1.5 top-1.5 rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold text-white shadow">Primary</span>
+                        )}
+                        <button type="button" onClick={() => removeImage(i)} aria-label={`Remove image ${i + 1}`} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-[14px] font-bold text-red-600 shadow ring-1 ring-black/5 hover:bg-red-50">×</button>
+                        {/* ↑/↓ reorder fallback (drag can be flaky) */}
+                        <div className="absolute inset-x-1.5 bottom-1.5 flex items-center justify-between gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button type="button" onClick={() => moveImage(i, i - 1)} disabled={i === 0} aria-label="Move left" className="flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-[13px] font-bold text-ink shadow ring-1 ring-black/5 disabled:opacity-30">↑</button>
+                          <span className="rounded bg-white/90 px-1.5 text-[10px] font-bold text-neutral-500 shadow ring-1 ring-black/5">{i + 1}</span>
+                          <button type="button" onClick={() => moveImage(i, i + 1)} disabled={i === f.images.length - 1} aria-label="Move right" className="flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-[13px] font-bold text-ink shadow ring-1 ring-black/5 disabled:opacity-30">↓</button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-              <label className={`flex aspect-[4/1] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-black/15 text-center text-[12px] text-neutral-500 hover:border-brand ${uploading ? "opacity-60" : ""}`}>
-                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading} onChange={(e) => { uploadImage(e.target.files?.[0]); e.target.value = ""; }} />
-                {uploading ? "Uploading…" : <><span className="text-2xl">＋</span><span>Upload image — JPEG / PNG / WebP, ≤ 2MB</span></>}
+              <label
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); uploadImages(e.dataTransfer?.files); }}
+                className={`flex aspect-[5/1] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed text-center text-[12px] text-neutral-500 transition-colors ${dragOver ? "border-brand bg-brand-softer/40" : "border-black/15 hover:border-brand"} ${uploading ? "opacity-60" : ""}`}
+              >
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" disabled={uploading} onChange={(e) => { uploadImages(e.target.files); e.target.value = ""; }} />
+                {uploading ? "Uploading…" : <><span className="text-2xl">＋</span><span>Drop images here or click to upload — select multiple · JPEG / PNG / WebP, ≤ 2MB each</span></>}
               </label>
-              <p className="mt-2 text-[12px] text-neutral-400">First image is the primary thumbnail. Saved to /public/uploads/products/.</p>
+              <p className="mt-2 text-[12px] text-neutral-400">The first image is the primary thumbnail. Drag a tile, or use ↑/↓, to reorder. Saved to /public/uploads/products/.</p>
             </div>
           )}
 
@@ -517,18 +741,123 @@ export default function ProductEditor() {
                 <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Model</span><select value={f.specs.procModel ?? ""} onChange={(e) => updateSpec("procModel", e.target.value)} className={inputCls}><option value="">— Select —</option>{(f.specs.family ? PROCESSOR_MODELS[f.specs.family] || [] : []).map((o) => <option key={o}>{o}</option>)}</select></label>
                 <Drop ctx={ctx} label="Processor Generation" options={GENERATIONS} specKey="gen" />
               </Group>
-              <Group title="Display">
-                <Drop ctx={ctx} label="Display Size" options={DISPLAY_SIZES} specKey="size" />
-                <Drop ctx={ctx} label="Resolution" options={RESOLUTIONS} specKey="res" />
-                <Drop ctx={ctx} label="Panel Type" options={PANEL_TYPES} specKey="panel" />
-                <Drop ctx={ctx} label="Refresh Rate" options={REFRESH_RATES} specKey="refresh" />
+              {/* Display — laptops/monitors/desktops. Hidden for desktop towers
+                  (Workstations/Servers): those have no screen. */}
+              {!["Workstations", "Servers"].includes(f.category) && (
+                <Group title="Display">
+                  <Drop ctx={ctx} label="Display Size" options={DISPLAY_SIZES} specKey="size" />
+                  <Drop ctx={ctx} label="Resolution" options={RESOLUTIONS} specKey="res" />
+                  <Drop ctx={ctx} label="Panel Type / Display Type" options={MASTER_TABLES["Panel Type"]} specKey="panel" />
+                  <Drop ctx={ctx} label="Refresh Rate" options={REFRESH_RATES} specKey="refresh" />
+                </Group>
+              )}
+              <Group title="Memory & Storage">
+                <Drop ctx={ctx} label="RAM Type" options={MASTER_TABLES["RAM Type"]} specKey="ramType" />
+                <Drop ctx={ctx} label="Storage Type" options={STORAGE_TYPES} specKey="storageType" />
+                {["Laptops", "Workstations", "Desktops"].includes(f.category) && (
+                  <Drop ctx={ctx} label="RAM Expandability" options={MASTER_TABLES["RAM Expandability"]} specKey="ramExpandability" />
+                )}
               </Group>
-              <Group title="Memory & Storage"><Drop ctx={ctx} label="RAM Type" options={MASTER_TABLES["RAM Type"]} specKey="ramType" /><Drop ctx={ctx} label="Storage Type" options={STORAGE_TYPES} specKey="storageType" /></Group>
               <Group title="Operating System"><Drop ctx={ctx} label="OS" options={OS_OPTIONS} specKey="os" /></Group>
-              <Group title="Battery"><Drop ctx={ctx} label="Battery Capacity" options={BATTERY_CAPACITIES} specKey="batCap" /><Drop ctx={ctx} label="Battery Life" options={BATTERY_LIVES} specKey="batLife" /></Group>
-              <Group title="Physical"><Drop ctx={ctx} label="Weight" options={WEIGHTS} specKey="weight" /></Group>
-              <Group title="Ports" cols={1}><PortBuilder value={f.ports} onChange={(v) => update("ports", v)} /></Group>
-              <Group title="Warranty"><Drop ctx={ctx} label="Warranty Period" options={WARRANTY_PERIODS} specKey="warranty" /><Drop ctx={ctx} label="Data Wipe Standard" options={DATA_WIPE_STANDARDS} specKey="dataWipe" /></Group>
+              {f.category === "Servers" && (
+                <Group title="Server Configuration">
+                  <Drop ctx={ctx} label="Form Factor" options={MASTER_TABLES["Server Form Factor"]} specKey="formFactor" />
+                  <Drop ctx={ctx} label="Server OS" options={SERVER_OS} specKey="serverOs" />
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Drive Bays</span>
+                    <input type="number" min={0} value={f.specs.driveBays ?? ""} onChange={(e) => updateSpec("driveBays", e.target.value)} placeholder="e.g. 8" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">RAID Support</span>
+                    <input value={f.specs.raid ?? ""} onChange={(e) => updateSpec("raid", e.target.value)} placeholder="e.g. RAID 1, RAID 5, or No" className={inputCls} />
+                  </label>
+                  <label className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5">
+                    <span className="text-sm text-neutral-700">Redundant Power</span>
+                    <Toggle on={!!f.specs.redundantPower} onChange={(v) => updateSpec("redundantPower", v)} />
+                  </label>
+                </Group>
+              )}
+              {f.category === "Workstations" && (
+                <Group title="Workstation Hardware">
+                  <Drop ctx={ctx} label="Chassis Type" options={WORKSTATION_CHASSIS} specKey="formFactor" />
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Power Supply (PSU)</span>
+                    <input value={f.specs.psu ?? ""} onChange={(e) => updateSpec("psu", e.target.value)} placeholder="e.g. 700W" className={inputCls} />
+                  </label>
+                </Group>
+              )}
+              {f.category === "Desktops" && (
+                <Group title="Desktop Hardware" cols={1}>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Power Supply (PSU)</span>
+                    <input value={f.specs.psu ?? ""} onChange={(e) => updateSpec("psu", e.target.value)} placeholder="e.g. 300W, 500W" className={inputCls} />
+                  </label>
+                </Group>
+              )}
+              {["Laptops", "Workstations"].includes(f.category) && (
+                <Group title="Graphics" cols={1}>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">GPU (integrated or dedicated)</span>
+                    <input value={f.specs.gpu ?? ""} onChange={(e) => updateSpec("gpu", e.target.value)} placeholder="e.g. NVIDIA Quadro P2000 / Intel Iris Xe" className={inputCls} />
+                  </label>
+                </Group>
+              )}
+              {f.category === "Monitors" && (
+                <Group title="Monitor Specs">
+                  <Drop ctx={ctx} label="Aspect Ratio" options={MASTER_TABLES["Aspect Ratio"]} specKey="aspectRatio" />
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Brightness (nits)</span>
+                    <input type="number" min={0} value={f.specs.brightness ?? ""} onChange={(e) => updateSpec("brightness", e.target.value)} placeholder="e.g. 350" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Response Time (ms)</span>
+                    <input type="number" min={0} value={f.specs.responseTime ?? ""} onChange={(e) => updateSpec("responseTime", e.target.value)} placeholder="e.g. 5" className={inputCls} />
+                  </label>
+                  <label className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5">
+                    <span className="text-sm text-neutral-700">HDR Support</span>
+                    <Toggle on={!!f.specs.hdr} onChange={(v) => updateSpec("hdr", v)} />
+                  </label>
+                  <label className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5">
+                    <span className="text-sm text-neutral-700">VESA Mount</span>
+                    <Toggle on={!!f.specs.vesaMount} onChange={(v) => updateSpec("vesaMount", v)} />
+                  </label>
+                  <label className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5">
+                    <span className="text-sm text-neutral-700">Built-in Speakers</span>
+                    <Toggle on={!!f.specs.builtInSpeakers} onChange={(v) => updateSpec("builtInSpeakers", v)} />
+                  </label>
+                </Group>
+              )}
+              {f.category === "Laptops" && (
+                <Group title="Laptop Features">
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Battery Health</span>
+                    <input value={f.specs.batteryHealth ?? ""} onChange={(e) => updateSpec("batteryHealth", e.target.value)} placeholder='e.g. 85% or "Good"' className={inputCls} />
+                  </label>
+                  <div className="grid gap-2">
+                    <label className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5">
+                      <span className="text-sm text-neutral-700">Backlit Keyboard</span>
+                      <Toggle on={!!f.specs.backlit} onChange={(v) => updateSpec("backlit", v)} />
+                    </label>
+                    <label className="flex items-center justify-between rounded-lg border border-black/10 px-3 py-2.5">
+                      <span className="text-sm text-neutral-700">Webcam</span>
+                      <Toggle on={!!f.specs.webcam} onChange={(v) => updateSpec("webcam", v)} />
+                    </label>
+                  </div>
+                </Group>
+              )}
+              {f.category === "Laptops" && (
+                <Group title="Battery"><Drop ctx={ctx} label="Battery Capacity" options={BATTERY_CAPACITIES} specKey="batCap" /><Drop ctx={ctx} label="Battery Life" options={BATTERY_LIVES} specKey="batLife" /></Group>
+              )}
+              {["Laptops", "Monitors"].includes(f.category) && (
+                <Group title="Physical" cols={1}>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Weight</span>
+                    <input value={f.specs.weight ?? ""} onChange={(e) => updateSpec("weight", e.target.value)} placeholder="e.g. 1.4 kg" className={inputCls} />
+                  </label>
+                </Group>
+              )}
+              <Group title="Ports" cols={1}><PortsGrid value={f.ports} onChange={(v) => update("ports", v)} /></Group>
+              <Group title="Warranty"><Drop ctx={ctx} label="Warranty Period" options={WARRANTY_PERIODS} specKey="warranty" /></Group>
             </div>
           )}
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { OPEN_BULK_MODAL_EVENT } from "@/components/BulkEnquiryTrigger";
-import { getBanners } from "@/lib/api";
+import { loadBanners, placementOf } from "@/lib/promoBanners";
 
 const AUTOPLAY_MS = 4000;
 const GRADIENTS = [
@@ -12,83 +12,77 @@ const GRADIENTS = [
   "bg-gradient-to-br from-neutral-950 via-neutral-800 to-neutral-600",
 ];
 
-/* Poster slides — gradient placeholders until real poster art is ready.
-   Swap `gradient` for a bg image per slide when assets arrive. */
-// clickable: whole slide navigates to the CTA target. false = display-only
-// (no navigation anywhere, CTA disabled). Slide 2 is set false to test it.
-const FALLBACK_SLIDES = [
-  {
-    id: "laptops",
-    gradient: "bg-gradient-to-br from-[#0E3D12] via-brand to-brand-mid",
-    headline: "Premium Refurbished Laptops",
-    sub: "Certified, tested, ready to work",
-    cta: { label: "Shop Now", href: "/products/laptops" },
-    clickable: true,
-  },
-  {
-    id: "flash",
-    gradient: "bg-gradient-to-br from-slate-950 via-blue-950 to-blue-800",
-    headline: "Flash Sale — Up to 60% Off",
-    sub: "Limited stock, limited time",
-    cta: { label: "Shop Flash Sale", href: "/flash-sale" },
-    clickable: false,
-  },
-  {
-    id: "bulk",
-    gradient: "bg-gradient-to-br from-neutral-950 via-neutral-800 to-neutral-600",
-    headline: "Business Bulk Orders",
-    sub: "GST invoice, uniform spec, PAN India delivery",
-    cta: { label: "Get a Quote", bulk: true },
-    clickable: true,
-  },
-];
-
 const ctaCls =
   "inline-block rounded-full bg-white px-7 py-3 text-sm font-bold text-ink transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover";
 
 export default function HeroCarousel() {
-  const [slides, setSlides] = useState(FALLBACK_SLIDES);
+  const [slides, setSlides] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const touchX = useRef(null);
   const router = useRouter();
 
-  // Active banners from the DB (admin-managed); fall back to static slides.
+  // Active banners from the DB (admin-managed). No mock fallback — the section
+  // simply hides when there are no active banners.
   useEffect(() => {
     let alive = true;
-    getBanners()
-      .then((banners) => {
-        if (!alive || !banners.length) return;
-        setSlides(banners.map((b, i) => ({
+    loadBanners()
+      .then((all) => {
+        if (!alive) return;
+        // Hero carousel shows only hero-placement banners (legacy = hero).
+        const banners = (all || []).filter((b) => placementOf(b) === "hero");
+        setSlides((banners || []).map((b, i) => ({
           id: b.id,
           gradient: b.gradient || GRADIENTS[i % GRADIENTS.length],
+          backgroundImage: b.backgroundImage || "",
+          backgroundColor: b.backgroundColor || "",
           headline: b.headline,
           sub: b.sub || "",
-          cta: b.cta || { label: "Shop Now", href: "#" },
+          // cta.href is canonical; tolerate older/alt fields. Do NOT default to
+          // "#": that's what made empty-link banners bounce to the homepage top.
+          cta: {
+            label: b.cta?.label || "Shop Now",
+            href: b.cta?.href || b.link || b.href || b.ctaLink || "",
+            bulk: !!b.cta?.bulk,
+          },
           clickable: b.clickable !== false,
         })));
+        if (process.env.NODE_ENV !== "production") {
+          // Diagnostic: what link does each banner actually carry?
+          // eslint-disable-next-line no-console
+          console.log("[HeroCarousel] banner links:", (banners || []).map((b) => ({ headline: b.headline, href: b.cta?.href ?? null, rawCta: b.cta })));
+        }
         setIdx(0);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (alive) setLoaded(true); });
     return () => { alive = false; };
   }, []);
 
-  const go = (i) => setIdx((i + slides.length) % slides.length);
+  const go = (i) => { if (slides.length) setIdx((i + slides.length) % slides.length); };
 
-  // whole-slide click → CTA target (FIX 4). No-op for display-only slides.
+  // whole-slide click → CTA target. No-op for display-only slides AND for empty
+  // links (never silently bounce to the homepage on a missing href).
   const slideClick = (s) => {
     if (!s.clickable) return;
-    if (s.cta.bulk) window.dispatchEvent(new CustomEvent(OPEN_BULK_MODAL_EVENT));
-    else router.push(s.cta.href);
+    if (s.cta.bulk) { window.dispatchEvent(new CustomEvent(OPEN_BULK_MODAL_EVENT)); return; }
+    const href = s.cta.href;
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.log("[HeroCarousel] slide click → href:", href, "cta:", s.cta);
+    }
+    if (!href || href === "#") return; // empty/placeholder link → do nothing
+    router.push(href);
   };
 
   /* Auto-play: re-arms whenever idx changes, so any manual jump (arrow,
      dot, swipe) naturally resets the 4s timer. Paused while hovered. */
   useEffect(() => {
-    if (paused) return;
+    if (paused || slides.length < 2) return;
     const t = setTimeout(() => go(idx + 1), AUTOPLAY_MS);
     return () => clearTimeout(t);
-  }, [idx, paused]);
+  }, [idx, paused, slides.length]);
 
   const onTouchStart = (e) => (touchX.current = e.touches[0].clientX);
   const onTouchEnd = (e) => {
@@ -97,6 +91,9 @@ export default function HeroCarousel() {
     if (Math.abs(dx) > 50) go(idx + (dx < 0 ? 1 : -1));
     touchX.current = null;
   };
+
+  // No active banners → render nothing (no mock slides).
+  if (!loaded || slides.length === 0) return null;
 
   return (
     <section
@@ -116,9 +113,18 @@ export default function HeroCarousel() {
           <div
             key={s.id}
             onClick={() => slideClick(s)}
-            className={`relative h-[380px] w-full shrink-0 md:h-[460px] ${s.gradient} ${s.clickable ? "cursor-pointer" : "cursor-default"}`}
+            className={`relative h-[380px] w-full shrink-0 overflow-hidden md:h-[460px] ${s.backgroundImage || s.backgroundColor ? "" : s.gradient} ${s.clickable ? "cursor-pointer" : "cursor-default"}`}
+            style={s.backgroundColor && !s.backgroundImage ? { background: s.backgroundColor } : undefined}
             aria-hidden={slides[idx]?.id !== s.id}
           >
+            {/* image background (wins over colour/gradient) + legibility overlay */}
+            {s.backgroundImage && (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={s.backgroundImage} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden="true" />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, rgba(28,28,30,0.65) 0%, rgba(28,28,30,0.25) 60%, rgba(28,28,30,0.10) 100%)" }} aria-hidden="true" />
+              </>
+            )}
             {/* poster copy — bottom-left desktop, centered mobile */}
             <div className="absolute inset-0 flex items-end pb-16 md:pb-20">
               <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">

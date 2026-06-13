@@ -5,12 +5,12 @@
 
 export function SkeletonCard({ className = "w-[260px] shrink-0 snap-start" }) {
   return (
-    <div className={`${className} animate-pulse overflow-hidden rounded-card border border-black/5 bg-white shadow-card`}>
-      <div className="h-[190px] bg-neutral-200" />
+    <div className={`${className} overflow-hidden rounded-card border border-black/5 bg-white shadow-card`}>
+      <div className="skeleton-green h-[190px]" />
       <div className="space-y-3 p-4">
-        <div className="h-4 w-3/4 rounded bg-neutral-200" />
-        <div className="h-3 w-full rounded bg-neutral-100" />
-        <div className="mt-3 h-5 w-1/2 rounded bg-neutral-200" />
+        <div className="skeleton-green h-4 w-3/4 rounded" />
+        <div className="skeleton-green h-3 w-full rounded" />
+        <div className="skeleton-green mt-3 h-5 w-1/2 rounded" />
       </div>
     </div>
   );

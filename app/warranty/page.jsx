@@ -1,6 +1,9 @@
 import StaticPage, { H2, P, UL } from "@/components/StaticPage";
 
-export const metadata = { title: "Warranty Policy — RefurbishedKart" };
+export const metadata = {
+  title: "Warranty Policy",
+  description: "Warranty coverage and claim process for RefurbishedKart certified refurbished products.",
+};
 
 export default function WarrantyPage() {
   return (
@@ -13,7 +16,7 @@ export default function WarrantyPage() {
       ]} />
 
       <H2>Duration</H2>
-      <P>Every product ships with a minimum 6-month onsite warranty, extendable to 1 year at checkout. The exact period for your device is shown on its product page and printed on your invoice.</P>
+      <P>Every product ships with a minimum 6-month warranty, extendable to 1 year at checkout. The exact period for your device is shown on its product page and printed on your invoice.</P>
 
       <H2>What's not covered</H2>
       <UL items={[
@@ -28,7 +31,7 @@ export default function WarrantyPage() {
         {[
           ["Raise a claim", "From My Account → My Orders, or via WhatsApp support, describe the issue."],
           ["Remote diagnosis", "Our team runs a quick check to confirm it's a covered hardware fault."],
-          ["Repair or replace", "We arrange an onsite repair, or a pickup-repair-return, at no cost to you."],
+          ["Repair or replace", "We arrange a pickup-repair-return at no cost to you."],
           ["Back in action", "Most claims are resolved within 5–7 working days."],
         ].map(([t, d], i) => (
           <div key={i} className="flex gap-4 rounded-card border border-black/5 bg-white p-4 shadow-card">

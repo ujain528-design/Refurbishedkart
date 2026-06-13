@@ -1,6 +1,9 @@
 import StaticPage, { H2, P, UL } from "@/components/StaticPage";
 
-export const metadata = { title: "Terms of Service — RefurbishedKart" };
+export const metadata = {
+  title: "Terms & Conditions",
+  description: "The terms and conditions governing use of RefurbishedKart and purchases made on the site.",
+};
 
 export default function TermsPage() {
   return (

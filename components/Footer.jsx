@@ -6,6 +6,7 @@ import { FOOTER_COLS } from "@/lib/data";
 import NewsletterForm from "@/components/NewsletterForm";
 import { LogoMark } from "@/components/Icons";
 import { getFooterInfo } from "@/lib/api";
+import { paletteAt } from "@/lib/categoryColors";
 
 /* Map footer link labels to routes. Unmapped labels stay as "#" placeholders. */
 const ROUTE_MAP = {
@@ -24,7 +25,7 @@ export default function Footer() {
   const [info, setInfo] = useState(FALLBACK_INFO);
   useEffect(() => { getFooterInfo().then((i) => i && setInfo({ ...FALLBACK_INFO, ...i })).catch(() => {}); }, []);
   return (
-    <footer className="bg-[#111] text-white">
+    <footer className="bg-dark text-white">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         {/* Newsletter — PRD §4.1 */}
         <div className="mb-14 flex flex-wrap items-center justify-between gap-6 border-b border-white/10 pb-12">
@@ -85,7 +86,13 @@ export default function Footer() {
           <p className="text-xs text-white/40">
             © {new Date().getFullYear()} RefurbishedKart. All rights reserved.
           </p>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {/* Social links — only render the ones with a URL set in Settings → Social */}
+            {Object.entries(info.social || {}).filter(([, url]) => url).map(([name, url], i) => (
+              <a key={name} href={url} target="_blank" rel="noopener noreferrer" className="soc-hover text-xs text-white/40 transition-colors duration-200" style={{ "--sc": paletteAt(i).color }}>
+                {name}
+              </a>
+            ))}
             {["Privacy Policy", "Terms of Service", "Contact"].map((l) => (
               <Link
                 key={l}

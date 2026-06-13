@@ -292,6 +292,6 @@ export const COMPONENT_ICONS = {
   storage: DriveIcon,
   ram: ChipIcon,
   cooling: FanIcon,
-  datawipe: ShieldIcon,
+  performance: ChipIcon,
   bios: ChipIcon,
 };

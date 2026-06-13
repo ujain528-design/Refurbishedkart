@@ -1,5 +1,9 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import ShopByCategory from "@/components/ShopByCategory";
+import HeroCarousel from "@/components/HeroCarousel";
+import PromoSlot from "@/components/PromoSlot";
+import Reveal from "@/components/Reveal";
 import LiveProductRow from "@/components/home/LiveProductRow";
 import FlashSaleBanner from "@/components/FlashSaleBanner";
 import BrandStrip from "@/components/BrandStrip";
@@ -20,40 +24,70 @@ export default function HomePage() {
       <main>
         <Hero />
 
+        {/* Shop by Category — 5 colour-coded category cards */}
+        <ShopByCategory />
+
+        {/* Promo slot: After Categories */}
+        <PromoSlot placement="after-categories" />
+
         {/* PRD §4.1 default rows, now fetched live from the DB by tag.
             Catalogue tag is "student" (not "best-for-students"). */}
         <div className="pt-10">
           <LiveProductRow
+            eyebrow="Handpicked for you"
             title="Bestsellers"
             subtitle="The machines our customers keep coming back for."
             tag="bestseller"
+            viewAllHref="/shop/bestseller"
           />
         </div>
+
+        {/* Promo slot: After Bestsellers */}
+        <PromoSlot placement="after-bestsellers" />
+
+        {/* Hero carousel — hero-placement banners only. Self-hides when empty. */}
+        <HeroCarousel />
 
         {/* Full-width clickable Flash Sale banner → /flash-sale */}
         <FlashSaleBanner />
 
-        <div>
+        {/* soft green-tint band for the curated rows */}
+        <div style={{ background: "#EDF2E8" }}>
           <LiveProductRow
+            eyebrow="On a budget"
             title="Best for Students"
             subtitle="Budget-friendly picks that survive a full semester of abuse."
             tag="student"
+            viewAllHref="/shop/student"
           />
           <LiveProductRow
+            eyebrow="Just in"
             title="New Arrivals"
             subtitle="Fresh off the refurbishment line this week."
             tag="new-arrival"
             className="pb-20"
+            viewAllHref="/shop/new-arrival"
           />
         </div>
 
-        <BrandStrip />
-        <BudgetCards />
-        <WhyRefurbished />
-        <Reviews />
+        <Reveal><BrandStrip /></Reveal>
+        <Reveal><BudgetCards /></Reveal>
+
+        {/* Promo slot: After Shop by Budget */}
+        <PromoSlot placement="after-budget" />
+
+        <Reveal><WhyRefurbished /></Reveal>
+
+        {/* Promo slot: Before Reviews */}
+        <PromoSlot placement="before-reviews" />
+
+        <Reveal><Reviews /></Reveal>
         <BulkBanner />
         <Faq />
         <PolicyStrip />
+
+        {/* Promo slot: Above Footer */}
+        <PromoSlot placement="footer-top" />
       </main>
       <Footer />
       <BulkEnquiryModal />

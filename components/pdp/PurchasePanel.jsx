@@ -140,11 +140,11 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button disabled={unavailable} onClick={addToCart} className="rounded-full border-2 border-brand px-6 py-3 text-sm font-bold text-brand transition-colors hover:bg-brand-softer disabled:cursor-not-allowed disabled:opacity-40">
+          <button disabled={unavailable} onClick={addToCart} className="flex-1 rounded-card bg-dark px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-[#2c2c2e] disabled:cursor-not-allowed disabled:opacity-40">
             {added ? "Added ✓" : "Add to Cart"}
           </button>
           <button aria-label={wish ? "Remove from wishlist" : "Add to wishlist"} aria-pressed={wish} onClick={() => toggle(product.id)}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${wish ? "border-red-300 text-red-500" : "border-black/10 text-neutral-400 hover:border-red-300 hover:text-red-500"}`}>
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-card border transition-all duration-200 ${wish ? "border-red-300 text-red-500" : "border-warm-border text-neutral-400 hover:border-red-300 hover:text-red-500"}`}>
             <HeartIcon style={{ width: 20, height: 20, fill: wish ? "currentColor" : "none" }} />
           </button>
         </div>
@@ -155,7 +155,7 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
         <p className="mt-2 text-[13px] font-bold text-red-600">Only {chassis} left</p>
       ) : null}
 
-      <button disabled={unavailable} onClick={buyNow} className="mt-3 w-full rounded-full bg-brand py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40">
+      <button disabled={unavailable} onClick={buyNow} className="mt-3 w-full rounded-card bg-dark py-3.5 text-sm font-bold text-white transition-colors hover:bg-[#2c2c2e] disabled:cursor-not-allowed disabled:opacity-40">
         Buy Now
       </button>
 

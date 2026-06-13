@@ -1,7 +1,10 @@
 import StaticPage, { H2 } from "@/components/StaticPage";
 import ContactForm from "@/components/contact/ContactForm";
 
-export const metadata = { title: "Contact Us — RefurbishedKart" };
+export const metadata = {
+  title: "Contact Us",
+  description: "Get in touch with RefurbishedKart for sales, bulk orders, support or warranty queries.",
+};
 
 export default function ContactPage() {
   return (

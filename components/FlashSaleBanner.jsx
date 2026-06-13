@@ -1,7 +1,9 @@
 import Link from "next/link";
 import Countdown from "@/components/Countdown";
 
-const SALE_RED = "#B71C1C";
+// Warmer than the old hard red — burnt orange from the category palette keeps the
+// urgency while reading premium against the cream storefront.
+const SALE_RED = "#B5532A";
 
 export default function FlashSaleBanner() {
   return (

@@ -16,7 +16,24 @@ export async function GET() {
       lowStockThreshold: Number(s.lowStockThreshold ?? 5),
       whatsappNumber: s.whatsappNumber,
       storeName: s.storeName,
-    });
+      returnDays: Number(s.returnDays ?? 7),
+      gstRate: Number(s.gstRate ?? 18), // store default GST rate (per-product overrides win)
+      // Homepage hero — admin-editable (Settings → Appearance)
+      hero: {
+        eyebrow: s.heroEyebrow ?? "",
+        headline: s.heroHeadline ?? "",
+        headlineAccent: s.heroHeadlineAccent ?? "",
+        subtext: s.heroSubtext ?? "",
+        ctaPrimaryText: s.heroCtaPrimaryText ?? "",
+        ctaPrimaryLink: s.heroCtaPrimaryLink ?? "",
+        ctaSecondaryText: s.heroCtaSecondaryText ?? "",
+        ctaSecondaryLink: s.heroCtaSecondaryLink ?? "",
+        backgroundType: s.heroBackgroundType ?? "gradient",
+        backgroundImage: s.heroBackgroundImage ?? "",
+        backgroundVideo: s.heroBackgroundVideo ?? "",
+        overlayDarkness: Number(s.heroOverlayDarkness ?? 80),
+      },
+    }, { headers: { "Cache-Control": "no-store, max-age=0, must-revalidate" } });
   } catch (e) {
     return NextResponse.json({ freeDeliveryAbove: 999, deliveryFee: 99, error: e.message }, { status: 500 });
   }

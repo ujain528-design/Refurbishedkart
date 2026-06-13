@@ -14,7 +14,14 @@ export async function PUT(req, { params }) {
     await dbConnect();
     const { status } = await req.json();
     if (!VALID.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-    const o = await Order.findOneAndUpdate({ orderId: params.id }, { $set: { status } }, { new: true });
+    // Stamp deliveredAt the first time an order is marked Delivered — it's the
+    // base date for the return window.
+    const patch = { status };
+    if (status === "Delivered") {
+      const existing = await Order.findOne({ orderId: params.id }).select("deliveredAt").lean();
+      if (existing && !existing.deliveredAt) patch.deliveredAt = new Date();
+    }
+    const o = await Order.findOneAndUpdate({ orderId: params.id }, { $set: patch }, { new: true });
     if (!o) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     return NextResponse.json({ order: { id: o.orderId, ...o.toObject() } });
   } catch (e) {

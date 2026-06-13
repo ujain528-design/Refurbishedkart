@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { TRUST_POLICIES } from "@/lib/pdp";
-import { CertifiedIcon, ReturnIcon, ShieldIcon, ClipboardIcon, EraseIcon, CloseIcon } from "@/components/Icons";
+import { CertifiedIcon, ReturnIcon, ShieldIcon, ClipboardIcon, CloseIcon } from "@/components/Icons";
 
 const BADGE_ICONS = {
   certified: CertifiedIcon,
   returns: ReturnIcon,
   warranty: ShieldIcon,
   gst: ClipboardIcon,
-  wiped: EraseIcon,
 };
 
 export default function TrustBadges({ warranty }) {

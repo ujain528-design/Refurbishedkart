@@ -15,7 +15,7 @@ export default function AddToCartButton({
   const { addItem } = useCart();
   const { isLoggedIn } = useAuth();
   const router = useRouter();
-  const [added, setAdded] = useState(false);
+  const [phase, setPhase] = useState("idle"); // idle | busy | added
 
   return (
     <button
@@ -29,12 +29,21 @@ export default function AddToCartButton({
             const dest = redirectTo === "/checkout" && !isLoggedIn ? "/login?redirect=/checkout" : redirectTo;
             return router.push(dest);
           }
-          setAdded(true);
-          setTimeout(() => setAdded(false), 1500);
+          // brief spinner → green check ("Added!") → back; bounce the navbar cart
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("cart:bump"));
+          setPhase("busy");
+          setTimeout(() => setPhase("added"), 350);
+          setTimeout(() => setPhase("idle"), 1850);
         }
       }}
     >
-      {added ? addedLabel : children}
+      {phase === "busy" ? (
+        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white align-middle" aria-label="Adding…" />
+      ) : phase === "added" ? (
+        <span className="animate-check-pop inline-block">{addedLabel}</span>
+      ) : (
+        children
+      )}
     </button>
   );
 }

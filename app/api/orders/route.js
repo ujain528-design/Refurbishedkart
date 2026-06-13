@@ -4,7 +4,7 @@ import { Order, Coupon, Product, nextOrderId } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
 import { calcPrice } from "@/lib/server/products";
 import { getStoreSettings, deliveryRules } from "@/lib/server/settings";
-import { gstBreakup } from "@/lib/data";
+import { computeLineTaxes, SELLER_STATE } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +16,20 @@ export async function POST(req) {
     const { items = [], shippingAddress, paymentMethod, couponCode, buyerGstin } = await req.json();
     if (!items.length) return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
 
+    const settings = await getStoreSettings();
+    const defGst = Number(settings.gstRate) || 18;
+    const defHsn = settings.hsnDefault || "8471";
+
     // Recompute every line server-side — never trust client prices (PRD §5.3).
+    // GST is a flat store-wide rate (defGst); HSN is still per-product. Both are
+    // stamped on the line so the invoice/admin render authoritatively.
     const lines = [];
     for (const it of items) {
       const q = await calcPrice(it.productId, it.ram, it.ssd);
       if (q.error) return NextResponse.json({ error: `Product ${it.productId} unavailable` }, { status: 409 });
       if (q.sellable < (it.qty || 1)) return NextResponse.json({ error: `${q.product.name} is out of stock` }, { status: 409 });
-      lines.push({ productId: q.product.id, name: q.product.name, ram: q.ram, ssd: q.ssd, qty: it.qty || 1, unitPrice: q.unitPrice });
+      const hsnCode = q.product.hsnCode || defHsn;
+      lines.push({ productId: q.product.id, name: q.product.name, ram: q.ram, ssd: q.ssd, qty: it.qty || 1, unitPrice: q.unitPrice, gstRate: defGst, hsnCode });
     }
     const subtotal = lines.reduce((a, l) => a + l.unitPrice * l.qty, 0);
 
@@ -35,10 +42,13 @@ export async function POST(req) {
         appliedCode = c.code;
       }
     }
-    const { freeDeliveryAbove, deliveryFee } = deliveryRules(await getStoreSettings());
+    const { freeDeliveryAbove, deliveryFee } = deliveryRules(settings);
     const delivery = subtotal > freeDeliveryAbove ? 0 : deliveryFee;
     const total = subtotal - discount + delivery;
-    const gst = gstBreakup(subtotal - discount, false);
+    // Per-line GST at each product's rate; inter-state derived from the ship-to
+    // state (CGST+SGST intra-Karnataka, IGST otherwise) — same basis the invoice uses.
+    const interState = (shippingAddress?.state || SELLER_STATE) !== SELLER_STATE;
+    const gst = computeLineTaxes(lines, discount, interState).gst;
 
     const orderId = await nextOrderId();
     const order = await Order.create({

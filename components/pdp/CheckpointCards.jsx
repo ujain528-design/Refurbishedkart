@@ -19,7 +19,7 @@ const CARDS = [
   { name: "Keyboard", key: "keyboard" },
   { name: "Ports", key: "ports" },
   { name: "Body / Chassis", key: "body" },
-  { name: "Data Wipe", key: "datawipe" },
+  { name: "Performance", key: "performance" },
   { name: "RAM", key: "ram" },
   { name: "Storage", key: "storage" },
   { name: "Speakers", key: "speakers" },

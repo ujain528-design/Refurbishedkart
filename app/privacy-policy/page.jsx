@@ -1,6 +1,9 @@
 import StaticPage, { H2, P, UL } from "@/components/StaticPage";
 
-export const metadata = { title: "Privacy Policy — RefurbishedKart" };
+export const metadata = {
+  title: "Privacy Policy",
+  description: "How RefurbishedKart collects, uses and protects your personal data.",
+};
 
 export default function PrivacyPage() {
   return (
@@ -19,7 +22,7 @@ export default function PrivacyPage() {
       <P>To process and deliver orders, generate GST invoices, provide support, prevent fraud, and — only with your consent — send offers. We never sell your personal data.</P>
 
       <H2>Data security</H2>
-      <P>We use industry-standard encryption in transit and restrict access to personal data. Devices you trade or return are wiped to NIST 800-88 standard before resale.</P>
+      <P>We use industry-standard encryption in transit and restrict access to personal data.</P>
 
       <H2>Your rights</H2>
       <P>You may access, correct, or request deletion of your data, and opt out of marketing at any time by contacting us at support@refurbishedkart.com.</P>

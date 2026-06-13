@@ -8,7 +8,7 @@ import { getProducts } from "@/lib/api";
 
 /* Fetches a homepage product row by tag. Independent loading/error per row so
    one failing row doesn't blank the page. */
-export default function LiveProductRow({ title, subtitle, tag, limit = 10, className = "" }) {
+export default function LiveProductRow({ title, subtitle, eyebrow, tag, viewAllHref, limit = 8, className = "" }) {
   const [state, setState] = useState({ status: "loading", products: [] });
 
   const load = useCallback(() => {
@@ -24,14 +24,14 @@ export default function LiveProductRow({ title, subtitle, tag, limit = 10, class
 
   if (state.status === "ready") {
     if (!state.products.length) return null; // hide empty rows on the homepage
-    return <ProductRow title={title} subtitle={subtitle} products={state.products} className={className} />;
+    return <ProductRow title={title} subtitle={subtitle} eyebrow={eyebrow} viewAllHref={viewAllHref} products={state.products} className={className} />;
   }
 
   // loading / error keep the section header so layout doesn't jump
   return (
     <section className={`py-10 ${className}`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <SectionHeading title={title} subtitle={subtitle} />
+        <SectionHeading title={title} subtitle={subtitle} eyebrow={eyebrow} />
         {state.status === "error"
           ? <ErrorState message="Couldn't load this row." onRetry={load} />
           : <SkeletonRow count={5} />}

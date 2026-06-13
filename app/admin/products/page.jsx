@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Badge, PageHeader, Modal, useToast, inputCls, btnPrimary } from "@/components/admin/ui";
 import { CATEGORY_SLUGS, formatINR } from "@/lib/data";
-import { adminGetProducts, adminDeleteProduct, adminUpdateStock } from "@/lib/api";
+import { adminGetProducts, adminDeleteProduct, adminUpdateStock, adminBackfillSlugs } from "@/lib/api";
 
 const stockTone = (s) => (s === 0 ? "text-red-600" : s <= 5 ? "text-amber-600" : "text-ink");
 
@@ -32,6 +32,14 @@ export default function AdminProducts() {
   };
 
   const cats = ["All", ...Object.values(CATEGORY_SLUGS)];
+
+  const [slugBusy, setSlugBusy] = useState(false);
+  const backfillSlugs = async () => {
+    setSlugBusy(true);
+    try { const r = await adminBackfillSlugs(); toast(`SEO slugs: ${r.updated} added (${r.total} total)`); }
+    catch (e) { toast(e.message || "Backfill failed", "error"); }
+    finally { setSlugBusy(false); }
+  };
 
   const load = useCallback(() => {
     setStatus("loading");
@@ -61,7 +69,12 @@ export default function AdminProducts() {
 
   return (
     <div>
-      <PageHeader title="Products" subtitle={`${products.length} listings`} action={<Link href="/admin/products/new" className={btnPrimary}>+ Add New Product</Link>} />
+      <PageHeader title="Products" subtitle={`${products.length} listings`} action={
+        <div className="flex items-center gap-2">
+          <button onClick={backfillSlugs} disabled={slugBusy} className="rounded-full border border-black/10 px-4 py-2 text-sm font-bold text-ink hover:border-brand disabled:opacity-50">{slugBusy ? "Generating…" : "Backfill SEO slugs"}</button>
+          <Link href="/admin/products/new" className={btnPrimary}>+ Add New Product</Link>
+        </div>
+      } />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products…" className={`${inputCls} max-w-xs`} />

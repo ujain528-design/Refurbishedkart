@@ -102,10 +102,39 @@ export default function Orders() {
               <p className="mt-0.5 font-semibold text-ink">{customerOf(view)}</p>
               {view.shippingAddress && <p className="text-neutral-500">{[view.shippingAddress.line1, view.shippingAddress.city, view.shippingAddress.state, view.shippingAddress.pincode].filter(Boolean).join(", ")}</p>}
             </div>
-            <div><p className="text-[12px] font-semibold uppercase text-neutral-400">Items</p><p className="mt-0.5 text-ink">{itemsText(view)}</p></div>
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-neutral-50 p-3">
-              <span className="text-neutral-500">Subtotal</span><span className="text-right font-semibold">{formatINR(view.subtotal)}</span>
-              {view.discount > 0 && (<><span className="text-neutral-500">Discount</span><span className="text-right text-brand">− {formatINR(view.discount)}</span></>)}
+            <div>
+              <p className="text-[12px] font-semibold uppercase text-neutral-400">Items</p>
+              <div className="mt-1 overflow-x-auto rounded-lg border border-black/5">
+                <table className="w-full text-[12px]">
+                  <thead><tr className="bg-neutral-50 text-left text-neutral-400">
+                    <th className="px-2 py-1.5">Item</th><th className="px-2 py-1.5">Qty</th><th className="px-2 py-1.5">HSN</th><th className="px-2 py-1.5">GST</th><th className="px-2 py-1.5 text-right">Total</th>
+                  </tr></thead>
+                  <tbody>
+                    {(view.lines || []).map((l, i) => {
+                      const variant = [l.ram, l.ssd ? `${l.ssd} SSD` : ""].filter(Boolean).join(" | ");
+                      return (
+                        <tr key={i} className="border-t border-black/5">
+                          <td className="px-2 py-1.5 text-ink">{l.name}{variant ? <span className="text-neutral-400"> ({variant})</span> : null}</td>
+                          <td className="px-2 py-1.5">{l.qty}</td>
+                          <td className="px-2 py-1.5">{l.hsnCode || "—"}</td>
+                          <td className="px-2 py-1.5">{l.gstRate ? `${l.gstRate}%` : "—"}</td>
+                          <td className="px-2 py-1.5 text-right">{formatINR((l.unitPrice || 0) * (l.qty || 1))}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 rounded-lg bg-neutral-50 p-3">
+              <span className="text-neutral-500">Subtotal (incl GST)</span><span className="text-right font-semibold">{formatINR(view.subtotal)}</span>
+              {view.discount > 0 && (<><span className="text-neutral-500">Discount{view.couponCode ? ` (${view.couponCode})` : ""}</span><span className="text-right text-brand">− {formatINR(view.discount)}</span></>)}
+              {view.gst?.igst != null
+                ? (<><span className="text-neutral-500">IGST (incl)</span><span className="text-right">{formatINR(view.gst.igst)}</span></>)
+                : view.gst?.total != null
+                ? (<><span className="text-neutral-500">CGST + SGST (incl)</span><span className="text-right">{formatINR(view.gst.cgst)} + {formatINR(view.gst.sgst)}</span></>)
+                : null}
+              {view.delivery != null && (<><span className="text-neutral-500">Delivery</span><span className="text-right">{view.delivery ? formatINR(view.delivery) : "Free"}</span></>)}
               <span className="font-bold text-ink">Total Paid</span><span className="text-right font-bold text-brand">{formatINR(view.total)}</span>
             </div>
             <Field label="Update Status">

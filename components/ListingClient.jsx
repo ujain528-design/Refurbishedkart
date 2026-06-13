@@ -18,6 +18,9 @@ import { getProducts } from "@/lib/api";
 
 // All accessors use optional chaining so a product missing `attrs` can never crash
 // filter-option derivation or rendering (defensive against malformed catalogue rows).
+// `hideFor` excludes a facet from those categories. Desktop towers
+// (Workstations/Servers) never expose Screen Size / Touchscreen facets, even if a
+// stray row carries those attrs — workstations are desktop-only.
 const FILTER_FIELDS = [
   { key: "brand", label: "Brand", get: (p) => p.brand },
   { key: "processor", label: "Processor", get: (p) => p.attrs?.processor },
@@ -25,8 +28,8 @@ const FILTER_FIELDS = [
   { key: "ram", label: "RAM (GB)", get: (p) => p.attrs?.ram, format: (v) => `${v} GB` },
   { key: "ramType", label: "RAM Type", get: (p) => p.attrs?.ramType },
   { key: "ssd", label: "SSD Capacity", get: (p) => p.attrs?.ssd },
-  { key: "screen", label: "Screen Size", get: (p) => p.attrs?.screen },
-  { key: "touch", label: "Touchscreen", get: (p) => (p.attrs?.touchscreen === undefined ? undefined : p.attrs.touchscreen ? "Yes" : "No") },
+  { key: "screen", label: "Screen Size", get: (p) => p.attrs?.screen, hideFor: ["Workstations", "Servers"] },
+  { key: "touch", label: "Touchscreen", get: (p) => (p.attrs?.touchscreen === undefined ? undefined : p.attrs.touchscreen ? "Yes" : "No"), hideFor: ["Workstations", "Servers"] },
   { key: "gpu", label: "Graphics / GPU", get: (p) => p.attrs?.gpu },
   { key: "os", label: "Operating System", get: (p) => p.attrs?.os },
   { key: "warranty", label: "Warranty Period", get: (p) => p.attrs?.warranty },
@@ -77,6 +80,8 @@ function FilterGroup({ field, options, selected, onToggle }) {
 export default function ListingClient({ categorySlug, categoryName, query, products: providedProducts }) {
   const searchParams = useSearchParams();
   const brandParam = searchParams.get("brand");
+  const minPriceParam = searchParams.get("minPrice");
+  const maxPriceParam = searchParams.get("maxPrice");
 
   const [products, setProducts] = useState(providedProducts || []);
   const [status, setStatus] = useState(providedProducts ? "ready" : "loading"); // loading | ready | error
@@ -118,10 +123,15 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
     return [Math.floor(Math.min(...prices) / 1000) * 1000, Math.ceil(Math.max(...prices) / 1000) * 1000];
   }, [products]);
 
-  // initialise the price slider once products arrive
+  // initialise the price slider once products arrive — honour ?minPrice&maxPrice
+  // (e.g. from a budget tier) clamped to the available bounds.
   useEffect(() => {
-    if (products.length) setPrice(bounds);
-  }, [bounds, products.length]);
+    if (!products.length) return;
+    const [lo, hi] = bounds;
+    const pmin = minPriceParam != null ? Math.min(Math.max(lo, Number(minPriceParam) || lo), hi) : lo;
+    const pmax = maxPriceParam != null ? Math.max(Math.min(hi, Number(maxPriceParam) || hi), lo) : hi;
+    setPrice(pmin <= pmax ? [pmin, pmax] : [lo, hi]);
+  }, [bounds, products.length, minPriceParam, maxPriceParam]);
 
   useEffect(() => {
     if (brandParam) setSelected((s) => ({ ...s, brand: [brandParam] }));
@@ -137,13 +147,15 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
 
   const fieldsWithOptions = useMemo(
     () =>
-      FILTER_FIELDS.map((f) => ({
-        field: f,
-        options: [...new Set(products.map(f.get).filter((v) => v !== undefined))].sort((a, b) =>
-          typeof a === "number" ? a - b : String(a).localeCompare(String(b))
-        ),
-      })).filter(({ options }) => options.length > 0),
-    [products]
+      FILTER_FIELDS
+        .filter((f) => !(f.hideFor && f.hideFor.includes(categoryName)))
+        .map((f) => ({
+          field: f,
+          options: [...new Set(products.map(f.get).filter((v) => v !== undefined))].sort((a, b) =>
+            typeof a === "number" ? a - b : String(a).localeCompare(String(b))
+          ),
+        })).filter(({ options }) => options.length > 0),
+    [products, categoryName]
   );
 
   const toggle = (key, val) =>
@@ -271,7 +283,7 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
             <p className="mb-4 text-[13px] text-neutral-500">
               Showing {shown.length} of {filtered.length} product{filtered.length === 1 ? "" : "s"}
             </p>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {shown.map((p) => (<ProductCard key={p.id} product={p} className="w-full" />))}
             </div>
             {filtered.length > visible ? (

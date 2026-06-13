@@ -4,6 +4,7 @@ import { Product } from "@/lib/server/models";
 import { requireAdmin } from "@/lib/server/adminAuth";
 import { calculateDeviceCost } from "@/lib/server/pricing";
 import { validateProduct } from "@/lib/server/productValidation";
+import { assignUniqueSlug } from "@/lib/server/slug";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,8 @@ export async function POST(req) {
       const last = await Product.findOne({}).sort({ id: -1 }).lean();
       id = (last?.id || 0) + 1;
     }
+    // Generate a unique SEO slug on create (kept stable on later edits).
+    if (!data.slug) data.slug = await assignUniqueSlug({ ...data, id });
     const doc = await Product.findOneAndUpdate({ id }, { $set: { ...data, id } }, { new: true, upsert: true });
     return NextResponse.json({ product: doc }, { status: 201 });
   } catch (e) {

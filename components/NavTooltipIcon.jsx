@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/AuthContext";
 import { useCart } from "@/lib/CartContext";
@@ -39,10 +40,17 @@ export function WishlistNavIcon() {
 export function CartNavIcon() {
   const { isLoggedIn } = useAuth();
   const { count } = useCart();
+  const [bump, setBump] = useState(false);
+  // Bounce the cart icon when an item is added (event from AddToCartButton).
+  useEffect(() => {
+    const onBump = () => { setBump(false); requestAnimationFrame(() => setBump(true)); setTimeout(() => setBump(false), 320); };
+    window.addEventListener("cart:bump", onBump);
+    return () => window.removeEventListener("cart:bump", onBump);
+  }, []);
   return (
     <div className="group relative">
       <Link href="/cart" aria-label="Cart" className="relative block rounded-full p-2.5 text-neutral-600 transition-colors hover:bg-brand-softer hover:text-brand">
-        <CartIcon style={{ width: 21, height: 21 }} />
+        <span className={`inline-block ${bump ? "animate-cart-bounce" : ""}`}><CartIcon style={{ width: 21, height: 21 }} /></span>
         <CartBadge />
       </Link>
       {isLoggedIn && <Tooltip text={`My Cart (${count} item${count === 1 ? "" : "s"})`} />}
