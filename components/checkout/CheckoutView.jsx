@@ -145,7 +145,13 @@ export default function CheckoutView() {
       const payAmount = isCod ? COD_ADVANCE : grandTotal;
       const created = await createRazorpayOrder(order.id, payAmount);
       const ok = await loadRazorpay();
-      if (!ok || !window.Razorpay) throw new Error("Couldn't load the payment gateway.");
+      // Make every "gateway didn't open" cause VISIBLE instead of a silent no-op.
+      if (!ok || typeof window === "undefined" || !window.Razorpay) {
+        throw new Error("Couldn't load the payment gateway. Check your connection and try again.");
+      }
+      if (!created || !created.keyId || !created.razorpayOrderId) {
+        throw new Error("Payment couldn't be initialised — the gateway isn't configured. Please try again or contact support.");
+      }
 
       const rzp = new window.Razorpay({
         key: created.keyId,
@@ -181,23 +187,44 @@ export default function CheckoutView() {
   // Place Order ALWAYS creates a fresh order + opens Razorpay. Retrying a
   // previously-failed payment is a separate, explicit action (retryPayment below).
   const placeOrder = async () => {
-    if (placing) return;
-    setPlacing(true);
+    if (placing) return; // in progress (button is also disabled while placing)
     setOrderError("");
-    try {
-      let shippingAddress;
-      if (useNew) {
-        if (!form.name || !form.phone || !form.line1 || !form.pincode) {
-          throw new Error("Please fill name, phone, address and pincode.");
-        }
-        shippingAddress = { ...form };
-        if (saveAddr && isLoggedIn) { try { await addAddress(form); } catch {} }
-      } else {
-        shippingAddress = selectedAddr || null;
+
+    // ── Resolve the shipping address. Every failure path sets a VISIBLE error and
+    //    returns — never a silent stop. ──
+    let shippingAddress;
+    if (useNew) {
+      const missing = [
+        !form.name && "name",
+        !form.phone && "phone",
+        !form.line1 && "address",
+        !form.pincode && "pincode",
+      ].filter(Boolean);
+      if (missing.length) {
+        setOrderError(`Please fill in your ${missing.join(", ")} before placing the order.`);
+        return;
       }
+      shippingAddress = { ...form };
+    } else if (selectedAddr) {
+      shippingAddress = selectedAddr;
+    } else {
+      setOrderError("Please select a delivery address, or choose “Add a new address”.");
+      return;
+    }
+
+    // ── Cart sanity ──
+    const lineItems = orderItems();
+    if (!lineItems || lineItems.length === 0) {
+      setOrderError("Your cart is empty — add an item before checking out.");
+      return;
+    }
+
+    setPlacing(true);
+    try {
+      if (useNew && saveAddr && isLoggedIn) { try { await addAddress(form); } catch {} }
       // Server recomputes every price — client totals are never trusted (PRD §5.3).
       const order = await createOrder({
-        items: orderItems(),
+        items: lineItems,
         shippingAddress,
         // "ONLINE" is a placeholder; the verify route overwrites it with the real
         // instrument (card/upi/netbanking/wallet) read from Razorpay. COD stays "COD".
@@ -205,10 +232,13 @@ export default function CheckoutView() {
         couponCode: coupon?.code || null,
         buyerGstin: gstin || null,
       });
+      if (!order || !order.id) {
+        throw new Error("The order couldn't be created on the server. Please try again.");
+      }
       setPendingOrder(order);
-      startPayment(order); // opens Razorpay
+      await startPayment(order); // opens Razorpay
     } catch (e) {
-      setOrderError(e.message || "Couldn't place order. Please try again.");
+      setOrderError(e?.message || "Couldn't place the order. Please try again.");
       setPlacing(false); // stay on page, preserve form + cart
     }
   };
