@@ -487,7 +487,7 @@ export default function CheckoutView() {
           <span className="text-sm font-bold text-ink">Order Summary · {formatINR(grandTotal)}</span>
           <ChevronDown style={{ width: 16, height: 16 }} className={`transition-transform ${summaryOpen ? "rotate-180" : ""}`} />
         </button>
-        {summaryOpen && <div className="mt-3 rounded-card border border-black/5 bg-white p-3.5 lg:p-5 shadow-card"><Summary /></div>}
+        {summaryOpen && <div className="mt-3 rounded-card border border-black/5 bg-white p-3.5 lg:p-5 shadow-card">{Summary()}</div>}
       </div>
 
       <div className="mt-6 gap-4 lg:gap-8 lg:grid lg:grid-cols-[1fr_minmax(340px,40%)]">
@@ -622,7 +622,7 @@ export default function CheckoutView() {
         <aside className="hidden lg:block">
           <div className="rounded-card border border-black/5 bg-white p-4 lg:p-6 shadow-card lg:sticky lg:top-[124px]">
             <h2 className="mb-4 text-base lg:text-lg font-bold text-ink">Order Summary</h2>
-            <Summary />
+            {Summary()}
           </div>
         </aside>
       </div>
