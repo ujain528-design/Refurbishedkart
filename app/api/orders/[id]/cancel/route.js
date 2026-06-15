@@ -5,7 +5,7 @@ import { userFromRequest } from "@/lib/server/jwt";
 
 export const dynamic = "force-dynamic";
 
-const CANCELLABLE = ["pending_payment", "Pending", "Confirmed"];
+const CANCELLABLE = ["payment_pending", "Pending", "Confirmed"];
 
 /* Release chassis stock back when an order is cancelled (once). */
 async function releaseStock(order) {
@@ -32,6 +32,7 @@ export async function POST(req, { params }) {
     }
     await releaseStock(o);
     o.status = "Cancelled";
+    o.cancellationReason = "user_cancelled";
     o.cancelledAt = new Date();
     await o.save();
     return NextResponse.json({ order: { id: o.orderId, ...o.toObject() } });

@@ -32,7 +32,10 @@ export async function POST(req) {
     if (order.userId !== auth.sub) return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
 
     order.paymentId = razorpayPaymentId;
+    order.razorpayPaymentId = razorpayPaymentId;
+    order.razorpaySignature = razorpaySignature;
     order.razorpayOrderId = razorpayOrderId;
+    order.paidAt = new Date();
     if (order.paymentMethod === "COD") {
       // COD: the ₹500 was an advance; balance on delivery. Keep paymentMethod = "COD"
       // (the order flow, not the instrument, is what matters here).
@@ -52,6 +55,9 @@ export async function POST(req) {
     }
     order.status = "Confirmed";
     await order.save();
+
+    // TODO: trigger Shiprocket order creation
+    // await createShiprocketOrder(order)
 
     // Generate the GST invoice (best-effort — never fail payment if the PDF fails).
     try {

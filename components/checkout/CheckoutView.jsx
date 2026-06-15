@@ -39,13 +39,55 @@ const SAVED_ADDRESS = {
   phone: "+91 98765 43210",
 };
 
-function Field({ label, optional, children }) {
+// ── New-address validation ──
+const PHONE_RE = /^[6-9]\d{9}$/;                 // 10-digit Indian mobile, starts 6–9
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PIN_RE = /^\d{6}$/;
+const onlyDigits = (s) => String(s || "").replace(/\D/g, "");
+
+/* Normalise an Indian phone to its bare 10 digits: strip spaces/dashes/parens and
+   a leading +91 / 91 / 0, so "98765 43210" and "+91-9876543210" both reduce to
+   "9876543210". */
+const stripPhone = (raw) => {
+  let s = String(raw || "").replace(/[\s\-()]/g, "").replace(/^\+/, "");
+  s = s.replace(/\D/g, "");
+  if (s.length === 12 && s.startsWith("91")) s = s.slice(2); // +91 / 91 prefix
+  if (s.length === 11 && s.startsWith("0")) s = s.slice(1);  // leading 0
+  return s;
+};
+
+/* Returns a { field: message } map of errors (empty = valid). Used both on
+   Place Order and to render inline messages per field. */
+function validateAddressForm(f) {
+  const e = {};
+  if (!String(f.name || "").trim()) e.name = "Enter the full name.";
+  if (!PHONE_RE.test(stripPhone(f.phone))) e.phone = "Please enter a valid 10-digit Indian mobile number.";
+  const email = String(f.email || "").trim();
+  if (!email) e.email = "Enter an email address.";
+  else if (!EMAIL_RE.test(email)) e.email = "Enter a valid email address.";
+  if (!String(f.line1 || "").trim()) e.line1 = "Enter your address.";
+  const pin = onlyDigits(f.pincode);
+  if (!pin) e.pincode = "Enter a 6-digit pincode.";
+  else if (!PIN_RE.test(pin)) e.pincode = "Pincode must be exactly 6 digits.";
+  if (!String(f.city || "").trim()) e.city = "City is required.";
+  if (!String(f.state || "").trim()) e.state = "State is required.";
+  return e;
+}
+
+function Field({ label, optional, required, error, hint, children }) {
   return (
     <label className="block">
       <span className="mb-1 block text-[12px] font-semibold text-neutral-600">
-        {label} {optional && <span className="font-normal text-neutral-400">(optional)</span>}
+        {label}
+        {required && <span className="text-red-500"> *</span>}
+        {optional && <span className="font-normal text-neutral-400"> (optional)</span>}
       </span>
       {children}
+      {error ? (
+        <span className="mt-1 block text-[11px] font-semibold text-red-600">{error}</span>
+      ) : hint ? (
+        <span className="mt-1 block text-[11px] text-neutral-400">{hint}</span>
+      ) : null}
     </label>
   );
 }
@@ -94,7 +136,46 @@ export default function CheckoutView() {
       .catch(() => setUseNew(true));
   }, [isLoggedIn]);
 
-  const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const [fieldErrors, setFieldErrors] = useState({}); // per-field inline errors
+  const [pinLoading, setPinLoading] = useState(false); // India Post lookup in flight
+  const [addrLock, setAddrLock] = useState(false);     // city/state locked after auto-fill
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true); // pre-checked WhatsApp updates opt-in
+
+  // Editing a field clears its inline error.
+  const setField = (k, v) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setFieldErrors((e) => (e[k] ? { ...e, [k]: undefined } : e));
+  };
+
+  /* Auto-fill City + State from a 6-digit pincode via the free India Post API
+     (no key). Locks the two fields on success (editable via "Edit"); shows an
+     inline error and clears them on an invalid/not-found pincode. */
+  const lookupPincode = async (raw) => {
+    const code = onlyDigits(raw);
+    if (code.length !== 6) return;
+    setPinLoading(true);
+    setFieldErrors((e) => ({ ...e, pincode: undefined }));
+    try {
+      const res = await fetch(`https://api.postalpincode.in/pincode/${code}`);
+      const data = await res.json();
+      const rec = Array.isArray(data) ? data[0] : null;
+      const po = rec?.Status === "Success" && Array.isArray(rec.PostOffice) ? rec.PostOffice[0] : null;
+      if (po) {
+        setForm((f) => ({ ...f, city: po.District || f.city, state: po.State || f.state }));
+        setFieldErrors((e) => ({ ...e, pincode: undefined, city: undefined, state: undefined }));
+        setAddrLock(true);
+      } else {
+        setForm((f) => ({ ...f, city: "", state: "" }));
+        setFieldErrors((e) => ({ ...e, pincode: "Invalid pincode — please check." }));
+        setAddrLock(false);
+      }
+    } catch {
+      setFieldErrors((e) => ({ ...e, pincode: "Couldn't verify pincode — check your connection." }));
+      setAddrLock(false);
+    } finally {
+      setPinLoading(false);
+    }
+  };
   const selectedAddr = addresses.find((a) => a._id === selectedAddrId) || null;
   const shipState = useNew ? form.state : selectedAddr?.state || SELLER_STATE;
 
@@ -174,7 +255,9 @@ export default function CheckoutView() {
             else { setOrderError(v.error || "Payment verification failed."); setPlacing(false); }
           } catch (e) { setOrderError(e.message || "Verification failed."); setPlacing(false); }
         },
-        modal: { ondismiss: () => { setOrderError("Payment incomplete. Your order is saved — retry payment or choose a different method."); setPlacing(false); } },
+        // Closed the modal without paying → send them to the payment-pending page,
+        // where a 30-min countdown + "Pay Now" let them finish (or it auto-cancels).
+        modal: { ondismiss: () => { setPlacing(false); router.push(`/payment-pending?orderId=${order.id}`); } },
       });
       rzp.on("payment.failed", (r) => { setOrderError(r?.error?.description || "Payment failed. Your order is saved — retry."); setPlacing(false); });
       rzp.open();
@@ -194,17 +277,15 @@ export default function CheckoutView() {
     //    returns — never a silent stop. ──
     let shippingAddress;
     if (useNew) {
-      const missing = [
-        !form.name && "name",
-        !form.phone && "phone",
-        !form.line1 && "address",
-        !form.pincode && "pincode",
-      ].filter(Boolean);
-      if (missing.length) {
-        setOrderError(`Please fill in your ${missing.join(", ")} before placing the order.`);
+      const errs = validateAddressForm(form);
+      if (Object.keys(errs).length) {
+        setFieldErrors(errs);
+        setOrderError("Please fix the highlighted fields in the delivery address.");
         return;
       }
-      shippingAddress = { ...form };
+      setFieldErrors({});
+      // Normalise phone (bare 10 digits) + pincode for the order.
+      shippingAddress = { ...form, phone: stripPhone(form.phone), pincode: onlyDigits(form.pincode) };
     } else if (selectedAddr) {
       shippingAddress = selectedAddr;
     } else {
@@ -225,7 +306,10 @@ export default function CheckoutView() {
       // Server recomputes every price — client totals are never trusted (PRD §5.3).
       const order = await createOrder({
         items: lineItems,
-        shippingAddress,
+        // whatsappOptIn stored inside the (free-form) shippingAddress so it persists
+        // regardless of the Order schema, plus top-level for any route-level handling.
+        shippingAddress: { ...shippingAddress, whatsappOptIn },
+        whatsappOptIn,
         // "ONLINE" is a placeholder; the verify route overwrites it with the real
         // instrument (card/upi/netbanking/wallet) read from Razorpay. COD stays "COD".
         paymentMethod: pay === "cod" ? "COD" : "ONLINE",
@@ -440,18 +524,53 @@ export default function CheckoutView() {
 
               {useNew && (
                 <div className="grid gap-4 rounded-card border border-black/5 bg-white p-3.5 lg:p-5 shadow-card sm:grid-cols-2">
-                  <Field label="Full Name"><input value={form.name} onChange={(e) => setField("name", e.target.value)} className={inputCls} placeholder="Full name" /></Field>
-                  <Field label="Phone"><input value={form.phone} onChange={(e) => setField("phone", e.target.value)} className={inputCls} placeholder="+91" /></Field>
-                  <Field label="Email"><input type="email" value={form.email} onChange={(e) => setField("email", e.target.value)} className={inputCls} placeholder="you@email.com" /></Field>
-                  <Field label="Pincode"><input value={form.pincode} onChange={(e) => setField("pincode", e.target.value)} className={inputCls} placeholder="560001" /></Field>
-                  <div className="sm:col-span-2"><Field label="Address Line 1"><input value={form.line1} onChange={(e) => setField("line1", e.target.value)} className={inputCls} placeholder="House no., building, street" /></Field></div>
-                  <div className="sm:col-span-2"><Field label="Address Line 2" optional><input value={form.line2} onChange={(e) => setField("line2", e.target.value)} className={inputCls} placeholder="Area, landmark" /></Field></div>
-                  <Field label="City"><input value={form.city} onChange={(e) => setField("city", e.target.value)} className={inputCls} placeholder="City" /></Field>
-                  <Field label="State">
-                    <select value={form.state} onChange={(e) => setField("state", e.target.value)} className={inputCls}>
+                  <Field label="Full Name" required error={fieldErrors.name}>
+                    <input value={form.name} onChange={(e) => setField("name", e.target.value)} className={inputCls} placeholder="Full name" autoComplete="name" />
+                  </Field>
+                  <Field label="Phone" required error={fieldErrors.phone}>
+                    <input type="tel" inputMode="tel" maxLength={16} value={form.phone}
+                      onChange={(e) => setField("phone", e.target.value.replace(/[^\d+\-\s]/g, ""))}
+                      className={inputCls} placeholder="+91 98765 43210" autoComplete="tel" />
+                  </Field>
+                  {/* WhatsApp opt-in — full-width row directly below the phone field */}
+                  <div className="sm:col-span-2">
+                    <label className="flex items-center gap-2 text-[13px] font-medium text-ink">
+                      <input type="checkbox" checked={whatsappOptIn} onChange={(e) => setWhatsappOptIn(e.target.checked)} className="h-4 w-4 rounded accent-brand" />
+                      Send order updates on WhatsApp ✓
+                    </label>
+                    <p className="mt-0.5 pl-6 text-[11px] text-neutral-400">We&apos;ll send shipping updates on WhatsApp</p>
+                  </div>
+                  <Field label="Email" required error={fieldErrors.email}>
+                    <input type="email" value={form.email} onChange={(e) => setField("email", e.target.value)} className={inputCls} placeholder="you@email.com" autoComplete="email" />
+                  </Field>
+                  <Field label="Pincode" required error={fieldErrors.pincode} hint={pinLoading ? "Looking up city & state…" : undefined}>
+                    <input type="text" inputMode="numeric" maxLength={6} value={form.pincode}
+                      onChange={(e) => { const v = e.target.value.replace(/\D/g, "").slice(0, 6); setField("pincode", v); if (v.length === 6) lookupPincode(v); }}
+                      onBlur={(e) => lookupPincode(e.target.value)}
+                      className={inputCls} placeholder="6-digit pincode" autoComplete="postal-code" />
+                  </Field>
+                  <div className="sm:col-span-2"><Field label="Address Line 1" required error={fieldErrors.line1}>
+                    <input value={form.line1} onChange={(e) => setField("line1", e.target.value)} className={inputCls} placeholder="House no., building, street" autoComplete="address-line1" />
+                  </Field></div>
+                  <div className="sm:col-span-2"><Field label="Address Line 2" optional>
+                    <input value={form.line2} onChange={(e) => setField("line2", e.target.value)} className={inputCls} placeholder="Area, landmark" autoComplete="address-line2" />
+                  </Field></div>
+                  <Field label="City" required error={fieldErrors.city} hint={addrLock ? "Auto-filled from pincode" : undefined}>
+                    <input value={form.city} readOnly={addrLock} onChange={(e) => setField("city", e.target.value)}
+                      className={`${inputCls} ${addrLock ? "bg-neutral-50 text-neutral-600" : ""}`} placeholder="City" autoComplete="address-level2" />
+                  </Field>
+                  <Field label="State" required error={fieldErrors.state} hint={addrLock ? "Auto-filled from pincode" : undefined}>
+                    <select value={form.state} disabled={addrLock} onChange={(e) => setField("state", e.target.value)}
+                      className={`${inputCls} ${addrLock ? "bg-neutral-50 text-neutral-600" : ""}`}>
+                      <option value="">Select state</option>
                       {INDIAN_STATES.map((s) => <option key={s}>{s}</option>)}
                     </select>
                   </Field>
+                  {addrLock && (
+                    <button type="button" onClick={() => setAddrLock(false)} className="-mt-1 justify-self-start text-[12px] font-semibold text-brand underline sm:col-span-2">
+                      Edit city / state manually
+                    </button>
+                  )}
                   {isLoggedIn && (
                     <label className="flex items-center gap-2 text-sm text-neutral-600 sm:col-span-2">
                       <input type="checkbox" checked={saveAddr} onChange={(e) => setSaveAddr(e.target.checked)} className="h-4 w-4 rounded accent-brand" /> Save this address for next time

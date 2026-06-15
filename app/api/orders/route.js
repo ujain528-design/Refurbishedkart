@@ -56,8 +56,10 @@ export async function POST(req) {
       couponCode: appliedCode, paymentMethod: paymentMethod || "UPI",
       shippingAddress: shippingAddress || null, buyerGstin: buyerGstin || null,
       customerName: shippingAddress?.name || auth.name || null,
-      // Created unconfirmed; payment verification flips it to Confirmed.
-      status: "pending_payment",
+      // Created unconfirmed; payment webhook/verification flips it to Confirmed.
+      // The customer has 30 minutes to pay before auto-cancellation.
+      status: "payment_pending",
+      paymentDeadline: new Date(Date.now() + 30 * 60 * 1000),
     });
 
     // Deduct chassis stock: any config sold deducts 1 chassis per unit (qty).

@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { ErrorState, EmptyState } from "@/components/ui/States";
 import { ChevronDown, BrokenDeviceIcon } from "@/components/Icons";
+import { isPaymentPending, formatCountdown, PAY_WARNING_MS } from "@/lib/orderStatus";
 
 const TABS = [
   { id: "orders", label: "My Orders" },
@@ -46,6 +47,7 @@ const RETURN_STATUS_COLOR = {
 };
 
 function OrdersTab() {
+  const router = useRouter();
   const [status, setStatus] = useState("loading");
   const [orders, setOrders] = useState([]);
   const [returnsByOrder, setReturnsByOrder] = useState({});
@@ -55,6 +57,7 @@ function OrdersTab() {
   const [cancelling, setCancelling] = useState(null);
   const [downloading, setDownloading] = useState(null);
   const [returnFor, setReturnFor] = useState(null); // order object whose modal is open
+  const [now, setNow] = useState(Date.now());       // ticks every second for live countdowns
 
   const doDownload = async (id) => {
     setDownloading(id);
@@ -82,6 +85,21 @@ function OrdersTab() {
     getReturnReasons().then(setReasons).catch(() => setReasons([]));
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Live 1s tick so pending-payment countdowns stay current.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // While any order is awaiting payment, re-fetch every 15s so the badge flips to
+  // Confirmed/Cancelled as soon as the webhook (or auto-expire) updates the order.
+  const hasPending = orders.some((o) => isPaymentPending(o.status));
+  useEffect(() => {
+    if (!hasPending) return;
+    const p = setInterval(() => { getOrders().then(setOrders).catch(() => {}); }, 15000);
+    return () => clearInterval(p);
+  }, [hasPending]);
 
   // Eligible = delivered, within window (deliveredAt → updatedAt → createdAt), no return yet.
   const returnEligible = (o) => {
@@ -115,6 +133,11 @@ function OrdersTab() {
     <div className="space-y-4">
       {orders.map((o) => {
         const lines = o.lines || [];
+        // Payment-pending lifecycle: live countdown + Pay Now until the 30-min deadline.
+        const pending = isPaymentPending(o.status);
+        const left = pending && o.paymentDeadline ? new Date(o.paymentDeadline).getTime() - now : 0;
+        const expired = pending && left <= 0;
+        const warn = left <= PAY_WARNING_MS;
         return (
           <div key={o.id} className="overflow-hidden rounded-card border border-black/5 bg-white shadow-card">
             <button onClick={() => setOpen(open === o.id ? null : o.id)} className="flex w-full flex-wrap items-center gap-3 px-5 py-4 text-left">
@@ -122,7 +145,26 @@ function OrdersTab() {
                 <p className="text-sm font-bold text-ink">#{o.id}</p>
                 <p className="text-[12px] text-neutral-400">{fmtDate(o.createdAt)} · {lines.length} item{lines.length > 1 ? "s" : ""}</p>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_COLOR[o.status] || "bg-neutral-100 text-neutral-600"}`}>{o.status}</span>
+              {pending && !expired ? (
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums ${warn ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                  {warn ? `Pay now — ${formatCountdown(left)}` : `Pay within ${formatCountdown(left)}`}
+                </span>
+              ) : expired ? (
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700">Expired</span>
+              ) : (
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_COLOR[o.status] || "bg-neutral-100 text-neutral-600"}`}>{o.status}</span>
+              )}
+              {pending && !expired && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); router.push(`/payment-pending?orderId=${o.id}`); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); router.push(`/payment-pending?orderId=${o.id}`); } }}
+                  className="cursor-pointer rounded-full bg-brand px-3.5 py-1.5 text-[11px] font-bold text-white hover:bg-brand-dark"
+                >
+                  Pay Now
+                </span>
+              )}
               <span className="ml-auto text-sm font-bold text-ink">{formatINR(o.total)}</span>
               <ChevronDown style={{ width: 16, height: 16 }} className={`text-neutral-400 transition-transform ${open === o.id ? "rotate-180" : ""}`} />
             </button>

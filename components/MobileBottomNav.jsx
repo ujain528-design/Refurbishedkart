@@ -62,7 +62,7 @@ export default function MobileBottomNav() {
 
   // Hide the bottom nav on purchase-flow pages (cart/checkout) so their fixed
   // bottom CTA (e.g. the "Place Order" bar) isn't covered by it. (After all hooks.)
-  if (["/checkout", "/cart"].some((p) => pathname.startsWith(p))) return null;
+  if (["/checkout", "/cart", "/payment-pending"].some((p) => pathname.startsWith(p))) return null;
 
   const isProducts = ["/products", "/shop", "/collections"].some((p) => pathname.startsWith(p));
   const isPolicies = POLICIES.some((p) => p.href === pathname);
