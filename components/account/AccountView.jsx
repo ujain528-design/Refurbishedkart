@@ -266,9 +266,9 @@ function RequestReturnModal({ order, reasons, onClose, onSubmitted }) {
 
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-[2px]" onClick={onClose}>
-      <div className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-card bg-white p-6 shadow-card-hover" onClick={(e) => e.stopPropagation()}>
+      <div className="relative max-h-[88vh] w-full max-w-md overflow-y-auto rounded-card bg-white p-4 lg:p-6 shadow-card-hover" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-ink">Request a return</h3>
+          <h3 className="text-base lg:text-lg font-bold text-ink">Request a return</h3>
           <button onClick={onClose} className="rounded-full p-2 text-neutral-400 hover:bg-neutral-100 hover:text-ink">✕</button>
         </div>
         <p className="mt-1 text-[12px] text-neutral-400">Order #{order.id}</p>
@@ -404,7 +404,7 @@ function AddressesTab() {
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         {list.map((a) => (
-          <div key={a._id} className="rounded-card border border-black/5 bg-white p-5 shadow-card">
+          <div key={a._id} className="rounded-card border border-black/5 bg-white p-3.5 lg:p-5 shadow-card">
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-bold text-ink">{a.name}</p>
               {a.isDefault && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand">DEFAULT</span>}
@@ -421,7 +421,7 @@ function AddressesTab() {
       </div>
 
       {editingId ? (
-        <div className="grid gap-4 rounded-card border border-black/5 bg-white p-5 shadow-card sm:grid-cols-2">
+        <div className="grid gap-4 rounded-card border border-black/5 bg-white p-3.5 lg:p-5 shadow-card sm:grid-cols-2">
           <input className={inputCls} placeholder="Full name" value={form.name} onChange={(e) => set("name", e.target.value)} />
           <input className={inputCls} placeholder="Phone" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
           <input className={`${inputCls} sm:col-span-2`} placeholder="Address line 1" value={form.line1} onChange={(e) => set("line1", e.target.value)} />
@@ -473,7 +473,7 @@ function ProfileTab() {
 
   if (editing) {
     return (
-      <div className="max-w-md space-y-4 rounded-card border border-black/5 bg-white p-6 shadow-card">
+      <div className="max-w-md space-y-4 rounded-card border border-black/5 bg-white p-4 lg:p-6 shadow-card">
         {/* Name — the only editable identity field */}
         <label className="block">
           <span className="mb-1 block text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Name</span>
@@ -502,7 +502,7 @@ function ProfileTab() {
   }
 
   return (
-    <div className="max-w-md rounded-card border border-black/5 bg-white p-6 shadow-card">
+    <div className="max-w-md rounded-card border border-black/5 bg-white p-4 lg:p-6 shadow-card">
       <dl className="space-y-4 text-sm">
         <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Name</dt><dd className="mt-0.5 font-semibold text-ink">{user.name || "—"}</dd></div>
         <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Email</dt><dd className="mt-0.5 font-semibold text-ink">{user.email || "—"}</dd></div>
@@ -529,10 +529,10 @@ export default function AccountView() {
   const doLogout = () => { logout(); };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <h1 className="section-heading">My Account</h1>
 
-      <div className="mt-8 gap-8 lg:grid lg:grid-cols-[230px_1fr]">
+      <div className="mt-5 lg:mt-8 gap-4 lg:gap-8 lg:grid lg:grid-cols-[230px_1fr]">
         <aside className="lg:self-start">
           <nav className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-col lg:gap-1 lg:px-0">
             {TABS.map((t) => (
@@ -554,7 +554,7 @@ export default function AccountView() {
           {tab === "addresses" && <AddressesTab />}
           {tab === "profile" && <ProfileTab />}
 
-          <button onClick={doLogout} className="mt-8 w-full rounded-full border border-red-200 py-3 text-sm font-bold text-red-600 lg:hidden">Logout</button>
+          <button onClick={doLogout} className="mt-5 lg:mt-8 w-full rounded-full border border-red-200 py-2.5 lg:py-3 text-sm font-bold text-red-600 lg:hidden">Logout</button>
         </div>
       </div>
     </div>

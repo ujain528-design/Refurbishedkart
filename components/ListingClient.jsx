@@ -199,7 +199,7 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
   if (status === "error") return <ErrorState message="Couldn't load products." onRetry={load} />;
 
   const panel = (
-    <div className="space-y-7">
+    <div className="space-y-5 lg:space-y-7">
       {fieldsWithOptions.map(({ field, options }) => (
         <div key={field.key}>
           <FilterGroup field={field} options={options} selected={selected[field.key] || []} onToggle={toggle} />
@@ -232,9 +232,9 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
                 <CloseIcon style={{ width: 18, height: 18 }} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-5 py-6">{panel}</div>
+            <div className="flex-1 overflow-y-auto px-4 py-4">{panel}</div>
             <div className="border-t border-black/5 p-4">
-              <button onClick={() => setDrawerOpen(false)} className="w-full rounded-full bg-brand py-3 text-sm font-bold text-white hover:bg-brand-dark">
+              <button onClick={() => setDrawerOpen(false)} className="w-full rounded-full bg-brand py-2.5 text-sm font-bold text-white hover:bg-brand-dark lg:py-3">
                 Show {filtered.length} products
               </button>
             </div>
@@ -273,8 +273,8 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
         )}
 
         {filtered.length === 0 ? (
-          <div className="rounded-card bg-neutral-50 py-24 text-center">
-            <p className="text-lg font-bold text-ink">No products found</p>
+          <div className="rounded-card bg-neutral-50 py-12 text-center lg:py-24">
+            <p className="text-base font-bold text-ink lg:text-lg">No products found</p>
             <p className="mt-1 text-sm text-neutral-500">No {categoryName.toLowerCase()} match these filters.</p>
             <button onClick={clearAll} className="mt-5 rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white hover:bg-brand-dark">Clear all filters</button>
           </div>
@@ -283,17 +283,17 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
             <p className="mb-4 text-[13px] text-neutral-500">
               Showing {shown.length} of {filtered.length} product{filtered.length === 1 ? "" : "s"}
             </p>
-            <div className="grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {shown.map((p) => (<ProductCard key={p.id} product={p} className="w-full" />))}
             </div>
             {filtered.length > visible ? (
-              <div className="mt-10 text-center">
-                <button onClick={() => setVisible((v) => Math.min(v + PAGE, filtered.length))} className="rounded-full border border-brand px-8 py-3 text-sm font-bold text-brand transition-colors hover:bg-brand hover:text-white">
+              <div className="mt-6 text-center lg:mt-10">
+                <button onClick={() => setVisible((v) => Math.min(v + PAGE, filtered.length))} className="rounded-full border border-brand px-8 py-2.5 text-sm font-bold text-brand transition-colors hover:bg-brand hover:text-white lg:py-3">
                   Load More ({filtered.length - visible} more)
                 </button>
               </div>
             ) : filtered.length > PAGE ? (
-              <p className="mt-10 text-center text-[13px] text-neutral-400">No more products</p>
+              <p className="mt-6 text-center text-[13px] text-neutral-400 lg:mt-10">No more products</p>
             ) : null}
           </>
         )}

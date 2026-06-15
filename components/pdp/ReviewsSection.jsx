@@ -19,15 +19,15 @@ export default function ReviewsSection({ reviews }) {
   const summary = reviewSummary(reviews);
 
   return (
-    <div className="mt-16 max-w-3xl">
+    <div className="mt-8 max-w-3xl lg:mt-16">
       {/* "Write a Review" intentionally absent — returns once auth + order
           history exist, so only verified buyers can submit (PRD §6.6). */}
       <h2 className="section-heading">Customer Reviews</h2>
 
       {!summary ? (
         /* empty state */
-        <div className="mt-8 rounded-card bg-neutral-50 py-16 text-center">
-          <p className="text-[15px] font-bold text-ink">Be the first to review this product</p>
+        <div className="mt-8 rounded-card bg-neutral-50 py-9 text-center lg:py-16">
+          <p className="text-[13px] font-bold text-ink lg:text-[15px]">Be the first to review this product</p>
           <p className="mt-1.5 text-sm text-neutral-500">
             Bought this device? Your experience helps other buyers trust refurbished.
           </p>
@@ -35,7 +35,7 @@ export default function ReviewsSection({ reviews }) {
       ) : (
         <>
           {/* average + breakdown bars */}
-          <div className="mt-8 flex flex-col gap-8 rounded-card border border-black/5 bg-white p-6 shadow-card sm:flex-row sm:items-center">
+          <div className="mt-8 flex flex-col gap-4 rounded-card border border-black/5 bg-white p-4 shadow-card sm:flex-row sm:items-center lg:gap-8 lg:p-6">
             <div className="shrink-0 text-center sm:px-4">
               <p className="text-5xl font-extrabold tracking-tight text-ink">{summary.avg}</p>
               <div className="mt-2">

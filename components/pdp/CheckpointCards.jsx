@@ -34,7 +34,7 @@ export default function CheckpointCards({ onOpen }) {
     <section className="mt-5">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h3 className="text-[15px] font-bold tracking-tight text-ink">Nothing Hidden. Everything Checked.</h3>
+          <h3 className="text-[13px] font-bold tracking-tight text-ink lg:text-[15px]">Nothing Hidden. Everything Checked.</h3>
           <p className="mt-0.5 text-[12px] text-neutral-500">
             Every device goes through our 14-point inspection before it reaches you.
           </p>

@@ -28,9 +28,9 @@ function Counter({ target, suffix, started, color }) {
 
   const display = decimals ? value.toFixed(1) : Math.round(value).toLocaleString("en-IN");
   return (
-    <span className="text-5xl font-extrabold tracking-tight tabular-nums md:text-6xl" style={{ color }}>
+    <span className="text-[2.25rem] font-extrabold tracking-tight tabular-nums lg:text-6xl" style={{ color }}>
       {display}
-      <span className="text-3xl md:text-4xl">{suffix}</span>
+      <span className="text-xl lg:text-4xl">{suffix}</span>
     </span>
   );
 }
@@ -56,16 +56,16 @@ export default function WhyRefurbished() {
   }, []);
 
   return (
-    <section className="bg-brand-softer py-20">
+    <section className="bg-brand-softer py-9 lg:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="section-heading">Why Buy Refurbished</h2>
-        <div ref={ref} className="mt-12 grid gap-12 text-center md:grid-cols-3 md:gap-8">
+        <div ref={ref} className="mt-6 grid gap-6 text-center md:grid-cols-3 lg:mt-12 lg:gap-8">
           {WHY_STATS.map((stat, i) => (
             <div key={stat.label} className="flex flex-col items-center">
-              <span className="mb-4 inline-block h-2.5 w-2.5 rounded-full" style={{ background: paletteAt(i).color }} aria-hidden="true" />
+              <span className="mb-2 inline-block h-2 w-2 rounded-full lg:mb-4 lg:h-2.5 lg:w-2.5" style={{ background: paletteAt(i).color }} aria-hidden="true" />
               <Counter target={stat.target} suffix={stat.suffix} started={started} color={paletteAt(i).color} />
-              <p className="mt-4 text-[15px] font-bold text-ink">{stat.label}</p>
-              <p className="mt-1.5 max-w-[260px] text-sm text-neutral-500">{stat.note}</p>
+              <p className="mt-2 text-[0.8rem] font-bold text-ink lg:mt-4 lg:text-[15px]">{stat.label}</p>
+              <p className="mt-1 max-w-[260px] text-[0.72rem] leading-snug text-neutral-500 lg:mt-1.5 lg:text-sm lg:leading-normal">{stat.note}</p>
             </div>
           ))}
         </div>

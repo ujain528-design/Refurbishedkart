@@ -33,7 +33,7 @@ export default function FlashSalePage() {
         </section>
 
         {/* Filter sidebar + product grid + sort — same layout as listing page */}
-        <section className="py-14">
+        <section className="py-7 lg:py-14">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <Suspense fallback={null}>
               <ListingClient query={{ tags: "flash-sale" }} categoryName="flash sale products" />

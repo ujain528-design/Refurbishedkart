@@ -4,7 +4,7 @@ export default function BulkBanner() {
   return (
     <section id="bulk-enquiry" className="py-10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-card bg-brand px-8 py-14 text-center md:py-16">
+        <div className="relative overflow-hidden rounded-card bg-brand px-5 py-8 text-center lg:px-8 lg:py-16">
           {/* subtle decorative rings */}
           <div
             aria-hidden="true"
@@ -14,7 +14,7 @@ export default function BulkBanner() {
             aria-hidden="true"
             className="pointer-events-none absolute -bottom-24 -right-16 h-72 w-72 rounded-full border-[32px] border-white/5"
           />
-          <h2 className="relative text-2xl font-extrabold tracking-tight text-white md:text-3xl">
+          <h2 className="relative text-xl font-extrabold tracking-tight text-white lg:text-3xl">
             Need 5+ units? Get a custom quote.
           </h2>
           <p className="relative mx-auto mt-3 max-w-lg text-sm text-white/80 md:text-base">

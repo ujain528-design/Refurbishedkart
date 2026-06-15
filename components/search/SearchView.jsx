@@ -38,7 +38,7 @@ export default function SearchView() {
 
   if (!q) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 text-center sm:px-6 lg:px-8 lg:py-16">
         <h1 className="text-xl font-bold text-ink">Search RefurbishedKart</h1>
         <p className="mt-2 text-sm text-neutral-500">Type a product, brand, or spec in the search bar above.</p>
       </div>
@@ -46,20 +46,20 @@ export default function SearchView() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       <p className="text-[13px] text-neutral-400">Search results for</p>
       <h1 className="section-heading">“{q}”</h1>
 
-      {status === "loading" && <div className="mt-8"><SkeletonGrid count={8} /></div>}
+      {status === "loading" && <div className="mt-5 lg:mt-8"><SkeletonGrid count={8} /></div>}
 
       {status === "error" && (
-        <div className="mt-8"><ErrorState message="Search failed. Please try again." onRetry={run} /></div>
+        <div className="mt-5 lg:mt-8"><ErrorState message="Search failed. Please try again." onRetry={run} /></div>
       )}
 
       {status === "ready" && results.length === 0 && (
-        <div className="mt-10">
-          <div className="rounded-card bg-neutral-50 py-16 text-center">
-            <p className="text-lg font-bold text-ink">No results for “{q}”</p>
+        <div className="mt-6 lg:mt-10">
+          <div className="rounded-card bg-neutral-50 py-8 text-center lg:py-16">
+            <p className="text-base lg:text-lg font-bold text-ink">No results for “{q}”</p>
             <p className="mt-1 text-sm text-neutral-500">Try a broader term, or browse a category:</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {NAV_CATEGORIES.map((c) => (
@@ -71,8 +71,8 @@ export default function SearchView() {
           </div>
           {recommended.length > 0 && (
             <>
-              <h2 className="section-heading mt-12">Recommended for you</h2>
-              <div className="mt-7 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+              <h2 className="section-heading mt-6 lg:mt-12">Recommended for you</h2>
+              <div className="mt-5 lg:mt-7 grid grid-cols-1 gap-4 lg:gap-6 sm:grid-cols-2 xl:grid-cols-4">
                 {recommended.map((p) => (<ProductCard key={p.id} product={p} className="w-full" />))}
               </div>
             </>
@@ -81,7 +81,7 @@ export default function SearchView() {
       )}
 
       {status === "ready" && results.length > 0 && (
-        <div className="mt-8">
+        <div className="mt-5 lg:mt-8">
           {/* key forces a fresh ListingClient when the query changes */}
           <ListingClient key={q} products={results} categoryName="results" />
         </div>

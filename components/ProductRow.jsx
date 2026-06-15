@@ -4,7 +4,7 @@ import SectionHeading from "@/components/SectionHeading";
 
 export default function ProductRow({ title, subtitle, eyebrow, viewAllHref, products, accessory, className = "" }) {
   return (
-    <section className={`py-10 ${className}`}>
+    <section className={`py-7 lg:py-10 ${className}`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading title={title} subtitle={subtitle} eyebrow={eyebrow}>
           {viewAllHref ? (
@@ -19,7 +19,7 @@ export default function ProductRow({ title, subtitle, eyebrow, viewAllHref, prod
             accessory
           )}
         </SectionHeading>
-        <div className="no-scrollbar -mx-4 flex items-stretch snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="no-scrollbar -mx-4 flex items-stretch snap-x snap-mandatory gap-3.5 overflow-x-auto px-4 pb-3 sm:-mx-6 sm:gap-5 sm:px-6 lg:-mx-8 lg:px-8">
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}

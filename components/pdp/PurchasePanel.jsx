@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { calculatePrice } from "@/lib/api";
 
 const selectCls =
-  "w-full rounded-lg border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 disabled:opacity-50";
+  "w-full min-w-0 rounded-lg border border-black/10 bg-white px-3.5 py-2.5 text-sm font-semibold text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 disabled:opacity-50";
 
 const returnPolicy = TRUST_POLICIES.find((p) => p.id === "returns");
 
@@ -99,13 +99,16 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
 
   return (
     <div>
-      <p className="mt-2 text-[14px] text-neutral-500">{specSummary}</p>
+      <p className="mt-2 text-[13px] text-neutral-500 lg:text-[14px]">{specSummary}</p>
       <div className="mt-2"><StarRating rating={rating} count={ratingCount} /></div>
 
       {/* Variant selector — dropdowns only when >1 config; otherwise fixed text */}
       {multi ? (
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <label className="block">
+        // Stack on phones, side-by-side from sm. min-w-0 lets each select shrink
+        // below its longest option's intrinsic width (which otherwise pushed the
+        // SSD column off the right edge on mobile, causing horizontal scroll).
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+          <label className="block min-w-0">
             <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-wide text-neutral-500">RAM</span>
             <select value={sel.ram} onChange={(e) => onRam(e.target.value)} className={selectCls}>
               {ramOptions.map((r) => {
@@ -115,7 +118,7 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
               })}
             </select>
           </label>
-          <label className="block">
+          <label className="block min-w-0">
             <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-wide text-neutral-500">SSD</span>
             <select value={sel.ssd} onChange={(e) => setSel((s) => ({ ...s, ssd: e.target.value }))} className={selectCls}>
               {ssdOptionsFor(sel.ram).map((ss) => {
@@ -135,12 +138,12 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
         <div>
           {product.mrp ? <p className="text-[13px] text-neutral-400 line-through">{formatINR(product.mrp)}</p> : null}
           <div className="flex items-baseline gap-2">
-            <span className={`text-3xl font-extrabold tracking-tight text-ink transition-opacity ${pricing ? "opacity-50" : ""}`}>{formatINR(total)}</span>
+            <span className={`text-2xl font-extrabold tracking-tight text-ink transition-opacity lg:text-3xl ${pricing ? "opacity-50" : ""}`}>{formatINR(total)}</span>
             {product.mrp ? <span className="text-sm font-bold text-brand-mid">{Math.round((1 - total / product.mrp) * 100)}% off</span> : null}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button disabled={unavailable} onClick={addToCart} className="flex-1 rounded-card bg-dark px-6 py-3.5 text-sm font-bold text-white transition-colors hover:bg-[#2c2c2e] disabled:cursor-not-allowed disabled:opacity-40">
+          <button disabled={unavailable} onClick={addToCart} className="flex-1 rounded-card bg-dark px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#2c2c2e] disabled:cursor-not-allowed disabled:opacity-40 lg:py-3.5">
             {added ? "Added ✓" : "Add to Cart"}
           </button>
           <button aria-label={wish ? "Remove from wishlist" : "Add to wishlist"} aria-pressed={wish} onClick={() => toggle(product.id)}
@@ -155,7 +158,7 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
         <p className="mt-2 text-[13px] font-bold text-red-600">Only {chassis} left</p>
       ) : null}
 
-      <button disabled={unavailable} onClick={buyNow} className="mt-3 w-full rounded-card bg-dark py-3.5 text-sm font-bold text-white transition-colors hover:bg-[#2c2c2e] disabled:cursor-not-allowed disabled:opacity-40">
+      <button disabled={unavailable} onClick={buyNow} className="mt-3 w-full rounded-card bg-dark py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#2c2c2e] disabled:cursor-not-allowed disabled:opacity-40 lg:py-3.5">
         Buy Now
       </button>
 

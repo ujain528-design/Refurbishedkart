@@ -39,7 +39,7 @@ export default function ShopByTagPage({ params }) {
       <main>
         {/* header */}
         <section className="border-b border-black/5 bg-offwhite">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
             <nav className="text-[13px] text-neutral-400" aria-label="Breadcrumb">
               <Link href="/" className="hover:text-brand">Home</Link>
               <span className="mx-2">/</span>
@@ -49,12 +49,12 @@ export default function ShopByTagPage({ params }) {
               <span className="inline-block h-px w-5 shrink-0 bg-[#B8860B]" aria-hidden="true" />
               Browse
             </p>
-            <h1 className="mt-1.5 font-display text-[2rem] font-bold tracking-[-0.02em] text-ink">{name}</h1>
+            <h1 className="mt-1.5 font-display text-2xl lg:text-[2rem] font-bold tracking-[-0.02em] text-ink">{name}</h1>
           </div>
         </section>
 
         {/* full catalogue for this tag — same listing UI (filters + sort), no limit */}
-        <section className="py-12">
+        <section className="py-6 lg:py-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <Suspense fallback={null}>
               <ListingClient query={{ tags: params.tag }} categoryName={name.toLowerCase()} />

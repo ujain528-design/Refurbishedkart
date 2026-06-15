@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"tableName":{"$numberInt":"1"}},"name":"tableName_1","unique":true}],"uuid":"d4a42585124b4302ba6c2252c92c4252","collectionName":"masterdatas","type":"collection"}

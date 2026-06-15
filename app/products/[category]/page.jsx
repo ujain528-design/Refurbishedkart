@@ -60,7 +60,7 @@ export default function CategoryListingPage({ params }) {
       <main>
         {/* page header */}
         <section className="border-b border-black/5" style={{ background: cc.light }}>
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
             <nav className="text-[13px] text-neutral-400" aria-label="Breadcrumb">
               <Link href="/" className="hover:text-brand">
                 Home
@@ -69,14 +69,14 @@ export default function CategoryListingPage({ params }) {
               <span className="font-semibold text-ink">{categoryName}</span>
             </nav>
             <p className="mt-3 text-[0.72rem] font-semibold uppercase tracking-[0.12em]" style={{ color: cc.color }}>Certified Refurbished</p>
-            <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink md:text-[1.75rem]">Refurbished {categoryName} in India</h1>
+            <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink lg:text-[1.75rem]">Refurbished {categoryName} in India</h1>
             <span className="mt-2.5 block h-[3px] w-14 rounded-full" style={{ background: cc.color }} aria-hidden="true" />
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-neutral-500">{intro}</p>
           </div>
         </section>
 
         {/* sidebar + grid */}
-        <section className="py-12">
+        <section className="py-6 lg:py-12">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <Suspense fallback={null}>
               <ListingClient categorySlug={params.category} categoryName={categoryName} />
@@ -85,7 +85,7 @@ export default function CategoryListingPage({ params }) {
         </section>
 
         {/* FAQ */}
-        <section className="pb-16">
+        <section className="pb-8 lg:pb-16">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <h2 className="section-heading mb-5">Frequently Asked Questions</h2>
             <FaqAccordion items={faq} />

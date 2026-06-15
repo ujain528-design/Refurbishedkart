@@ -5,7 +5,7 @@ import Link from "next/link";
 import { NAV_CATEGORIES } from "@/lib/data";
 import { ChevronDown, LogoMark } from "@/components/Icons";
 import BulkEnquiryTrigger from "@/components/BulkEnquiryTrigger";
-import MobileNav from "@/components/MobileNav";
+import MobileBottomNav from "@/components/MobileBottomNav";
 import SearchBar from "@/components/SearchBar";
 import AccountIcon from "@/components/AccountIcon";
 import MegaDropdown from "@/components/MegaDropdown";
@@ -55,40 +55,19 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Icons + CTA */}
+          {/* Icons + CTA. On mobile the bar is slimmed to logo + cart only —
+              Account/Wishlist/Bulk + categories/search move to the bottom bar. */}
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-            <AccountIcon />
-            <WishlistNavIcon />
+            <div className="hidden items-center gap-1 sm:gap-2 lg:flex">
+              <AccountIcon />
+              <WishlistNavIcon />
+            </div>
             <CartNavIcon />
-            <BulkEnquiryTrigger className="ml-2 hidden rounded-[7px] bg-accent px-5 py-2.5 text-sm font-semibold text-dark transition-colors hover:bg-[#d4911c] md:block">
+            <BulkEnquiryTrigger className="ml-2 hidden rounded-[7px] bg-accent px-5 py-2.5 text-sm font-semibold text-dark transition-colors hover:bg-[#d4911c] lg:block">
               Bulk Enquiry
             </BulkEnquiryTrigger>
-            {/* hamburger — mobile only */}
-            <MobileNav />
           </div>
         </div>
-
-        {/* Tablet (md–lg): search bar on its own full-width row */}
-        <div className="hidden border-t border-warm-border md:block lg:hidden">
-          <div className="mx-auto max-w-7xl px-4 py-2.5 sm:px-6">
-            <SearchBar className={SEARCH_CLS} />
-          </div>
-        </div>
-
-        {/* Tablet (md–lg): horizontal scroll category strip — plain links */}
-        <nav className="hidden border-t border-warm-border md:block lg:hidden" aria-label="Categories">
-          <div className="no-scrollbar mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 py-2 sm:px-6">
-            {NAV_CATEGORIES.map((cat) => (
-              <Link
-                key={cat.name}
-                href={`/products/${cat.name.toLowerCase()}`}
-                className="shrink-0 rounded-full px-4 py-1.5 text-sm font-medium text-[#2c2c2e] transition-colors hover:bg-brand-soft hover:text-brand"
-              >
-                {cat.name}
-              </Link>
-            ))}
-          </div>
-        </nav>
 
         {/* Category row with mega dropdowns (desktop) */}
         <nav className="hidden border-t border-warm-border lg:block">
@@ -114,9 +93,12 @@ export default function Navbar() {
         </nav>
       </header>
       {/* spacers — announcement bar + fixed header height per breakpoint:
-          mobile 68px · tablet 68+57+49≈174 · desktop 68+45≈113 */}
+          below-lg 68px (slim single row) · desktop 68+45≈113 */}
       <div aria-hidden="true" style={{ height: "var(--ann-h, 0px)" }} />
-      <div aria-hidden="true" className="h-[68px] md:h-[174px] lg:h-[113px]" />
+      <div aria-hidden="true" className="h-[68px] lg:h-[113px]" />
+
+      {/* App-style bottom navigation — mobile/tablet only (hidden on lg+) */}
+      <MobileBottomNav />
     </>
   );
 }

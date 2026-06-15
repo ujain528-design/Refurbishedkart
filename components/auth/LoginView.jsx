@@ -57,22 +57,22 @@ export default function LoginView() {
   // Already signed in → don't show the login form; offer account or logout.
   if (isLoggedIn) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16">
-        <div className="w-full rounded-card border border-black/5 bg-white p-7 shadow-card sm:p-8">
-          <h1 className="text-center text-2xl font-extrabold tracking-tight text-ink">You're already signed in</h1>
+      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-9 lg:py-16">
+        <div className="w-full rounded-card border border-black/5 bg-white p-4 shadow-card lg:p-8">
+          <h1 className="text-center text-xl lg:text-2xl font-extrabold tracking-tight text-ink">You're already signed in</h1>
           <p className="mt-3 text-center text-sm text-neutral-600">
             Signed in as <span className="font-bold text-ink">{user?.name || user?.email || "your account"}</span>.
           </p>
           <Link
             href="/account"
-            className="mt-7 block w-full rounded-full bg-brand py-3 text-center text-sm font-bold text-white transition-colors hover:bg-brand-dark"
+            className="mt-5 lg:mt-7 block w-full rounded-full bg-brand py-2.5 lg:py-3 text-center text-sm font-bold text-white transition-colors hover:bg-brand-dark"
           >
             Go to My Account
           </Link>
           <button
             onClick={doLogout}
             disabled={busy}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/15 bg-white py-3 text-sm font-bold text-ink transition-colors hover:bg-neutral-50 disabled:opacity-50"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-black/15 bg-white py-2.5 lg:py-3 text-sm font-bold text-ink transition-colors hover:bg-neutral-50 disabled:opacity-50"
           >
             {busy ? "Logging out…" : "Logout"}
           </button>
@@ -82,9 +82,9 @@ export default function LoginView() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16">
-      <div className="w-full rounded-card border border-black/5 bg-white p-7 shadow-card sm:p-8">
-        <h1 className="text-center text-2xl font-extrabold tracking-tight text-ink">Sign in to RefurbishedKart</h1>
+    <div className="mx-auto flex max-w-md flex-col items-center px-4 py-9 lg:py-16">
+      <div className="w-full rounded-card border border-black/5 bg-white p-4 shadow-card lg:p-8">
+        <h1 className="text-center text-xl lg:text-2xl font-extrabold tracking-tight text-ink">Sign in to RefurbishedKart</h1>
         {redirect === "/checkout" ? (
           <p className="mt-2 rounded-lg bg-brand-softer px-4 py-2.5 text-center text-sm font-semibold text-brand">
             Please sign in to complete your order
@@ -99,13 +99,13 @@ export default function LoginView() {
         <button
           onClick={googleLogin}
           disabled={busy}
-          className="mt-7 flex w-full items-center justify-center gap-3 rounded-full border border-black/15 bg-white py-3 text-sm font-bold text-ink transition-colors hover:bg-neutral-50 disabled:opacity-50"
+          className="mt-5 lg:mt-7 flex w-full items-center justify-center gap-3 rounded-full border border-black/15 bg-white py-2.5 lg:py-3 text-sm font-bold text-ink transition-colors hover:bg-neutral-50 disabled:opacity-50"
         >
           <GoogleGlyph /> Continue with Google
         </button>
 
         {/* divider */}
-        <div className="my-6 flex items-center gap-3">
+        <div className="my-4 lg:my-6 flex items-center gap-3">
           <span className="h-px flex-1 bg-black/10" />
           <span className="text-[12px] font-semibold text-neutral-400">OR</span>
           <span className="h-px flex-1 bg-black/10" />

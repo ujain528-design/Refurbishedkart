@@ -27,7 +27,7 @@ export default function PolicyStrip() {
             <Link
               key={label}
               href={POLICY_HREF[icon] || "#"}
-              className="flex items-center justify-center gap-3 py-6 text-white/85 transition-colors hover:text-white"
+              className="flex items-center justify-center gap-3 py-4 text-white/85 transition-colors hover:text-white lg:py-6"
             >
               <Icon style={{ width: 22, height: 22 }} className="shrink-0 text-white" />
               <span className="text-[13px] font-semibold">{label}</span>

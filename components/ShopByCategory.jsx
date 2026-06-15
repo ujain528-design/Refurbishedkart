@@ -10,7 +10,7 @@ import { CATEGORY_TILES, TILE_CLASS, TileInner } from "@/components/CategoryTile
 export default function ShopByCategory() {
   const { ref, isVisible } = useReveal();
   return (
-    <section className="bg-warm-bg py-16">
+    <section className="bg-warm-bg py-8 lg:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading eyebrow="Shop by Category" accent="#2D5016" title="Shop by Category" />
         <div ref={ref} className="mt-2 grid grid-cols-2 items-stretch gap-5 sm:grid-cols-3 lg:grid-cols-5">

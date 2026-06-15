@@ -10,9 +10,9 @@ function FaqItem({ item, open, onToggle }) {
       <button
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-6 py-5 text-left"
+        className="flex w-full items-center justify-between gap-4 py-3.5 text-left lg:gap-6 lg:py-5"
       >
-        <span className={`text-[15px] font-semibold transition-colors duration-200 ${open ? "text-brand" : "text-ink"}`}>
+        <span className={`text-[0.82rem] font-semibold transition-colors duration-200 lg:text-[15px] ${open ? "text-brand" : "text-ink"}`}>
           {item.q}
         </span>
         <span
@@ -28,7 +28,7 @@ function FaqItem({ item, open, onToggle }) {
         }`}
       >
         <div className="overflow-hidden">
-          <p className="pb-6 pr-10 text-sm leading-relaxed text-neutral-500">{item.a}</p>
+          <p className="pb-4 pr-6 text-[0.78rem] leading-snug text-neutral-500 lg:pb-6 lg:pr-10 lg:text-sm lg:leading-relaxed">{item.a}</p>
         </div>
       </div>
     </div>
@@ -39,10 +39,10 @@ export default function Faq() {
   const [openIdx, setOpenIdx] = useState(0);
 
   return (
-    <section className="py-20">
+    <section className="py-9 lg:py-20">
       <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <h2 className="section-heading">Frequently Asked Questions</h2>
-        <div className="mt-8">
+        <div className="mt-4 lg:mt-8">
           {FAQS.map((item, i) => (
             <FaqItem
               key={item.q}

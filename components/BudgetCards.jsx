@@ -25,7 +25,7 @@ export default function BudgetCards() {
   };
 
   return (
-    <section className="py-20" style={{ background: "#E6EEF4" }}>
+    <section className="py-8 lg:py-20" style={{ background: "#E6EEF4" }}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Find your price"
@@ -33,7 +33,7 @@ export default function BudgetCards() {
           title="Shop by Budget"
           subtitle="Tell us your number — we'll show you the best machine it buys."
         />
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-3 lg:gap-6">
           {BUDGET_TIERS.map((tier, i) => {
             const c = paletteAt(i).color;
             return (
@@ -41,20 +41,20 @@ export default function BudgetCards() {
                 key={tier.cap}
                 type="button"
                 onClick={(e) => openModal(tier, e)}
-                className="budget-card group block w-full rounded-card border border-warm-border bg-white p-8 text-left transition-colors duration-300"
+                className="budget-card group block w-full rounded-card border border-warm-border bg-white p-4 text-left transition-colors duration-300 lg:p-8"
                 style={{ "--cc": c }}
               >
-                <p className="text-2xl font-extrabold tracking-tight" style={{ color: c }}>
+                <p className="text-lg font-extrabold tracking-tight lg:text-2xl" style={{ color: c }}>
                   {tier.cap}
                 </p>
-                <p className="mt-3 text-sm leading-relaxed text-neutral-600">{tier.blurb}</p>
-                <p className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-neutral-400">
+                <p className="mt-1.5 text-[0.78rem] leading-snug text-neutral-600 lg:mt-3 lg:text-sm lg:leading-relaxed">{tier.blurb}</p>
+                <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400 lg:mt-4 lg:text-[12px]">
                   {tier.examples}
                 </p>
-                <span className="mt-6 flex items-center gap-1.5 text-sm font-bold" style={{ color: c }}>
+                <span className="mt-3 flex items-center gap-1.5 text-[0.8rem] font-bold lg:mt-6 lg:text-sm" style={{ color: c }}>
                   Explore
                   <ArrowRight
-                    style={{ width: 16, height: 16 }}
+                    style={{ width: 15, height: 15 }}
                     className="transition-transform duration-300 group-hover:translate-x-1"
                   />
                 </span>

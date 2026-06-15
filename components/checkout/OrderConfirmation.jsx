@@ -30,7 +30,7 @@ export default function OrderConfirmation() {
   if (status === "loading") return <div className="py-24 text-center text-sm text-neutral-400">Loading your order…</div>;
   if (status === "error")
     return (
-      <div className="mx-auto max-w-2xl px-4 py-24">
+      <div className="mx-auto max-w-2xl px-4 py-12 lg:py-24">
         <ErrorState message="Couldn't load your order." onRetry={() => router.refresh()} />
       </div>
     );
@@ -40,14 +40,14 @@ export default function OrderConfirmation() {
   const totalPaid = order.total ?? order.subtotal - (order.discount || 0) + delivery;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
+    <div className="mx-auto max-w-2xl px-4 py-8 lg:py-16 sm:px-6">
       <div className="text-center">
         <span className="mx-auto flex h-20 w-20 animate-check-pop items-center justify-center rounded-full bg-brand text-white">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 38, height: 38 }}>
             <path d="m5 13 4 4L19 7" />
           </svg>
         </span>
-        <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-ink">Order Placed Successfully!</h1>
+        <h1 className="mt-6 text-2xl lg:text-3xl font-extrabold tracking-tight text-ink">Order Placed Successfully!</h1>
         <p className="mt-2 text-sm text-neutral-500">A confirmation has been sent to your email.</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <span className="rounded-full bg-brand-soft px-4 py-1.5 text-sm font-bold text-brand">Order ID: #{order.id}</span>
@@ -55,7 +55,7 @@ export default function OrderConfirmation() {
         </div>
       </div>
 
-      <div className="mt-10 rounded-card border border-black/5 bg-white p-6 shadow-card">
+      <div className="mt-6 lg:mt-10 rounded-card border border-black/5 bg-white p-4 lg:p-6 shadow-card">
         <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-500">Items Ordered</h2>
         <div className="mt-4 space-y-4">
           {lines.map((it, i) => (
@@ -93,11 +93,11 @@ export default function OrderConfirmation() {
         Estimated delivery: 3–5 business days
       </div>
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Link href="/account?tab=orders" className="flex-1 rounded-full border-2 border-brand py-3 text-center text-sm font-bold text-brand transition-colors hover:bg-brand-softer">
+      <div className="mt-5 lg:mt-8 flex flex-col gap-3 sm:flex-row">
+        <Link href="/account?tab=orders" className="flex-1 rounded-full border-2 border-brand py-2.5 lg:py-3 text-center text-sm font-bold text-brand transition-colors hover:bg-brand-softer">
           View My Orders
         </Link>
-        <Link href="/products/laptops" className="flex-1 rounded-full bg-brand py-3 text-center text-sm font-bold text-white transition-colors hover:bg-brand-dark">
+        <Link href="/products/laptops" className="flex-1 rounded-full bg-brand py-2.5 lg:py-3 text-center text-sm font-bold text-white transition-colors hover:bg-brand-dark">
           Continue Shopping
         </Link>
       </div>

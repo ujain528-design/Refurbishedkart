@@ -26,21 +26,21 @@ export default function Footer() {
   useEffect(() => { getFooterInfo().then((i) => i && setInfo({ ...FALLBACK_INFO, ...i })).catch(() => {}); }, []);
   return (
     <footer className="bg-dark text-white">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-9 sm:px-6 lg:px-8 lg:py-16">
         {/* Newsletter — PRD §4.1 */}
-        <div className="mb-14 flex flex-wrap items-center justify-between gap-6 border-b border-white/10 pb-12">
+        <div className="mb-7 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-7 lg:mb-14 lg:gap-6 lg:pb-12">
           <div>
-            <p className="text-lg font-bold">Deals drop fast. Stock drops faster.</p>
-            <p className="mt-1 text-sm text-white/50">
+            <p className="text-base font-bold lg:text-lg">Deals drop fast. Stock drops faster.</p>
+            <p className="mt-1 text-[0.8rem] text-white/50 lg:text-sm">
               One email a week with the best refurbished arrivals. No spam.
             </p>
           </div>
           <NewsletterForm />
         </div>
 
-        <div className="grid gap-12 md:grid-cols-[1.4fr_repeat(4,1fr)]">
-          {/* Brand blurb */}
-          <div>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:grid-cols-[1.4fr_repeat(4,1fr)] lg:gap-12">
+          {/* Brand blurb — full width on mobile, first column on desktop */}
+          <div className="col-span-2 md:col-span-1">
             <p className="flex items-center gap-2.5 text-lg font-extrabold uppercase tracking-wide">
               <LogoMark className="h-8 w-8 text-brand-accent" />
               <span>
@@ -63,10 +63,10 @@ export default function Footer() {
 
           {FOOTER_COLS.map((col) => (
             <div key={col.title}>
-              <p className="text-sm font-bold uppercase tracking-wider text-white/80">
+              <p className="text-[0.8rem] font-bold uppercase tracking-wider text-white/80 lg:text-sm">
                 {col.title}
               </p>
-              <ul className="mt-5 space-y-3">
+              <ul className="mt-3 space-y-2 lg:mt-5 lg:space-y-3">
                 {col.links.map((link) => (
                   <li key={link}>
                     <Link
@@ -82,7 +82,7 @@ export default function Footer() {
           ))}
         </div>
 
-        <div className="mt-14 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-7">
+        <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-5 lg:mt-14 lg:pt-7">
           <p className="text-xs text-white/40">
             © {new Date().getFullYear()} RefurbishedKart. All rights reserved.
           </p>

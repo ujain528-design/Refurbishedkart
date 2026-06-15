@@ -95,7 +95,7 @@ export default function PDPClient({ category, id }) {
 
   return (
     <>
-      <section className="py-10">
+      <section className="py-6 lg:py-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <nav className="text-[13px] text-neutral-400" aria-label="Breadcrumb">
             <Link href="/" className="hover:text-brand">Home</Link>
@@ -105,13 +105,17 @@ export default function PDPClient({ category, id }) {
             <span className="font-semibold text-ink">{product.name}</span>
           </nav>
 
-          <div className="mt-8 grid gap-10 lg:grid-cols-2">
-            <Gallery
-              images={product.images}
-              alt={`${generateProductTitle(product)} — Refurbished ${singularCat(product.category)} for sale in India`}
-              altBase={`${product.brand || ""} ${product.name || ""} — Refurbished ${singularCat(product.category)}`.trim()}
-            />
-            <div>
+          {/* min-w-0 on both columns so a wide intrinsic child (e.g. a select sized
+              to its longest option) can't force the grid wider than the viewport. */}
+          <div className="mt-6 grid min-w-0 gap-8 lg:mt-8 lg:gap-10 lg:grid-cols-2">
+            <div className="min-w-0">
+              <Gallery
+                images={product.images}
+                alt={`${generateProductTitle(product)} — Refurbished ${singularCat(product.category)} for sale in India`}
+                altBase={`${product.brand || ""} ${product.name || ""} — Refurbished ${singularCat(product.category)}`.trim()}
+              />
+            </div>
+            <div className="min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 {(() => {
                   const cond = product.condition || product.attrs?.condition || product.attrs?.grade;
@@ -134,28 +138,28 @@ export default function PDPClient({ category, id }) {
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-ink md:text-3xl">{product.generatedTitle || generateProductTitle(product) || product.name}</h1>
+              <h1 className="text-[1.4rem] font-extrabold tracking-tight text-ink lg:text-3xl">{product.generatedTitle || generateProductTitle(product) || product.name}</h1>
               <PurchasePanel product={product} variants={variants} rating={rating} ratingCount={ratingCount} />
             </div>
           </div>
 
-          <div className="mt-16 max-w-3xl">
-            <h2 className="section-heading">Specifications</h2>
-            <table className="mt-7 w-full overflow-hidden rounded-card border border-black/5 text-sm shadow-card">
+          <div className="mt-7 max-w-3xl lg:mt-16">
+            <h2 className="section-heading !text-[1.15rem] lg:!text-[1.75rem]">Specifications</h2>
+            <table className="mt-3 w-full overflow-hidden rounded-card border border-black/5 text-[12px] shadow-card lg:mt-7 lg:text-sm">
               <tbody>
                 {specRows.map(([label, value], i) => (
                   <tr key={label} className={i % 2 ? "bg-white" : "bg-brand-softer/60"}>
-                    <th className="w-2/5 px-5 py-3.5 text-left font-semibold text-neutral-500">{label}</th>
-                    <td className="px-5 py-3.5 font-medium text-ink">{value}</td>
+                    <th className="w-2/5 px-2.5 py-1.5 text-left font-semibold text-neutral-500 lg:px-5 lg:py-3.5">{label}</th>
+                    <td className="px-2.5 py-1.5 font-medium text-ink lg:px-5 lg:py-3.5">{value}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="mt-16 max-w-3xl">
+          <div className="mt-9 max-w-3xl lg:mt-16">
             <h2 className="section-heading">About this device</h2>
-            <div className="mt-7 space-y-4 text-[15px] leading-relaxed text-neutral-600">
+            <div className="mt-5 space-y-4 text-[13px] leading-relaxed text-neutral-600 lg:mt-7 lg:text-[15px]">
               {description.paragraphs.map((para, i) => (<p key={i}>{para}</p>))}
             </div>
             <ul className="mt-6 space-y-2.5">
@@ -190,7 +194,7 @@ export default function PDPClient({ category, id }) {
         ref={compareBtnRef}
         type="button"
         onClick={() => setCompareOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-warm-border bg-white px-5 py-3 text-sm font-bold text-ink shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition-colors hover:border-ink"
+        className="fixed bottom-[76px] right-4 z-40 flex items-center gap-2 rounded-full border border-warm-border bg-white px-5 py-3 text-sm font-bold text-ink shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition-colors hover:border-ink lg:bottom-5 lg:right-5"
         aria-haspopup="dialog"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }} aria-hidden="true">

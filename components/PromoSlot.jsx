@@ -47,8 +47,8 @@ export default function PromoSlot({ placement }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={b.backgroundImage} alt={b.headline || "Promotion"} loading="lazy" className="block w-full object-cover" />
             ) : (
-              <div className="mx-auto flex max-w-7xl flex-col items-start gap-2 px-6 py-12 sm:px-8">
-                {b.headline && <p className="text-2xl font-extrabold tracking-tight text-white md:text-3xl">{b.headline}</p>}
+              <div className="mx-auto flex max-w-7xl flex-col items-start gap-2 px-5 py-7 sm:px-8 lg:py-12">
+                {b.headline && <p className="text-xl font-extrabold tracking-tight text-white lg:text-3xl">{b.headline}</p>}
                 {b.sub && <p className="text-sm text-white/85 md:text-base">{b.sub}</p>}
                 {b.cta?.label && (
                   <span className="mt-3 inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-ink">{b.cta.label}</span>

@@ -25,7 +25,7 @@ export default function CartPage() {
             title="Frequently bought together"
             subtitle="Pairs well with what's in your cart."
             products={recommended}
-            className="py-14"
+            className="py-7 lg:py-14"
           />
         </div>
 

@@ -37,7 +37,7 @@ export default async function CollectionPage({ params }) {
           <>
             {/* header */}
             <section className="border-b border-black/5 bg-offwhite">
-              <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
                 <nav className="text-[13px] text-neutral-400" aria-label="Breadcrumb">
                   <Link href="/" className="hover:text-brand">Home</Link>
                   <span className="mx-2">/</span>
@@ -51,14 +51,14 @@ export default async function CollectionPage({ params }) {
             </section>
 
             {/* curated grid — same ProductCard + grid as the listing page */}
-            <section className="py-12">
+            <section className="py-6 lg:py-12">
               <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {data.products.length === 0 ? (
-                  <div className="rounded-card border border-dashed border-black/10 bg-neutral-50 p-12 text-center text-sm text-neutral-500">
+                  <div className="rounded-card border border-dashed border-black/10 bg-neutral-50 p-6 lg:p-12 text-center text-sm text-neutral-500">
                     No products in this collection yet.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 items-stretch gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-1 items-stretch gap-4 lg:gap-6 sm:grid-cols-2 xl:grid-cols-3">
                     {data.products.map((p) => (
                       <ProductCard key={p.id} product={p} className="w-full" />
                     ))}

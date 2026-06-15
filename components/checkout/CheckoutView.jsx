@@ -102,10 +102,10 @@ export default function CheckoutView() {
 
   if (items.length === 0) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-24 text-center">
-        <h1 className="text-2xl font-extrabold tracking-tight text-ink">Your cart is empty</h1>
+      <div className="mx-auto max-w-3xl px-4 py-12 lg:py-24 text-center">
+        <h1 className="text-xl lg:text-2xl font-extrabold tracking-tight text-ink">Your cart is empty</h1>
         <p className="mt-2 text-sm text-neutral-500">Add an item before checking out.</p>
-        <Link href="/products/laptops" className="mt-7 inline-block rounded-full bg-brand px-7 py-3 text-sm font-bold text-white hover:bg-brand-dark">
+        <Link href="/products/laptops" className="mt-7 inline-block rounded-full bg-brand px-7 py-2.5 lg:py-3 text-sm font-bold text-white hover:bg-brand-dark">
           Continue Shopping
         </Link>
       </div>
@@ -218,7 +218,7 @@ export default function CheckoutView() {
           : "border-black/10"
       }`}
     >
-      <label className={`flex items-center gap-3 px-4 py-3.5 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
+      <label className={`flex items-center gap-3 px-4 py-2.5 lg:py-3.5 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
         <input
           type="radio"
           name="pay"
@@ -275,7 +275,7 @@ export default function CheckoutView() {
         )}
 
         {/* 4. Amount after discount */}
-        <div className="flex justify-between border-t border-black/5 pt-2.5"><dt className="text-neutral-500">Amount after discount</dt><dd className="font-semibold text-ink">{formatINR(goods)}</dd></div>
+        <div className="flex justify-between border-t border-black/5 pt-2.5"><dt className="text-neutral-500">Amount after discount</dt><dd className="font-semibold text-ink">{formatINR(subtotal - discount)}</dd></div>
 
         {/* 5. GST breakup — collapsible (default open), extracted from amount after discount */}
         <div>
@@ -301,7 +301,7 @@ export default function CheckoutView() {
       {/* 6. Grand Total */}
       <div className="flex items-baseline justify-between border-t border-black/5 pt-4">
         <span className="text-base font-bold text-ink">Grand Total</span>
-        <span className="text-2xl font-extrabold tracking-tight text-brand">{formatINR(grandTotal)}</span>
+        <span className="text-xl lg:text-2xl font-extrabold tracking-tight text-brand">{formatINR(grandTotal)}</span>
       </div>
 
       {/* COD advance split — after Grand Total, only when COD selected */}
@@ -325,7 +325,7 @@ export default function CheckoutView() {
       <button
         onClick={placeOrder}
         disabled={placing}
-        className="flex w-full items-center justify-center gap-2 rounded-full bg-brand py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-brand py-2.5 lg:py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
         <LockIcon style={{ width: 16, height: 16 }} />
         {placing ? "Placing order…" : payLabel}
@@ -357,15 +357,15 @@ export default function CheckoutView() {
           <span className="text-sm font-bold text-ink">Order Summary · {formatINR(grandTotal)}</span>
           <ChevronDown style={{ width: 16, height: 16 }} className={`transition-transform ${summaryOpen ? "rotate-180" : ""}`} />
         </button>
-        {summaryOpen && <div className="mt-3 rounded-card border border-black/5 bg-white p-5 shadow-card"><Summary /></div>}
+        {summaryOpen && <div className="mt-3 rounded-card border border-black/5 bg-white p-3.5 lg:p-5 shadow-card"><Summary /></div>}
       </div>
 
-      <div className="mt-6 gap-8 lg:grid lg:grid-cols-[1fr_minmax(340px,40%)]">
+      <div className="mt-6 gap-4 lg:gap-8 lg:grid lg:grid-cols-[1fr_minmax(340px,40%)]">
         {/* ── left: address + payment ── */}
-        <div className="space-y-8 pb-28 lg:pb-0">
+        <div className="space-y-5 lg:space-y-8 pb-28 lg:pb-0">
           {/* address */}
           <section>
-            <h2 className="text-lg font-bold text-ink">Delivery Address</h2>
+            <h2 className="text-base lg:text-lg font-bold text-ink">Delivery Address</h2>
             <div className="mt-4 space-y-3">
               {!useNew && addresses.length > 0 && (
                 <div className="space-y-3">
@@ -393,7 +393,7 @@ export default function CheckoutView() {
               </button>
 
               {useNew && (
-                <div className="grid gap-4 rounded-card border border-black/5 bg-white p-5 shadow-card sm:grid-cols-2">
+                <div className="grid gap-4 rounded-card border border-black/5 bg-white p-3.5 lg:p-5 shadow-card sm:grid-cols-2">
                   <Field label="Full Name"><input value={form.name} onChange={(e) => setField("name", e.target.value)} className={inputCls} placeholder="Full name" /></Field>
                   <Field label="Phone"><input value={form.phone} onChange={(e) => setField("phone", e.target.value)} className={inputCls} placeholder="+91" /></Field>
                   <Field label="Email"><input type="email" value={form.email} onChange={(e) => setField("email", e.target.value)} className={inputCls} placeholder="you@email.com" /></Field>
@@ -418,7 +418,7 @@ export default function CheckoutView() {
 
           {/* payment */}
           <section>
-            <h2 className="text-lg font-bold text-ink">Payment Method</h2>
+            <h2 className="text-base lg:text-lg font-bold text-ink">Payment Method</h2>
             <div className="mt-4 space-y-3">
               {methods.map((m) => (
                 <Radio key={m.id} id={m.id} label={m.label} disabled={m.id === "cod" && !codAllowed}>
@@ -455,16 +455,19 @@ export default function CheckoutView() {
 
         {/* ── right: sticky summary (desktop) ── */}
         <aside className="hidden lg:block">
-          <div className="rounded-card border border-black/5 bg-white p-6 shadow-card lg:sticky lg:top-[124px]">
-            <h2 className="mb-4 text-lg font-bold text-ink">Order Summary</h2>
+          <div className="rounded-card border border-black/5 bg-white p-4 lg:p-6 shadow-card lg:sticky lg:top-[124px]">
+            <h2 className="mb-4 text-base lg:text-lg font-bold text-ink">Order Summary</h2>
             <Summary />
           </div>
         </aside>
       </div>
 
-      {/* mobile sticky place-order bar */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-black/5 bg-white p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] lg:hidden">
-        <button onClick={placeOrder} disabled={placing} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-3.5 text-sm font-bold text-white disabled:opacity-50">
+      {/* mobile sticky place-order bar — safe-area aware (clears the home indicator) */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-black/5 bg-white p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] lg:hidden"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+      >
+        <button onClick={placeOrder} disabled={placing} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-bold text-white disabled:opacity-50">
           <LockIcon style={{ width: 16, height: 16 }} /> {placing ? "Placing order…" : payLabel}
         </button>
       </div>
