@@ -190,7 +190,7 @@ function PaymentPendingInner() {
           <div className="mt-6 rounded-card border border-black/5 bg-white p-6 text-center shadow-card">
             {expired ? (
               <>
-                <p className="text-[12px] font-bold uppercase tracking-wide text-red-500">Expired</p>
+                <p className="text-[12px] font-bold uppercase tracking-wide text-red-500">Cancelled</p>
                 <div className="mt-1 font-mono text-5xl font-bold tabular-nums text-red-600">00:00</div>
                 <p className="mt-3 text-sm font-semibold text-neutral-600">This order has been cancelled. Please place a new order.</p>
               </>

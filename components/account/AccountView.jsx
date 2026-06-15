@@ -150,7 +150,7 @@ function OrdersTab() {
                   {warn ? `Pay now — ${formatCountdown(left)}` : `Pay within ${formatCountdown(left)}`}
                 </span>
               ) : expired ? (
-                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700">Expired</span>
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700">Cancelled</span>
               ) : (
                 <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_COLOR[o.status] || "bg-neutral-100 text-neutral-600"}`}>{o.status}</span>
               )}
