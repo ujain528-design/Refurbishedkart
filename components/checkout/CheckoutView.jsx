@@ -128,7 +128,11 @@ export default function CheckoutView() {
   const isCod = pay === "cod" && codAllowed;
   const codRemaining = grandTotal - COD_ADVANCE;
   const baseLabel = isCod ? `Pay ${formatINR(COD_ADVANCE)} & Confirm Order` : `Pay ${formatINR(grandTotal)} & Place Order`;
-  const payLabel = pendingOrder ? "Retry Payment" : baseLabel;
+  // Main CTA is always "Place Order" — retry is its own button (shown only after a
+  // genuine payment failure, see canRetry).
+  const payLabel = baseLabel;
+  const canRetry = !!pendingOrder && !!orderError;
+  const retryPayment = () => { if (!placing && pendingOrder) startPayment(pendingOrder); };
   const methods = PAYMENT_METHODS; // COD always visible (disabled above the limit)
 
   /* Open Razorpay for an order. Non-COD pays the full total; COD pays the ₹500
@@ -174,9 +178,10 @@ export default function CheckoutView() {
     }
   };
 
+  // Place Order ALWAYS creates a fresh order + opens Razorpay. Retrying a
+  // previously-failed payment is a separate, explicit action (retryPayment below).
   const placeOrder = async () => {
     if (placing) return;
-    if (pendingOrder) { startPayment(pendingOrder); return; } // retry same order
     setPlacing(true);
     setOrderError("");
     try {
@@ -321,6 +326,17 @@ export default function CheckoutView() {
 
       {orderError && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-center text-[13px] font-semibold text-red-600">{orderError}</p>
+      )}
+      {/* Explicit retry — only after a genuine payment failure on an already-created
+          order. Re-opens Razorpay for that same order instead of creating a new one. */}
+      {canRetry && (
+        <button
+          onClick={retryPayment}
+          disabled={placing}
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-brand py-2.5 lg:py-3 text-sm font-bold text-brand transition-colors hover:bg-brand-softer disabled:opacity-50"
+        >
+          {placing ? "Opening payment…" : "Retry Payment for this order"}
+        </button>
       )}
       <button
         onClick={placeOrder}
