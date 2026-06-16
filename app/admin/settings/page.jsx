@@ -5,7 +5,13 @@ import { useAuth } from "@/lib/AuthContext";
 import { PageHeader, Tabs, Toggle, Field, useToast, inputCls, btnPrimary } from "@/components/admin/ui";
 import { adminGetSettings, adminSaveSettings, adminGetIntegrations, adminUploadImage } from "@/lib/api";
 
-const TABS = ["General", "Policies", "Delivery", "Appearance", "Social", "SEO & Scripts", "Email Templates", "Security", "Integrations", "Admin Users"];
+const TABS = ["General", "Policies", "Delivery", "Appearance", "Flash Sale", "Social", "SEO & Scripts", "Email Templates", "Security", "Integrations", "Admin Users"];
+
+// Quick-pick destinations for the CTA link (free text still allowed via the input).
+const FLASH_LINK_SUGGESTIONS = ["/flash-sale", "/products/laptops", "/products/desktops", "/products/monitors", "/products/workstations", "/products/servers", "/shop/bestseller"];
+const FLASH_BAR_POSITIONS = [["top", "Top of page (above navbar)"], ["below-navbar", "Below navbar"], ["bottom", "Bottom of page"]];
+const FLASH_BANNER_POSITIONS = [["top", "Top of page"], ["below-title", "Below title"], ["above-products", "Above products"], ["hero", "Full-width hero"]];
+const FLASH_HOME_POSITIONS = [["after-hero", "After hero"], ["after-featured", "After featured products"], ["before-budget", "Before shop by budget"], ["before-footer", "Before footer"]];
 
 const WARRANTY_OPTS = ["3 Months", "6 Months", "1 Year", "2 Years"];
 const GST_OPTS = [5, 12, 18, 28];
@@ -162,6 +168,8 @@ export default function Settings() {
           </div>
         )}
 
+        {tab === "Flash Sale" && <FlashSaleCard s={s} set={set} uploadTo={uploadTo} />}
+
         {tab === "Social" && (
           <div className="grid gap-4 rounded-card border border-black/5 bg-white p-5 shadow-card sm:grid-cols-2">
             {[["facebookUrl", "Facebook URL"], ["instagramUrl", "Instagram URL"], ["twitterUrl", "Twitter / X URL"], ["linkedinUrl", "LinkedIn URL"], ["youtubeUrl", "YouTube URL"], ["googleBusinessUrl", "Google Business URL"]].map(([k, lbl]) => (
@@ -285,6 +293,98 @@ function HeroSectionCard({ s, set, uploadTo }) {
           {bgType === "video" && <span className="absolute right-2 top-2 rounded bg-black/50 px-2 py-0.5 text-[10px] text-white">video bg</span>}
         </div>
         <p className="mt-1 text-[12px] text-neutral-400">Preview approximates the live hero; remember to Save.</p>
+      </div>
+    </div>
+  );
+}
+
+function FlashSaleCard({ s, set, uploadTo }) {
+  const card = "space-y-4 rounded-lg border border-black/10 p-4";
+  const colorInput = "h-9 w-full rounded border border-black/10";
+  return (
+    <div className="space-y-5">
+      {/* ── Sale ── */}
+      <div className={card}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-ink">Flash Sale</span>
+          <Toggle on={s.flashSaleActive === true} onChange={(v) => set("flashSaleActive", v)} label="Sale on/off" />
+        </div>
+        <p className="text-[12px] text-neutral-400">When OFF, the sale page redirects home and every flash element disappears sitewide.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Sale Title"><input className={inputCls} value={s.flashSaleTitle || ""} onChange={(e) => set("flashSaleTitle", e.target.value)} placeholder="Flash Sale" /></Field>
+          <Field label="CTA Button Text"><input className={inputCls} value={s.flashSaleCtaText || ""} onChange={(e) => set("flashSaleCtaText", e.target.value)} placeholder="Shop the Sale" /></Field>
+        </div>
+        <div><Label>Sale Subtitle</Label><textarea rows={2} className={inputCls} value={s.flashSaleSubtitle || ""} onChange={(e) => set("flashSaleSubtitle", e.target.value)} /></div>
+        <div>
+          <Label>CTA Button Link <span className="font-normal text-neutral-400">(pick a page or type any path)</span></Label>
+          <input className={inputCls} list="flash-link-opts" value={s.flashSaleCtaLink || ""} onChange={(e) => set("flashSaleCtaLink", e.target.value)} placeholder="/flash-sale" />
+          <datalist id="flash-link-opts">{FLASH_LINK_SUGGESTIONS.map((l) => <option key={l} value={l} />)}</datalist>
+        </div>
+      </div>
+
+      {/* ── Timer ── */}
+      <div className={card}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-ink">Countdown Timer</span>
+          <Toggle on={s.flashTimerActive === true} onChange={(v) => set("flashTimerActive", v)} label="Timer on/off" />
+        </div>
+        <p className="text-[12px] text-neutral-400">Independent of the sale toggle. At zero the page shows “Sale Ended” (no redirect, page stays).</p>
+        <Field label="Sale End Date &amp; Time"><input type="datetime-local" className={inputCls} value={s.flashSaleEndsAt || ""} onChange={(e) => set("flashSaleEndsAt", e.target.value)} /></Field>
+      </div>
+
+      {/* ── Announcement bar ── */}
+      <div className={card}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-ink">Announcement Bar</span>
+          <Toggle on={s.flashBarActive === true} onChange={(v) => set("flashBarActive", v)} label="Bar on/off" />
+        </div>
+        <Field label="Bar Text"><input className={inputCls} value={s.flashBarText || ""} onChange={(e) => set("flashBarText", e.target.value)} placeholder="Flash Sale Live — Up to 60% off!" /></Field>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div><Label>Background</Label><input type="color" value={s.flashBarBg || "#B5532A"} onChange={(e) => set("flashBarBg", e.target.value)} className={colorInput} /></div>
+          <div><Label>Text Colour</Label><input type="color" value={s.flashBarTextColor || "#FFFFFF"} onChange={(e) => set("flashBarTextColor", e.target.value)} className={colorInput} /></div>
+          <div><Label>Position</Label><select className={inputCls} value={s.flashBarPosition || "top"} onChange={(e) => set("flashBarPosition", e.target.value)}>{FLASH_BAR_POSITIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+        </div>
+        <p className="text-[12px] text-neutral-400">Shows the live countdown when the timer is on. Clicking the bar opens the sale page; visitors can dismiss it for the session.</p>
+      </div>
+
+      {/* ── Banner ── */}
+      <div className={card}>
+        <span className="text-sm font-bold text-ink">Page Banner</span>
+        <div className="rounded-lg bg-neutral-50 p-3">
+          <Label>Banner Image</Label>
+          {s.flashBannerImage ? <img src={s.flashBannerImage} alt="flash banner" className="mb-2 w-full rounded object-cover" style={{ aspectRatio: "3 / 1" }} /> : null}
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => uploadTo("flashBannerImage", e.target.files?.[0])} className="text-[13px]" />
+          {s.flashBannerImage && <button onClick={() => set("flashBannerImage", "")} className="ml-2 text-[12px] font-bold text-red-600">Remove</button>}
+          <p className="mt-1 text-[11px] text-neutral-400">Recommended: 1440×480px, max 2MB, JPG/PNG/WebP. Keep text/logo centred for mobile.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div><Label>Background (no image)</Label><input type="color" value={s.flashBannerBg || "#1B5E20"} onChange={(e) => set("flashBannerBg", e.target.value)} className={colorInput} /></div>
+          <div><Label>Text Colour</Label><input type="color" value={s.flashBannerTextColor || "#FFFFFF"} onChange={(e) => set("flashBannerTextColor", e.target.value)} className={colorInput} /></div>
+          <div><Label>Position on Page</Label><select className={inputCls} value={s.flashBannerPosition || "hero"} onChange={(e) => set("flashBannerPosition", e.target.value)}>{FLASH_BANNER_POSITIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+        </div>
+      </div>
+
+      {/* ── Page URL ── */}
+      <div className={card}>
+        <span className="text-sm font-bold text-ink">Flash Sale Page URL</span>
+        <div>
+          <Label>Slug</Label>
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-semibold text-neutral-400">/</span>
+            <input className={inputCls} value={s.flashSaleSlug || "flash-sale"} onChange={(e) => set("flashSaleSlug", e.target.value.replace(/^\/+/, ""))} placeholder="flash-sale" />
+          </div>
+          <p className="mt-1 text-[12px] text-neutral-400">e.g. <code>flash-sale</code>, <code>sale</code>, <code>offers</code>. When changed, the old URL permanently redirects to the new one.</p>
+        </div>
+      </div>
+
+      {/* ── Homepage section ── */}
+      <div className={card}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-ink">Homepage Section</span>
+          <Toggle on={s.flashHomeActive !== false} onChange={(v) => set("flashHomeActive", v)} label="Homepage section on/off" />
+        </div>
+        <div><Label>Position</Label><select className={inputCls} value={s.flashHomePosition || "after-hero"} onChange={(e) => set("flashHomePosition", e.target.value)}>{FLASH_HOME_POSITIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
+        <p className="text-[12px] text-neutral-400">Shows the sale title, countdown, CTA and up to 4 flash-sale products. Only appears while the sale is on.</p>
       </div>
     </div>
   );

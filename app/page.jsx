@@ -5,7 +5,7 @@ import HeroCarousel from "@/components/HeroCarousel";
 import PromoSlot from "@/components/PromoSlot";
 import Reveal from "@/components/Reveal";
 import LiveProductRow from "@/components/home/LiveProductRow";
-import FlashSaleBanner from "@/components/FlashSaleBanner";
+import FlashSaleHomeSection from "@/components/flash/FlashSaleHomeSection";
 import BrandStrip from "@/components/BrandStrip";
 import BudgetCards from "@/components/BudgetCards";
 import WhyRefurbished from "@/components/WhyRefurbished";
@@ -23,6 +23,9 @@ export default function HomePage() {
       {/* fixed-navbar offset is handled by the spacer inside Navbar */}
       <main>
         <Hero />
+
+        {/* Flash Sale band — position: After Hero (self-hides unless admin-set here) */}
+        <FlashSaleHomeSection slot="after-hero" />
 
         {/* Shop by Category — 5 colour-coded category cards */}
         <ShopByCategory />
@@ -45,11 +48,11 @@ export default function HomePage() {
         {/* Promo slot: After Bestsellers */}
         <PromoSlot placement="after-bestsellers" />
 
+        {/* Flash Sale band — position: After Featured Products */}
+        <FlashSaleHomeSection slot="after-featured" />
+
         {/* Hero carousel — hero-placement banners only. Self-hides when empty. */}
         <HeroCarousel />
-
-        {/* Full-width clickable Flash Sale banner → /flash-sale */}
-        <FlashSaleBanner />
 
         {/* soft green-tint band for the curated rows */}
         <div style={{ background: "#EDF2E8" }}>
@@ -71,6 +74,10 @@ export default function HomePage() {
         </div>
 
         <Reveal><BrandStrip /></Reveal>
+
+        {/* Flash Sale band — position: Before Shop by Budget */}
+        <FlashSaleHomeSection slot="before-budget" />
+
         <Reveal><BudgetCards /></Reveal>
 
         {/* Promo slot: After Shop by Budget */}
@@ -88,6 +95,9 @@ export default function HomePage() {
 
         {/* Promo slot: Above Footer */}
         <PromoSlot placement="footer-top" />
+
+        {/* Flash Sale band — position: Before Footer */}
+        <FlashSaleHomeSection slot="before-footer" />
       </main>
       <Footer />
       <BulkEnquiryModal />

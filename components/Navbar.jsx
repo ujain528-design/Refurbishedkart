@@ -96,6 +96,8 @@ export default function Navbar() {
           below-lg 68px (slim single row) · desktop 68+45≈113 */}
       <div aria-hidden="true" style={{ height: "var(--ann-h, 0px)" }} />
       <div aria-hidden="true" className="h-[68px] lg:h-[113px]" />
+      {/* reserves space for a "below navbar" flash-sale bar so it never overlaps content */}
+      <div aria-hidden="true" style={{ height: "var(--flashbar-belownav-h, 0px)" }} />
 
       {/* App-style bottom navigation — mobile/tablet only (hidden on lg+) */}
       <MobileBottomNav />
