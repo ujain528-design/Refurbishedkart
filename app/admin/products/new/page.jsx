@@ -506,7 +506,7 @@ export default function ProductEditor() {
               <VField ctx={ctx} k="model" label="Model" placeholder="ThinkPad T14" />
               <VField ctx={ctx} k="category" label="Category" options={Object.values(CATEGORY_SLUGS)} />
               <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Status</span><select value={f.status} onChange={(e) => update("status", e.target.value)} className={inputCls}><option>Draft</option><option>Active</option><option>Out of Stock</option></select></label>
-              <div className="sm:col-span-2"><VField ctx={ctx} k="description" label="About This Device (shown on product page)" textarea placeholder="Describe the device, condition, and what's included… (one paragraph per line)" hint="Leave empty to auto-generate from specs" /></div>
+              <div className="sm:col-span-2"><VField ctx={ctx} k="description" label="About This Device (shown on product page)" textarea placeholder={"The Dell Latitude 3420 is a reliable laptop.\n\nKey Features:\n- Fast Performance: 11th Gen Intel i5\n- Compact Design: 14-inch slim frame"} hint="Use - for bullets, a line ending in : for a heading, and a blank line between paragraphs. Leave empty to auto-generate from specs." /></div>
 
               {/* ── Warranty & Tax ── per-product overrides; blank ⇒ store default ── */}
               <div className="sm:col-span-2 mt-2 rounded-lg border border-black/10 bg-neutral-50 p-4">
@@ -585,7 +585,11 @@ export default function ProductEditor() {
             <div className="max-w-3xl space-y-8">
               {/* SECTION 1 — Default Configuration */}
               <section>
-                <p className="mb-3 text-[12px] font-bold uppercase tracking-wide text-brand">Default Configuration</p>
+                <p className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide text-brand">
+                  Default Configuration
+                  <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand">Base (included)</span>
+                </p>
+                <p className="mb-3 text-[11px] text-neutral-400">The Listed Price already includes this RAM + SSD. Other configs add/subtract a delta from it.</p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-lg border border-black/10 p-4">
                     <p className="mb-2 text-[12px] font-semibold text-neutral-600">Default RAM</p>
@@ -644,7 +648,14 @@ export default function ProductEditor() {
                           <select value={c.ramType} onChange={(e) => updateConfig(i, "ramType", e.target.value)} className={`${inputCls} max-w-[110px]`}>{RAM_TYPES.map((o) => <option key={o}>{o}</option>)}</select></label>
                         <label className="block"><span className="mb-1 block text-[11px] font-semibold text-neutral-500">SSD</span>
                           <select value={c.ssd} onChange={(e) => updateConfig(i, "ssd", e.target.value)} className={`${inputCls} max-w-[85px]`}>{SSD_CAPS.map((o) => <option key={o}>{o}</option>)}</select></label>
-                        <div className="pb-2.5"><span className="mb-1 block text-[11px] font-semibold text-neutral-500">+ Cost</span><span className="text-[13px] font-semibold text-neutral-600">{"₹" + (configAdditional(c) || 0).toLocaleString("en-IN")}</span></div>
+                        <div className="pb-2.5"><span className="mb-1 block text-[11px] font-semibold text-neutral-500">Delta</span>
+                          {(() => {
+                            const d = Math.round(configAdditional(c) || 0);
+                            const cls = d > 0 ? "text-ink" : d < 0 ? "text-brand" : "text-neutral-400";
+                            const label = d === 0 ? "Base (included)" : `${d > 0 ? "+" : "−"}₹${Math.abs(d).toLocaleString("en-IN")}`;
+                            return <span className={`text-[13px] font-bold ${cls}`}>{label}</span>;
+                          })()}
+                        </div>
                         <div className="pb-1">
                           <span className="mb-1 block text-[11px] font-semibold text-neutral-500">Total Price</span>
                           {c.override ? (

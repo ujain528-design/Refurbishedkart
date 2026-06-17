@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { NAV_CATEGORIES } from "@/lib/data";
-import { ChevronDown, LogoMark } from "@/components/Icons";
+import { ChevronDown } from "@/components/Icons";
 import BulkEnquiryTrigger from "@/components/BulkEnquiryTrigger";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import SearchBar from "@/components/SearchBar";
@@ -40,12 +40,16 @@ export default function Navbar() {
         {/* Top row — fixed 68px */}
         <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
           {/* Logo — two-weight wordmark */}
-          <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="RefurbishedKart home">
-            <LogoMark className="h-8 w-8 text-brand" />
-            <span className="text-[1.35rem] tracking-tight">
-              <span className="font-bold text-dark">Refurbished</span>
-              <span className="font-extrabold text-brand">Kart</span>
-            </span>
+          <Link href="/" className="flex shrink-0 items-center" aria-label="RefurbishedKart home">
+            {/* Brand logo. Source file has a white background → mix-blend-multiply drops it
+                out against the cream navbar. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo_rk.webp"
+              alt="RefurbishedKart"
+              className="h-8 w-auto lg:h-10"
+              style={{ mixBlendMode: "multiply" }}
+            />
           </Link>
 
           {/* Search — in-row on desktop only; tablet gets its own row */}

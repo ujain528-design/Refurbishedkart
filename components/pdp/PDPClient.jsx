@@ -7,6 +7,7 @@ import Gallery from "@/components/pdp/Gallery";
 import PurchasePanel from "@/components/pdp/PurchasePanel";
 import ReviewsSection from "@/components/pdp/ReviewsSection";
 import CompareModal from "@/components/pdp/CompareModal";
+import RichDescription from "@/components/pdp/RichDescription";
 import { ErrorState } from "@/components/ui/States";
 import { CATEGORY_SLUGS } from "@/lib/data";
 import { variantsFor, specRowsFor, descriptionFor } from "@/lib/pdp";
@@ -159,9 +160,16 @@ export default function PDPClient({ category, id }) {
 
           <div className="mt-9 max-w-3xl lg:mt-16">
             <h2 className="section-heading">About this device</h2>
-            <div className="mt-5 space-y-4 text-[13px] leading-relaxed text-neutral-600 lg:mt-7 lg:text-[15px]">
-              {description.paragraphs.map((para, i) => (<p key={i}>{para}</p>))}
-            </div>
+            {product.description && product.description.trim() ? (
+              <RichDescription
+                text={product.description}
+                className="mt-5 text-[13px] leading-relaxed text-neutral-600 lg:mt-7 lg:text-[15px]"
+              />
+            ) : (
+              <div className="mt-5 space-y-4 text-[13px] leading-relaxed text-neutral-600 lg:mt-7 lg:text-[15px]">
+                {description.paragraphs.map((para, i) => (<p key={i}>{para}</p>))}
+              </div>
+            )}
             <ul className="mt-6 space-y-2.5">
               {description.highlights.map((h) => (
                 <li key={h} className="flex items-start gap-2.5 text-sm text-neutral-600">

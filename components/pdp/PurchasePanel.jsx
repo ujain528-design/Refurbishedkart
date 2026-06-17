@@ -6,6 +6,7 @@ import { formatINR, WHATSAPP_NUMBER } from "@/lib/data";
 import { TRUST_POLICIES } from "@/lib/pdp";
 import { HeartIcon, TruckIcon, ReturnIcon, ShieldIcon, ChevronRight, CloseIcon } from "@/components/Icons";
 import StarRating from "@/components/StarRating";
+import Script from "next/script";
 import InspectionPanel from "@/components/pdp/InspectionPanel";
 import CheckpointCards from "@/components/pdp/CheckpointCards";
 import { useCart } from "@/lib/CartContext";
@@ -86,6 +87,13 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
   const lowStock = chassis > 0 && chassis <= 5;
   const total = serverPrice ?? (selectedConfig ? selectedConfig.price : product.listedPrice ?? product.price);
 
+  // Re-render Razorpay's affordability widget when the price changes (variant switch).
+  useEffect(() => {
+    if (typeof window !== "undefined" && typeof window.renderAffordabilityWidget === "function") {
+      window.renderAffordabilityWidget();
+    }
+  }, [total]);
+
   const addToCart = () => {
     const ok = addItem(product, sel.ram, sel.ssd);
     if (ok) { setAdded(true); setTimeout(() => setAdded(false), 2000); }
@@ -152,11 +160,37 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
           </button>
         </div>
       </div>
+      {/* Live price delta vs the base (default) configuration. Base is all-inclusive,
+          so this only shows when an upgrade (+) or downgrade (−) is selected. */}
+      {(() => {
+        const base = Number(product.listedPrice ?? product.price ?? 0);
+        const d = Math.round((total ?? base) - base);
+        if (!d) return null;
+        return (
+          <p className={`mt-1.5 text-[13px] font-bold ${d > 0 ? "text-ink" : "text-brand"}`}>
+            {d > 0 ? `+${formatINR(d)}` : `− ${formatINR(Math.abs(d))}`} for this configuration
+          </p>
+        );
+      })()}
+
       {unavailable ? (
         <p className="mt-2 text-[13px] font-bold text-red-600">{chassis === 0 ? "Out of stock" : "This configuration is currently unavailable."}</p>
       ) : lowStock ? (
         <p className="mt-2 text-[13px] font-bold text-red-600">Only {chassis} left</p>
       ) : null}
+
+      {/* Razorpay official Affordability Widget — below price, above Buy Now. Only > ₹5,000. */}
+      {total > 5000 && (
+        <div
+          className="razorpay-affordability-widget mt-4"
+          data-key={process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
+          data-amount={String(total * 100)}
+        />
+      )}
+      <Script
+        src="https://cdn.razorpay.com/widgets/affordability/affordability.js"
+        strategy="lazyOnload"
+      />
 
       <button disabled={unavailable} onClick={buyNow} className="mt-3 w-full rounded-card bg-dark py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#2c2c2e] disabled:cursor-not-allowed disabled:opacity-40 lg:py-3.5">
         Buy Now
