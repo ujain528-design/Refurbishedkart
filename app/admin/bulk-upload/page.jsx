@@ -5,6 +5,7 @@ import { PageHeader, useToast, inputCls, btnPrimary, btnGhost, Badge } from "@/c
 import { CATEGORIES, CONDITIONS, columnKeys } from "@/lib/bulkTemplates";
 import { buildTemplateBlob, parseWorkbook } from "@/lib/xlsxClient";
 import { adminGetMasterData, adminGetPricingConfig, adminBulkValidate, adminBulkImport } from "@/lib/api";
+import BulkImageStep from "@/components/admin/BulkImageStep";
 import { PROCESSOR_MODELS } from "@/lib/admin-data";
 
 const activeVals = (rows) => (rows || []).filter((r) => r.active !== false).map((r) => r.value);
@@ -213,6 +214,11 @@ export default function BulkUpload() {
               <button onClick={reset} className={btnGhost}>Import another file</button>
             </div>
           </div>
+        )}
+
+        {/* Post-import: add images to the newly created products in one session */}
+        {result && (
+          <BulkImageStep products={(result.results || []).filter((r) => r.ok).map((r) => ({ id: r.id, name: r.name }))} />
         )}
       </div>
     </div>

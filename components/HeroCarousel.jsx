@@ -113,16 +113,18 @@ export default function HeroCarousel() {
           <div
             key={s.id}
             onClick={() => slideClick(s)}
-            className={`relative h-[380px] w-full shrink-0 overflow-hidden md:h-[460px] ${s.backgroundImage || s.backgroundColor ? "" : s.gradient} ${s.clickable ? "cursor-pointer" : "cursor-default"}`}
-            style={s.backgroundColor && !s.backgroundImage ? { background: s.backgroundColor } : undefined}
+            className={`relative aspect-[16/5] min-h-[200px] w-full shrink-0 overflow-hidden ${s.backgroundImage || s.backgroundColor ? "" : s.gradient} ${s.clickable ? "cursor-pointer" : "cursor-default"}`}
+            style={{ background: s.backgroundImage ? (s.backgroundColor || "#13150f") : (s.backgroundColor && !s.backgroundImage ? s.backgroundColor : undefined) }}
             aria-hidden={slides[idx]?.id !== s.id}
           >
-            {/* image background (wins over colour/gradient) + legibility overlay */}
+            {/* image poster — object-contain shows the FULL 16:5 poster with no
+                cropping; any letterbox bars (off-ratio images) are filled by the
+                slide background colour set above. */}
             {s.backgroundImage && (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={s.backgroundImage} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden="true" />
-                <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, rgba(28,28,30,0.65) 0%, rgba(28,28,30,0.25) 60%, rgba(28,28,30,0.10) 100%)" }} aria-hidden="true" />
+                <img src={s.backgroundImage} alt="" className="absolute inset-0 h-full w-full object-contain" aria-hidden="true" />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, rgba(28,28,30,0.55) 0%, rgba(28,28,30,0.18) 55%, rgba(28,28,30,0.05) 100%)" }} aria-hidden="true" />
               </>
             )}
             {/* poster copy — bottom-left desktop, centered mobile */}

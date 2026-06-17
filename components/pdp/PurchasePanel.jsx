@@ -160,19 +160,6 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
           </button>
         </div>
       </div>
-      {/* Live price delta vs the base (default) configuration. Base is all-inclusive,
-          so this only shows when an upgrade (+) or downgrade (−) is selected. */}
-      {(() => {
-        const base = Number(product.listedPrice ?? product.price ?? 0);
-        const d = Math.round((total ?? base) - base);
-        if (!d) return null;
-        return (
-          <p className={`mt-1.5 text-[13px] font-bold ${d > 0 ? "text-ink" : "text-brand"}`}>
-            {d > 0 ? `+${formatINR(d)}` : `− ${formatINR(Math.abs(d))}`} for this configuration
-          </p>
-        );
-      })()}
-
       {unavailable ? (
         <p className="mt-2 text-[13px] font-bold text-red-600">{chassis === 0 ? "Out of stock" : "This configuration is currently unavailable."}</p>
       ) : lowStock ? (

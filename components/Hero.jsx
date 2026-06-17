@@ -97,13 +97,16 @@ export default function Hero() {
 
   return (
     <section className="bg-warm-bg pb-16">
-      <div className="relative flex min-h-[88vh] items-center overflow-hidden">
+      {/* Image background → lock the box to the poster's 1920:600 ratio (180px floor
+          on small screens) so the FULL poster shows, never cropped. Gradient/video
+          keep the tall 88vh text-hero. */}
+      <div className={`relative flex items-center overflow-hidden ${isImage ? "aspect-[1920/600] min-h-[180px]" : "min-h-[88vh]"}`}>
         {/* 1 · Background — warm gradient base (always), image or video on top */}
         <div className="absolute inset-0" style={{ background: "linear-gradient(160deg, #1C1C1E 0%, #2D5016 60%, #1C1C1E 100%)" }} aria-hidden="true" />
 
         {isImage && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero.backgroundImage} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden="true" />
+          <img src={hero.backgroundImage} alt="" className="absolute inset-0 h-full w-full object-contain" aria-hidden="true" />
         )}
 
         {isVideo && showVideo && !failed && (

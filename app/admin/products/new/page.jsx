@@ -12,6 +12,7 @@ import { CATEGORY_SLUGS } from "@/lib/data";
 import PortsGrid from "@/components/admin/PortsGrid";
 import { normalizePorts } from "@/lib/ports";
 import { adminGetProduct, adminCreateProduct, adminUpdateProduct, adminUpdateStock, adminGetPricingConfig, adminUploadImage } from "@/lib/api";
+import ImageSearch from "@/components/admin/ImageSearch";
 import { calculateDeviceCost, calculateUpgradePrice, priceForExtraCapacity, getSsdPrice } from "@/lib/server/pricing-core";
 import { generateProductTitle } from "@/lib/generateTitle";
 import { generateMetaDescription } from "@/lib/generateMetaDescription";
@@ -381,6 +382,7 @@ export default function ProductEditor() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const dragIdx = useRef(null);
+  const [showFind, setShowFind] = useState(false);
   const uploadImages = async (fileList) => {
     const files = Array.from(fileList || []).filter((file) => file && file.type?.startsWith("image/"));
     if (!files.length) return;
@@ -741,6 +743,24 @@ export default function ProductEditor() {
                 {uploading ? "Uploading…" : <><span className="text-2xl">＋</span><span>Drop images here or click to upload — select multiple · JPEG / PNG / WebP, ≤ 2MB each</span></>}
               </label>
               <p className="mt-2 text-[12px] text-neutral-400">The first image is the primary thumbnail. Drag a tile, or use ↑/↓, to reorder. Saved to /public/uploads/products/.</p>
+
+              {/* Find Images — Google image search → fetch + normalise into the gallery */}
+              <div className="mt-5">
+                {!showFind ? (
+                  <button onClick={() => setShowFind(true)} className="rounded-full border border-brand px-4 py-2 text-[13px] font-bold text-brand hover:bg-brand-softer">
+                    🔍 Find Images Online
+                  </button>
+                ) : (
+                  <div>
+                    <p className="mb-2 text-[12px] font-semibold text-neutral-600">Find Images Online</p>
+                    <ImageSearch
+                      defaultQuery={`${f.brand || ""} ${f.model || ""}`.trim()}
+                      onClose={() => setShowFind(false)}
+                      onAdd={(urls) => update("images", [...f.images, ...urls])}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
