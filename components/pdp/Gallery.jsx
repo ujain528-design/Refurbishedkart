@@ -18,7 +18,7 @@ export default function Gallery({ images, alt, altBase }) {
 
   if (!images || images.length === 0) {
     return (
-      <div className="flex aspect-[4/3] items-center justify-center rounded-card border border-black/5 bg-neutral-100">
+      <div className="flex aspect-[4/3] items-center justify-center rounded-card border border-black/5 bg-white">
         <div className="flex flex-col items-center gap-3 text-neutral-300">
           <BrokenDeviceIcon style={{ width: 80, height: 80 }} />
           <span className="text-xs font-medium uppercase tracking-wider">Product Image</span>

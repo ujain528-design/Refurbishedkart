@@ -37,7 +37,7 @@ export default function ProductCard({ product, className = "w-[200px] shrink-0 s
       {/* stretched link — whole card opens the PDP; wishlist sits above it */}
       <Link href={href} className="absolute inset-0 z-[5]" aria-label={`View ${product.name}`} />
       {/* Image area — subtle 1.03 zoom on hover (Apple-restraint; no lift/shadow) */}
-      <div className="relative h-[112px] overflow-hidden rounded-t-card bg-warm-alt lg:h-[180px]">
+      <div className="relative h-[112px] overflow-hidden rounded-t-card bg-white lg:h-[180px]">
         <div
           className={`flex h-full w-full items-center justify-center transition-transform duration-[250ms] ease-out group-hover:scale-[1.03] ${
             oos ? "opacity-50 grayscale" : ""
