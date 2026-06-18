@@ -112,7 +112,7 @@ export default function AdminProducts() {
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-neutral-100">
-                        {p.image ? <img src={p.image} alt="" className="h-full w-full object-contain p-0.5" /> : <span className="text-[9px] text-neutral-300">IMG</span>}
+                        {(p.image || p.images?.[0]) ? <img src={p.image || p.images?.[0]} alt="" className="h-full w-full object-contain p-0.5" /> : <span className="text-[9px] text-neutral-300">IMG</span>}
                       </div>
                       <span className="font-semibold text-ink">{p.name}</span>
                     </div>

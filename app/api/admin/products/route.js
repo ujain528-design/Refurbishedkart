@@ -34,7 +34,10 @@ export async function GET(req) {
     }
     const total = rows.length;
     if (limit) rows = rows.slice((page - 1) * limit, page * limit);
-    return NextResponse.json({ products: rows, total, page, limit });
+    // Canonical cover image: populate `image` from images[0] so admin + storefront
+    // consumers all read one field (permanently kills the singular-vs-array bug).
+    const products = rows.map((p) => ({ ...p, image: p.image || (Array.isArray(p.images) ? p.images[0] : null) || null }));
+    return NextResponse.json({ products, total, page, limit });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
