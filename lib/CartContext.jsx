@@ -92,7 +92,7 @@ export function CartProvider({ children }) {
       }
       return [...prev, {
         productId: product.id, name: product.name, brand: product.brand, category: product.category,
-        image: product.image ?? null, ram: cfg.ram, ssd: cfg.ssd, ramType: cfg.ramType ?? null,
+        image: (product.image || product.images?.[0]) ?? null, ram: cfg.ram, ssd: cfg.ssd, ramType: cfg.ramType ?? null,
         price: cfg.unitPrice, mrp: product.mrp, sellable: cfg.sellable, qty: 1,
       }];
     });

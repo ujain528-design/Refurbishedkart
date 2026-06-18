@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStoreSettings, deliveryRules } from "@/lib/server/settings";
+import { resolveHeroSlides, activeSortedSlides } from "@/lib/heroSlides";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,9 @@ export async function GET() {
         backgroundVideo: s.heroBackgroundVideo ?? "",
         overlayDarkness: Number(s.heroOverlayDarkness ?? 80),
       },
+      // Multi-slide hero carousel — active slides only, in display order, with
+      // the legacy single hero migrated to slide[0] when none are configured.
+      heroSlides: activeSortedSlides(resolveHeroSlides(s)),
     }, { headers: { "Cache-Control": "no-store, max-age=0, must-revalidate" } });
   } catch (e) {
     return NextResponse.json({ freeDeliveryAbove: 999, deliveryFee: 99, error: e.message }, { status: 500 });

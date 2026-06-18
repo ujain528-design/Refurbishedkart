@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { PageHeader, Tabs, Toggle, Field, useToast, inputCls, btnPrimary } from "@/components/admin/ui";
 import { adminGetSettings, adminSaveSettings, adminGetIntegrations, adminUploadImage } from "@/lib/api";
+import HeroCarouselManager from "@/components/admin/HeroCarouselManager";
+import { resolveHeroSlides } from "@/lib/heroSlides";
 
 const TABS = ["General", "Policies", "Delivery", "Appearance", "Flash Sale", "Social", "SEO & Scripts", "Email Templates", "Security", "Integrations", "Admin Users"];
 
@@ -39,7 +41,13 @@ export default function Settings() {
 
   const load = useCallback(() => {
     setStatus("loading");
-    adminGetSettings().then((d) => { setS(d); setStatus("ready"); }).catch(() => setStatus("error"));
+    adminGetSettings().then((d) => {
+      // Seed the editable hero slides from the legacy single-hero fields the first
+      // time (so existing content shows as slide 1, no data loss).
+      if (!Array.isArray(d.heroSlides) || d.heroSlides.length === 0) d.heroSlides = resolveHeroSlides(d);
+      setS(d);
+      setStatus("ready");
+    }).catch(() => setStatus("error"));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -149,7 +157,7 @@ export default function Settings() {
               <div className="mt-2"><Label>Announcement Background</Label><input type="color" value={s.announcementBg || "#1B5E20"} onChange={(e) => set("announcementBg", e.target.value)} className="h-9 w-24 rounded border border-black/10" /></div>
             </div>
 
-            <HeroSectionCard s={s} set={set} uploadTo={uploadTo} />
+            <HeroCarouselManager slides={s.heroSlides || []} onChange={(v) => set("heroSlides", v)} uploadImage={adminUploadImage} />
 
             <div>
               <Label>Homepage Section Order &amp; Visibility</Label>
@@ -221,78 +229,6 @@ export default function Settings() {
         {savable && (
           <button onClick={save} disabled={saving} className={`${btnPrimary} mt-5`}>{saving ? "Saving…" : "Save Changes"}</button>
         )}
-      </div>
-    </div>
-  );
-}
-
-function HeroSectionCard({ s, set, uploadTo }) {
-  const bgType = s.heroBackgroundType || "gradient";
-  const darkness = s.heroOverlayDarkness ?? 80;
-  const x = Math.max(0, Math.min(100, Number(darkness))) / 100;
-  const overlay = `linear-gradient(160deg, rgba(28,28,30,${x}) 0%, rgba(45,80,22,${x * 0.4}) 55%, rgba(28,28,30,${x * 0.9}) 100%)`;
-  const previewBase =
-    bgType === "image" && s.heroBackgroundImage
-      ? { backgroundImage: `url(${s.heroBackgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }
-      : { background: "linear-gradient(160deg, #1C1C1E 0%, #2D5016 60%, #1C1C1E 100%)" };
-
-  return (
-    <div className="rounded-lg border border-black/10 p-4">
-      <p className="mb-3 text-sm font-bold text-ink">Hero Section</p>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Eyebrow"><input className={inputCls} value={s.heroEyebrow || ""} onChange={(e) => set("heroEyebrow", e.target.value)} placeholder="Certified Refurbished" /></Field>
-        <Field label="Headline Accent Word (amber)"><input className={inputCls} value={s.heroHeadlineAccent || ""} onChange={(e) => set("heroHeadlineAccent", e.target.value)} placeholder="renewed." /></Field>
-      </div>
-      <div className="mt-3"><Label>Headline</Label><input className={inputCls} value={s.heroHeadline || ""} onChange={(e) => set("heroHeadline", e.target.value)} placeholder="Premium laptops & desktops," /></div>
-      <div className="mt-3"><Label>Subtext</Label><textarea rows={3} className={inputCls} value={s.heroSubtext || ""} onChange={(e) => set("heroSubtext", e.target.value)} /></div>
-
-      <div className="mt-3 grid gap-4 sm:grid-cols-2">
-        <Field label="Primary CTA Text"><input className={inputCls} value={s.heroCtaPrimaryText || ""} onChange={(e) => set("heroCtaPrimaryText", e.target.value)} placeholder="Shop Laptops" /></Field>
-        <Field label="Primary CTA Link"><input className={inputCls} value={s.heroCtaPrimaryLink || ""} onChange={(e) => set("heroCtaPrimaryLink", e.target.value)} placeholder="/products/laptops" /></Field>
-        <Field label="Secondary CTA Text"><input className={inputCls} value={s.heroCtaSecondaryText || ""} onChange={(e) => set("heroCtaSecondaryText", e.target.value)} placeholder="Explore Deals" /></Field>
-        <Field label="Secondary CTA Link"><input className={inputCls} value={s.heroCtaSecondaryLink || ""} onChange={(e) => set("heroCtaSecondaryLink", e.target.value)} placeholder="/flash-sale" /></Field>
-      </div>
-
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div><Label>Background Type</Label><select className={inputCls} value={bgType} onChange={(e) => set("heroBackgroundType", e.target.value)}><option value="gradient">Gradient</option><option value="image">Image</option><option value="video">Video</option></select></div>
-        <div className="flex flex-col justify-end">
-          <Label>Overlay Darkness — {Math.round(darkness)}%</Label>
-          <input type="range" min={0} max={100} value={darkness} onChange={(e) => set("heroOverlayDarkness", Number(e.target.value))} className="w-full accent-brand" />
-        </div>
-      </div>
-
-      {bgType === "image" && (
-        <div className="mt-3 rounded-lg bg-neutral-50 p-3">
-          <Label>Background Image <span className="font-normal text-neutral-400">(recommended 1920×1080px, ≤3MB)</span></Label>
-          {s.heroBackgroundImage ? <img src={s.heroBackgroundImage} alt="hero bg" className="mb-2 h-24 w-full rounded object-cover" /> : null}
-          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => uploadTo("heroBackgroundImage", e.target.files?.[0])} className="text-[13px]" />
-          {s.heroBackgroundImage && <button onClick={() => set("heroBackgroundImage", "")} className="ml-2 text-[12px] font-bold text-red-600">Remove</button>}
-        </div>
-      )}
-      {bgType === "video" && (
-        <div className="mt-3"><Field label="Background Video URL (.mp4)"><input className={inputCls} value={s.heroBackgroundVideo || ""} onChange={(e) => set("heroBackgroundVideo", e.target.value)} placeholder="https://…/hero.mp4" /></Field></div>
-      )}
-
-      {/* Live preview */}
-      <div className="mt-4">
-        <Label>Live Preview</Label>
-        <div className="relative h-44 overflow-hidden rounded-lg" style={previewBase}>
-          <div className="absolute inset-0" style={{ background: overlay }} />
-          <div className="absolute inset-0 flex flex-col justify-center px-5">
-            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#E8A020]">{s.heroEyebrow || "Certified Refurbished"}</p>
-            <p className="mt-1 text-lg font-extrabold leading-tight text-white">
-              {s.heroHeadline || "Premium laptops & desktops,"}{" "}
-              <span className="text-[#E8A020]">{s.heroHeadlineAccent || "renewed."}</span>
-            </p>
-            <div className="mt-2 flex gap-2">
-              <span className="rounded-md bg-[#2D5016] px-3 py-1 text-[11px] font-semibold text-white">{s.heroCtaPrimaryText || "Shop Laptops"}</span>
-              <span className="rounded-md border border-white/40 px-3 py-1 text-[11px] font-semibold text-white">{s.heroCtaSecondaryText || "Explore Deals"}</span>
-            </div>
-          </div>
-          {bgType === "video" && <span className="absolute right-2 top-2 rounded bg-black/50 px-2 py-0.5 text-[10px] text-white">video bg</span>}
-        </div>
-        <p className="mt-1 text-[12px] text-neutral-400">Preview approximates the live hero; remember to Save.</p>
       </div>
     </div>
   );

@@ -65,9 +65,9 @@ const ROWS = [
 ];
 
 function Thumb({ p }) {
-  return p.image ? (
+  return (p.image || p.images?.[0]) ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={p.image} alt={titleOf(p)} className="mx-auto h-24 w-full rounded-lg bg-warm-alt object-contain p-2" loading="lazy" />
+    <img src={p.image || p.images?.[0]} alt={titleOf(p)} className="mx-auto h-24 w-full rounded-lg bg-warm-alt object-contain p-2" loading="lazy" />
   ) : (
     <div className="mx-auto flex h-24 w-full items-center justify-center rounded-lg bg-neutral-100 text-neutral-300">
       <BrokenDeviceIcon style={{ width: 36, height: 36 }} />

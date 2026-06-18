@@ -43,9 +43,9 @@ export default function ProductCard({ product, className = "w-[200px] shrink-0 s
             oos ? "opacity-50 grayscale" : ""
           }`}
         >
-          {product.image ? (
+          {(product.image || product.images?.[0]) ? (
             <img
-              src={product.image}
+              src={product.image || product.images?.[0]}
               alt={imgAlt}
               loading="lazy"
               className="h-full w-full object-contain p-3"

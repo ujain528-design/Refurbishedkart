@@ -1,174 +1,155 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { TRUST_BADGES } from "@/lib/data";
 import { getPublicSettings } from "@/lib/api";
 
-// Fallback content — matches the design defaults so the hero looks identical
-// before settings load (or if the request fails).
-const DEFAULTS = {
-  eyebrow: "Certified Refurbished",
-  headline: "Premium laptops & desktops,",
-  headlineAccent: "renewed.",
-  subtext:
-    "Enterprise-grade machines, fully tested and warrantied. GST invoice, 7-day returns, free delivery across India.",
-  ctaPrimaryText: "Shop Laptops",
-  ctaPrimaryLink: "/products/laptops",
-  ctaSecondaryText: "Explore Deals",
-  ctaSecondaryLink: "/flash-sale",
-  backgroundType: "gradient",
-  backgroundImage: "",
-  backgroundVideo: "https://videos.pexels.com/video-files/3252223/3252223-uhd_2560_1440_25fps.mp4",
-  overlayDarkness: 80,
-};
+/* Multi-slide hero carousel — slides come from admin Settings → Appearance → Hero
+   Carousel (the public settings route migrates the legacy single hero to slide[0]).
+   Each slide renders its own background (image / gradient / colour), per-slide
+   overlay darkness, text (only when a heading is set) and optional whole-slide
+   click. Auto-advances every 5s (pauses on hover/touch), with dots, arrows and
+   swipe. CSS-only transitions. */
 
-// Word-stagger timing (ms): eyebrow → words → subtext → buttons.
-const EYEBROW_DELAY = 200;
-const WORDS_START = 500;
-const WORD_STEP = 100;
+const GRADIENT = "linear-gradient(160deg, #1C1C1E 0%, #2D5016 60%, #1C1C1E 100%)";
+const AUTOPLAY_MS = 5000;
+const clamp = (n) => Math.max(0, Math.min(100, Number(n ?? 55)));
 
-/* Warm Tech hero — admin-editable via Settings → Appearance. Background can be
-   gradient / image / video; overlay darkness, text and CTAs all come from the
-   store settings with the defaults above as fallback. Animations unchanged. */
+const ArrowIcon = ({ dir }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }} aria-hidden="true">
+    <path d={dir === "left" ? "m15 6-6 6 6 6" : "m9 6 6 6-6 6"} />
+  </svg>
+);
+
 export default function Hero() {
-  const [hero, setHero] = useState(DEFAULTS);
-  const [showVideo, setShowVideo] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [showChevron, setShowChevron] = useState(true);
+  const [slides, setSlides] = useState([]);
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchX = useRef(null);
+  const router = useRouter();
 
-  // Pull admin-managed hero settings; only override fields that are non-empty.
   useEffect(() => {
     let alive = true;
     getPublicSettings()
-      .then((d) => {
-        if (process.env.NODE_ENV !== "production") {
-          // Diagnostic: confirm the hero settings the storefront receives.
-          // eslint-disable-next-line no-console
-          console.log("[Hero] /api/content/settings → hero:", d?.hero);
-        }
-        if (!alive || !d?.hero) return;
-        setHero((prev) => {
-          const next = { ...prev };
-          for (const [k, v] of Object.entries(d.hero)) {
-            if (v !== undefined && v !== null && v !== "") next[k] = v;
-          }
-          return next;
-        });
-      })
+      .then((d) => { if (alive) { setSlides(Array.isArray(d?.heroSlides) ? d.heroSlides : []); setIdx(0); } })
       .catch(() => {});
     return () => { alive = false; };
   }, []);
 
-  const isVideo = hero.backgroundType === "video" && hero.backgroundVideo;
-  const isImage = hero.backgroundType === "image" && hero.backgroundImage;
+  const go = (i) => { if (slides.length) setIdx((i + slides.length) % slides.length); };
 
+  // Auto-advance; re-arms on every idx change so manual jumps reset the timer.
   useEffect(() => {
-    if (!isVideo) return;
-    const desktop = window.matchMedia?.("(min-width: 768px)")?.matches;
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (desktop && !reduce) {
-      const t = setTimeout(() => setShowVideo(true), 600);
-      return () => clearTimeout(t);
-    }
-  }, [isVideo]);
-  useEffect(() => {
-    const t = setTimeout(() => setShowChevron(false), 3000);
+    if (paused || slides.length < 2) return;
+    const t = setTimeout(() => go(idx + 1), AUTOPLAY_MS);
     return () => clearTimeout(t);
-  }, []);
+  }, [idx, paused, slides.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Headline → staggered words; the accent word (amber) comes last.
-  const words = useMemo(() => {
-    const base = String(hero.headline || "")
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((t) => ({ t, accent: false }));
-    if (hero.headlineAccent) base.push({ t: hero.headlineAccent, accent: true });
-    return base;
-  }, [hero.headline, hero.headlineAccent]);
+  const onTouchStart = (e) => { touchX.current = e.touches[0].clientX; setPaused(true); };
+  const onTouchEnd = (e) => {
+    const start = touchX.current;
+    touchX.current = null;
+    setPaused(false);
+    if (start == null) return;
+    const dx = e.changedTouches[0].clientX - start;
+    if (Math.abs(dx) > 50) go(idx + (dx < 0 ? 1 : -1));
+  };
 
-  const lastWord = WORDS_START + (words.length - 1) * WORD_STEP;
-  const subtextDelay = lastWord + 400 + 200;
-  const buttonsDelay = subtextDelay + 400 + 100;
+  const clickSlide = (s) => {
+    if (s.clickEnabled && s.clickUrl && s.clickUrl !== "#") router.push(s.clickUrl);
+  };
 
-  // Overlay opacity from the 0–100 darkness slider.
-  const x = Math.max(0, Math.min(100, Number(hero.overlayDarkness ?? 80))) / 100;
-  const overlay = `linear-gradient(160deg, rgba(28,28,30,${x.toFixed(3)}) 0%, rgba(45,80,22,${(x * 0.4).toFixed(3)}) 55%, rgba(28,28,30,${(x * 0.9).toFixed(3)}) 100%)`;
+  const multi = slides.length > 1;
 
   return (
-    <section className="bg-warm-bg pb-16">
-      {/* Image background → lock the box to the poster's 1920:600 ratio (180px floor
-          on small screens) so the FULL poster shows, never cropped. Gradient/video
-          keep the tall 88vh text-hero. */}
-      <div className={`relative flex items-center overflow-hidden ${isImage ? "aspect-[1920/600] min-h-[180px]" : "min-h-[88vh]"}`}>
-        {/* 1 · Background — warm gradient base (always), image or video on top */}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(160deg, #1C1C1E 0%, #2D5016 60%, #1C1C1E 100%)" }} aria-hidden="true" />
-
-        {isImage && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={hero.backgroundImage} alt="" className="absolute inset-0 h-full w-full object-contain" aria-hidden="true" />
-        )}
-
-        {isVideo && showVideo && !failed && (
-          <video
-            autoPlay muted loop playsInline preload="none"
-            onError={() => setFailed(true)}
-            className="absolute inset-0 hidden h-full w-full object-cover md:block"
-            aria-hidden="true"
-          >
-            <source src={hero.backgroundVideo} type="video/mp4" />
-          </video>
-        )}
-
-        {/* 2 · Dark overlay (darkness-controlled) */}
-        <div className="absolute inset-0" style={{ background: overlay }} aria-hidden="true" />
-
-        {/* 3 · Content */}
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-6 md:px-20">
-          <div className="max-w-[600px]">
-            {hero.eyebrow && (
-              <p className="hero-fade text-[0.72rem] font-medium uppercase tracking-[0.14em] text-accent" style={{ animationDelay: `${EYEBROW_DELAY}ms` }}>
-                {hero.eyebrow}
-              </p>
-            )}
-            <h1 className="mt-4 font-display text-[2.25rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-white md:text-[3.75rem]">
-              {words.map((w, i) => (
-                <span
-                  key={`${w.t}-${i}`}
-                  className={`blur-up mr-3 inline-block last:mr-0 ${w.accent ? "text-accent" : ""}`}
-                  style={{ animationDelay: `${WORDS_START + i * WORD_STEP}ms` }}
+    <section className="bg-warm-bg pb-12">
+      {slides.length > 0 && (
+        <div
+          className="group relative w-full overflow-hidden"
+          aria-label="Featured"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
+          {/* sliding track */}
+          <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${idx * 100}%)` }}>
+            {slides.map((s) => {
+              const isImg = s.backgroundType === "image" && s.backgroundImage;
+              const fill = s.backgroundType === "color" ? (s.backgroundColor || "#1C1C1E") : isImg ? "#13150f" : GRADIENT;
+              const x = clamp(s.overlayDarkness) / 100;
+              const overlay = `linear-gradient(160deg, rgba(28,28,30,${x}) 0%, rgba(45,80,22,${x * 0.4}) 55%, rgba(28,28,30,${x * 0.9}) 100%)`;
+              const clickable = s.clickEnabled && s.clickUrl && s.clickUrl !== "#";
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => clickSlide(s)}
+                  className={`relative aspect-[16/5] min-h-[200px] w-full shrink-0 overflow-hidden ${clickable ? "cursor-pointer" : ""}`}
+                  style={{ background: fill }}
                 >
-                  {w.t}
-                </span>
-              ))}
-            </h1>
-            {hero.subtext && (
-              <p className="hero-rise mt-6 max-w-[460px] text-[1.05rem] leading-relaxed text-white/[0.68]" style={{ animationDelay: `${subtextDelay}ms` }}>
-                {hero.subtext}
-              </p>
-            )}
-            <div className="hero-rise mt-9 flex flex-wrap items-center gap-3" style={{ animationDelay: `${buttonsDelay}ms` }}>
-              {hero.ctaPrimaryText && (
-                <Link href={hero.ctaPrimaryLink || "/"} className="rounded-lg bg-brand px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-brand-dark">
-                  {hero.ctaPrimaryText}
-                </Link>
-              )}
-              {hero.ctaSecondaryText && (
-                <Link href={hero.ctaSecondaryLink || "/"} className="rounded-lg border-[1.5px] border-white/40 px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-white/[0.08]">
-                  {hero.ctaSecondaryText}
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
+                  {/* full poster — object-contain so the image is never cropped */}
+                  {isImg && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.backgroundImage} alt="" className="absolute inset-0 h-full w-full object-contain" aria-hidden="true" />
+                  )}
+                  <div className="absolute inset-0" style={{ background: overlay }} aria-hidden="true" />
 
-        {/* Scroll chevron */}
-        {showChevron && (
-          <div className="chev-bounce absolute bottom-6 left-1/2 z-10 -translate-x-1/2 text-white/45" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  {/* text overlay — only when a heading is set */}
+                  {s.heading && (
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="mx-auto w-full max-w-7xl px-6 md:px-20">
+                        <div className="max-w-[600px]">
+                          <h2 className="font-display text-[1.6rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-white sm:text-[2rem] md:text-[3.25rem]">{s.heading}</h2>
+                          {s.subheading && <p className="mt-3 max-w-[460px] text-[0.9rem] leading-relaxed text-white/[0.72] sm:text-[1rem] md:mt-4 md:text-[1.05rem]">{s.subheading}</p>}
+                          {(s.ctaText || s.ctaSecondaryText) && (
+                            <div className="mt-4 flex flex-wrap items-center gap-3 md:mt-7">
+                              {s.ctaText && (
+                                <Link href={s.ctaLink || "/"} onClick={(e) => e.stopPropagation()} className="rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-dark md:px-7 md:py-3.5 md:text-base">{s.ctaText}</Link>
+                              )}
+                              {s.ctaSecondaryText && (
+                                <Link href={s.ctaSecondaryLink || "/"} onClick={(e) => e.stopPropagation()} className="rounded-lg border-[1.5px] border-white/40 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/[0.08] md:px-7 md:py-3.5 md:text-base">{s.ctaSecondaryText}</Link>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+
+          {/* arrows — desktop, only with >1 slide */}
+          {multi && (
+            <>
+              <button aria-label="Previous slide" onClick={(e) => { e.stopPropagation(); go(idx - 1); }} className="absolute left-4 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30 md:flex">
+                <ArrowIcon dir="left" />
+              </button>
+              <button aria-label="Next slide" onClick={(e) => { e.stopPropagation(); go(idx + 1); }} className="absolute right-4 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30 md:flex">
+                <ArrowIcon dir="right" />
+              </button>
+            </>
+          )}
+
+          {/* dot indicators */}
+          {multi && (
+            <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2">
+              {slides.map((s, i) => (
+                <button
+                  key={s.id}
+                  aria-label={`Go to slide ${i + 1}`}
+                  aria-current={i === idx}
+                  onClick={(e) => { e.stopPropagation(); go(i); }}
+                  className={`h-2.5 rounded-full transition-all duration-300 ${i === idx ? "w-7 bg-accent" : "w-2.5 bg-white/50 hover:bg-white/80"}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Trust badges */}
       <div className="mx-auto mt-12 flex max-w-7xl flex-wrap items-center justify-center gap-3 px-4 sm:px-6 lg:px-8">

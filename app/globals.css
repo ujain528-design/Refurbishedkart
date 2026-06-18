@@ -12,7 +12,7 @@
     --c-brand-softer: 245 242 238;/* #F5F2EE surface-alt */
     --c-brand-accent: 90 143 60;/* #5A8F3C light green highlight */
     --c-ink: 28 28 30;          /* #1C1C1E near-black */
-    --c-offwhite: 250 248 245;  /* #FAF8F5 warm cream */
+    --c-offwhite: 255 255 255;  /* #FFFFFF base background (was #FAF8F5 warm cream) */
     /* Category color identity (storefront only — see lib/categoryColors.js) */
     --cat-laptops: #2d5016;      --cat-laptops-light: #edf2e8;
     --cat-desktops: #1e4a6d;     --cat-desktops-light: #e6eef4;
@@ -37,7 +37,7 @@
   }
   body {
     @apply antialiased;
-    background: #faf8f5;       /* warm cream */
+    background: #ffffff;       /* base background (was #faf8f5 warm cream) */
     color: #2c2c2e;            /* warm body text */
     font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui, -apple-system,
       "Segoe UI", sans-serif;

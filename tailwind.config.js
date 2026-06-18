@@ -46,7 +46,7 @@ module.exports = {
         // New named storefront tokens (Warm Tech palette)
         primary: { DEFAULT: "#2D5016", light: "#EDF2E8" },
         accent: { DEFAULT: "#E8A020", light: "#FDF3DC" },
-        warm: { bg: "#FAF8F5", surface: "#FFFFFF", alt: "#F5F2EE", border: "#E8E4DF" },
+        warm: { bg: "#FFFFFF", surface: "#FFFFFF", alt: "#F5F2EE", border: "#E8E4DF" },
         dark: "#1C1C1E",
         muted: "#8A8A8E",
       },
