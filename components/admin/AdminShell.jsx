@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { LogoMark, MenuIcon, CloseIcon } from "@/components/Icons";
+import { MenuIcon, CloseIcon } from "@/components/Icons";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -78,9 +78,9 @@ export default function AdminShell({ children }) {
     <div className="admin-shell min-h-screen bg-neutral-50">
       {/* desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] overflow-y-auto bg-[#1A1A1A] lg:block">
-        <Link href="/admin" className="flex items-center gap-2 px-5 py-5">
-          <LogoMark className="h-7 w-7 text-brand-accent" />
-          <span className="text-sm font-extrabold uppercase tracking-wide text-white">RefurbishedKart</span>
+        <Link href="/admin" className="flex items-center px-5 py-5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo_rk.webp" alt="RefurbishedKart" className="h-auto w-40 max-w-full" />
         </Link>
         <p className="px-5 text-[11px] font-semibold uppercase tracking-wider text-white/30">Admin Panel</p>
         <SidebarLinks />

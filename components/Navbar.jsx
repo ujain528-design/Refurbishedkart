@@ -41,14 +41,13 @@ export default function Navbar() {
         <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
           {/* Logo — two-weight wordmark */}
           <Link href="/" className="flex shrink-0 items-center" aria-label="RefurbishedKart home">
-            {/* Brand logo. Source file has a white background → mix-blend-multiply drops it
-                out against the cream navbar. */}
+            {/* Brand logo — transparent background, so it sits cleanly on any navbar
+                state (white or scrolled) with no blend trick and nothing cropped. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo_rk.webp"
               alt="RefurbishedKart"
               className="h-8 w-auto lg:h-10"
-              style={{ mixBlendMode: "multiply" }}
             />
           </Link>
 

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FOOTER_COLS } from "@/lib/data";
 import NewsletterForm from "@/components/NewsletterForm";
-import { LogoMark } from "@/components/Icons";
 import { getFooterInfo } from "@/lib/api";
 import { paletteAt } from "@/lib/categoryColors";
 
@@ -41,12 +40,11 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:grid-cols-[1.4fr_repeat(4,1fr)] lg:gap-12">
           {/* Brand blurb — full width on mobile, first column on desktop */}
           <div className="col-span-2 md:col-span-1">
-            <p className="flex items-center gap-2.5 text-lg font-extrabold uppercase tracking-wide">
-              <LogoMark className="h-8 w-8 text-brand-accent" />
-              <span>
-                Refurbished <span className="text-brand-accent">Kart</span>
-              </span>
-            </p>
+            <Link href="/" className="inline-flex items-center" aria-label="RefurbishedKart home">
+              {/* Brand logo — same transparent asset as the navbar; green reads on the dark footer. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo_rk.webp" alt="RefurbishedKart" className="h-auto w-44 max-w-full" />
+            </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/50">
               Certified refurbished laptops, desktops and enterprise hardware —
               tested, warrantied and delivered across India.
