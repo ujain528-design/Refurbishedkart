@@ -129,17 +129,22 @@ export default function Settings() {
         {tab === "Delivery" && (
           <div className="space-y-5 rounded-card border border-black/5 bg-white p-5 shadow-card">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Free Delivery Above (₹)"><input type="number" className={inputCls} value={s.freeDeliveryAbove ?? 7999} onChange={(e) => set("freeDeliveryAbove", Number(e.target.value))} /></Field>
-              <Field label="Delivery Charge (₹)"><input type="number" className={inputCls} value={s.deliveryFee ?? 199} onChange={(e) => set("deliveryFee", Number(e.target.value))} /></Field>
-              <Field label="Est. Delivery Days (min)"><input type="number" className={inputCls} value={s.deliveryDaysMin ?? 3} onChange={(e) => set("deliveryDaysMin", Number(e.target.value))} /></Field>
-              <Field label="Est. Delivery Days (max)"><input type="number" className={inputCls} value={s.deliveryDaysMax ?? 5} onChange={(e) => set("deliveryDaysMax", Number(e.target.value))} /></Field>
+              {/* Values are coerced through Number() so a stale string like "0199"
+                  saved in the DB renders as 199 (no leading zeros). */}
+              <Field label="Free Delivery Above (₹)"><input type="number" min={0} step={1} className={inputCls} value={Number(s.freeDeliveryAbove ?? 7999)} onChange={(e) => set("freeDeliveryAbove", Number(e.target.value))} /></Field>
+              <Field label="Delivery Charge (₹)"><input type="number" min={0} step={1} className={inputCls} value={Number(s.deliveryFee ?? 199)} onChange={(e) => set("deliveryFee", Number(e.target.value))} /></Field>
+              <Field label="Est. Delivery Days (min)"><input type="number" min={0} step={1} className={inputCls} value={Number(s.deliveryDaysMin ?? 3)} onChange={(e) => set("deliveryDaysMin", Number(e.target.value))} /></Field>
+              <Field label="Est. Delivery Days (max)"><input type="number" min={0} step={1} className={inputCls} value={Number(s.deliveryDaysMax ?? 5)} onChange={(e) => set("deliveryDaysMax", Number(e.target.value))} /></Field>
             </div>
             <div className="rounded-lg bg-neutral-50 p-4">
               <div className="flex items-center justify-between"><span className="text-sm font-semibold text-ink">Cash on Delivery</span><Toggle on={s.codEnabled !== false} onChange={(v) => set("codEnabled", v)} /></div>
               <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                <Field label="COD Max Order Value (₹)"><input type="number" className={inputCls} value={s.codLimit ?? 29999} onChange={(e) => set("codLimit", Number(e.target.value))} disabled={s.codEnabled === false} /></Field>
-                <Field label="COD Advance Amount (₹)"><input type="number" className={inputCls} value={s.codAdvance ?? 500} onChange={(e) => set("codAdvance", Number(e.target.value))} disabled={s.codEnabled === false} /></Field>
+                <Field label="COD Max Order Value (₹)"><input type="number" min={0} step={1} className={inputCls} value={Number(s.codLimit ?? 29999)} onChange={(e) => set("codLimit", Number(e.target.value))} disabled={s.codEnabled === false} /></Field>
+                {/* COD advance is a fixed 10% of order value (computed at checkout),
+                    not an editable rupee amount — shown read-only for clarity. */}
+                <Field label="COD Advance (%)"><input type="number" readOnly disabled value={10} className={`${inputCls} cursor-not-allowed bg-neutral-100 text-neutral-500`} title="Fixed at 10% of the order value, calculated automatically at checkout." /></Field>
               </div>
+              <p className="mt-2 text-[12px] text-neutral-400">COD advance is fixed at 10% of the order value (plus shipping) and is calculated automatically at checkout — it isn&apos;t a fixed rupee amount.</p>
             </div>
             <div><Label>Serviceable Pincodes (one per line — empty = all India)</Label><textarea rows={4} className={inputCls} value={s.serviceablePincodes || ""} onChange={(e) => set("serviceablePincodes", e.target.value)} placeholder={"560001\n110001"} /></div>
           </div>
