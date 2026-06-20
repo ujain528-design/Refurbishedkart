@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { formatINR } from "@/lib/data";
 import { calculatePrice, getPublicSettings } from "@/lib/api";
 import { BrokenDeviceIcon, CartIcon } from "@/components/Icons";
+import { randomCartQuote } from "@/components/LoadingScreen";
 
 const FREE_DELIVERY_ABOVE = 7999;
 const DELIVERY_FEE = 199;
@@ -54,6 +55,7 @@ export default function CartView() {
   const [applying, setApplying] = useState(false);
   const [stockIssues, setStockIssues] = useState([]); // names whose real stock < requested
   const [rules, setRules] = useState({ freeDeliveryAbove: FREE_DELIVERY_ABOVE, deliveryFee: DELIVERY_FEE });
+  const [emptyQuote] = useState(randomCartQuote); // nudging line for the empty state
 
   // Delivery thresholds from store settings (admin-managed).
   useEffect(() => {
@@ -90,6 +92,7 @@ export default function CartView() {
         </span>
         <h1 className="mt-6 text-xl lg:text-2xl font-extrabold tracking-tight text-ink">Your cart is empty</h1>
         <p className="mt-2 text-sm text-neutral-500">Certified refurbished tech is a few clicks away.</p>
+        <p className="mt-3 max-w-sm text-center italic" style={{ color: "#2e7d32", fontSize: "15px" }}>{emptyQuote}</p>
         <Link
           href="/products/laptops"
           className="mt-7 rounded-full bg-brand px-7 py-2.5 lg:py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark"

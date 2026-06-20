@@ -8,6 +8,7 @@ import ListingClient from "@/components/ListingClient";
 import ProductCard from "@/components/ProductCard";
 import { SkeletonGrid, ErrorState } from "@/components/ui/States";
 import { searchProductsApi, getProducts } from "@/lib/api";
+import { randomSearchQuote } from "@/components/LoadingScreen";
 
 export default function SearchView() {
   const params = useSearchParams();
@@ -16,6 +17,7 @@ export default function SearchView() {
   const [status, setStatus] = useState("idle"); // idle | loading | ready | error
   const [results, setResults] = useState([]);
   const [recommended, setRecommended] = useState([]);
+  const [noResultQuote] = useState(randomSearchQuote); // helpful line on empty results
 
   const run = useCallback(() => {
     if (!q) { setStatus("idle"); return; }
@@ -60,7 +62,8 @@ export default function SearchView() {
         <div className="mt-6 lg:mt-10">
           <div className="rounded-card bg-neutral-50 py-8 text-center lg:py-16">
             <p className="text-base lg:text-lg font-bold text-ink">No results for “{q}”</p>
-            <p className="mt-1 text-sm text-neutral-500">Try a broader term, or browse a category:</p>
+            <p className="mx-auto mt-2 max-w-sm text-center italic" style={{ color: "#2e7d32", fontSize: "15px" }}>{noResultQuote}</p>
+            <p className="mt-3 text-sm text-neutral-500">Try a broader term, or browse a category:</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {NAV_CATEGORIES.map((c) => (
                 <Link key={c.name} href={`/products/${c.name.toLowerCase()}`} className="rounded-full bg-brand-soft px-4 py-2 text-[13px] font-semibold text-brand hover:bg-brand hover:text-white">

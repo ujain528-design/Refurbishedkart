@@ -7,11 +7,13 @@ import { formatINR } from "@/lib/data";
 import { getOrder } from "@/lib/api";
 import { BrokenDeviceIcon } from "@/components/Icons";
 import { ErrorState } from "@/components/ui/States";
+import { randomConfirmQuote } from "@/components/LoadingScreen";
 
 export default function OrderConfirmation() {
   const params = useSearchParams();
   const router = useRouter();
   const orderId = params.get("orderId");
+  const [quote] = useState(randomConfirmQuote); // celebratory line, one per page load
 
   const [status, setStatus] = useState("loading"); // loading | ready | error
   const [order, setOrder] = useState(null);
@@ -49,6 +51,7 @@ export default function OrderConfirmation() {
         </span>
         <h1 className="mt-6 text-2xl lg:text-3xl font-extrabold tracking-tight text-ink">Order Placed Successfully!</h1>
         <p className="mt-2 text-sm text-neutral-500">A confirmation has been sent to your email.</p>
+        <p className="mt-3 text-center italic" style={{ color: "#2e7d32", fontSize: "15px" }}>{quote}</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           <span className="rounded-full bg-brand-soft px-4 py-1.5 text-sm font-bold text-brand">Order ID: #{order.id}</span>
           {order.status && <span className="rounded-full bg-neutral-100 px-4 py-1.5 text-sm font-bold text-neutral-600">{order.status}</span>}
