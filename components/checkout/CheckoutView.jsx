@@ -21,10 +21,10 @@ function loadRazorpay() {
 import { formatINR, INDIAN_STATES, SELLER_STATE, computeLineTaxes } from "@/lib/data";
 import { BrokenDeviceIcon, LockIcon, ShieldIcon, ReturnIcon, ClipboardIcon, ChevronDown } from "@/components/Icons";
 
-const FREE_DELIVERY_ABOVE = 999;
-const DELIVERY_FEE = 99;
-const COD_LIMIT = 29999; // COD available up to this order total
-const COD_ADVANCE = 500; // advance paid now to confirm a COD order
+const FREE_DELIVERY_ABOVE = 7999;
+const DELIVERY_FEE = 199;
+const COD_LIMIT = 29999;    // COD available up to this order total (inclusive)
+const COD_UPFRONT_PCT = 0.1; // 10% charged upfront, 90% collected on delivery
 
 const inputCls =
   "w-full rounded-lg border border-black/10 px-3.5 py-2.5 text-sm text-ink placeholder:text-neutral-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15";
@@ -117,6 +117,8 @@ export default function CheckoutView() {
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState("");
   const [pendingOrder, setPendingOrder] = useState(null); // created order awaiting payment (for retry)
+  const [codModalOpen, setCodModalOpen] = useState(false); // COD terms consent modal
+  const [codAgreed, setCodAgreed] = useState(false);       // consent checkbox
   const [rules, setRules] = useState({ freeDeliveryAbove: FREE_DELIVERY_ABOVE, deliveryFee: DELIVERY_FEE, gstRate: 18 });
 
   useEffect(() => {
@@ -193,7 +195,10 @@ export default function CheckoutView() {
     );
   }
 
-  const delivery = subtotal > rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
+  // Shipping is free at/above the threshold on the PRODUCT total (after discount);
+  // below it a flat fee applies. ₹7,999 exactly ships free (inclusive).
+  const productTotal = subtotal - discount;
+  const delivery = productTotal >= rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
   const interState = shipState !== SELLER_STATE;
   // GST is a flat store-wide rate (default 18%), identical basis to the invoice
   // (computeLineTaxes). Inter-state → IGST; intra-state → CGST + SGST (half each).
@@ -204,11 +209,14 @@ export default function CheckoutView() {
   const { gst } = computeLineTaxes(taxLines, discount, interState, storeGst);
   const uniformRate = storeGst;
   const halfRate = +(storeGst / 2).toFixed(2);
-  const grandTotal = subtotal - discount + delivery;
+  const grandTotal = productTotal + delivery;
   const codAllowed = grandTotal <= COD_LIMIT;
   const isCod = pay === "cod" && codAllowed;
-  const codRemaining = grandTotal - COD_ADVANCE;
-  const baseLabel = isCod ? `Pay ${formatINR(COD_ADVANCE)} & Confirm Order` : `Pay ${formatINR(grandTotal)} & Place Order`;
+  // COD upfront = 10% of the product total (rounded up) PLUS the full shipping fee;
+  // the balance is collected on delivery.
+  const codUpfront = Math.ceil(productTotal * COD_UPFRONT_PCT) + delivery;
+  const codRemaining = grandTotal - codUpfront;
+  const baseLabel = isCod ? "Place Order with COD" : `Pay ${formatINR(grandTotal)} & Place Order`;
   // Main CTA is always "Place Order" — retry is its own button (shown only after a
   // genuine payment failure, see canRetry).
   const payLabel = baseLabel;
@@ -223,7 +231,9 @@ export default function CheckoutView() {
     setPlacing(true);
     setOrderError("");
     try {
-      const payAmount = isCod ? COD_ADVANCE : grandTotal;
+      // COD pays the 10% upfront (authoritative value comes back on the created order);
+      // online pays the full total.
+      const payAmount = order.paymentMethod === "COD" ? (order.codUpfront ?? codUpfront) : grandTotal;
       const created = await createRazorpayOrder(order.id, payAmount);
       const ok = await loadRazorpay();
       // Make every "gateway didn't open" cause VISIBLE instead of a silent no-op.
@@ -327,6 +337,15 @@ export default function CheckoutView() {
     }
   };
 
+  // Place-order click gate: COD requires the customer to accept the COD terms in a
+  // consent modal first. Online orders go straight through.
+  const onPlaceClick = () => {
+    if (placing) return;
+    if (isCod) { setCodAgreed(false); setCodModalOpen(true); return; }
+    placeOrder();
+  };
+  const confirmCod = () => { setCodModalOpen(false); placeOrder(); };
+
   const Radio = ({ id, label, disabled, children }) => (
     <div
       className={`rounded-card border transition-colors ${
@@ -379,8 +398,8 @@ export default function CheckoutView() {
         {/* 1. Subtotal */}
         <div className="flex justify-between"><dt className="text-neutral-500">Subtotal</dt><dd className="font-semibold text-ink">{formatINR(subtotal)}</dd></div>
 
-        {/* 2. Delivery */}
-        <div className="flex justify-between"><dt className="text-neutral-500">Delivery</dt><dd className="font-semibold text-ink">{delivery === 0 ? <span className="text-brand">Free</span> : formatINR(delivery)}</dd></div>
+        {/* 2. Shipping */}
+        <div className="flex justify-between"><dt className="text-neutral-500">Shipping</dt><dd className="font-semibold text-ink">{delivery === 0 ? <span className="text-brand">FREE</span> : formatINR(delivery)}</dd></div>
 
         {/* 3. Coupon discount — with remove (carried over from cart) */}
         {coupon && (
@@ -426,8 +445,10 @@ export default function CheckoutView() {
       {/* COD advance split — after Grand Total, only when COD selected */}
       {isCod && (
         <div className="space-y-2 rounded-lg bg-brand-softer px-4 py-3 text-sm">
-          <div className="flex justify-between"><span className="text-neutral-600">Pay Now (advance)</span><span className="font-semibold text-brand">{formatINR(COD_ADVANCE)}</span></div>
-          <div className="flex justify-between"><span className="text-neutral-600">Pay at Delivery</span><span className="font-semibold text-ink">{formatINR(codRemaining)}</span></div>
+          <div className="flex justify-between"><span className="text-neutral-600">Shipping</span><span className="font-semibold text-ink">{delivery === 0 ? <span className="text-brand">FREE</span> : formatINR(delivery)}</span></div>
+          <div className="flex justify-between"><span className="text-neutral-600">Pay now (10%{delivery ? " + shipping" : ""})</span><span className="font-semibold text-brand">{formatINR(codUpfront)}</span></div>
+          <div className="flex justify-between"><span className="text-neutral-600">Pay on delivery</span><span className="font-semibold text-ink">{formatINR(codRemaining)}</span></div>
+          <div className="flex justify-between border-t border-brand/15 pt-2"><span className="font-semibold text-ink">Total</span><span className="font-bold text-ink">{formatINR(grandTotal)}</span></div>
         </div>
       )}
 
@@ -453,7 +474,7 @@ export default function CheckoutView() {
         </button>
       )}
       <button
-        onClick={placeOrder}
+        onClick={onPlaceClick}
         disabled={placing}
         className="flex w-full items-center justify-center gap-2 rounded-full bg-brand py-2.5 lg:py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
       >
@@ -598,13 +619,13 @@ export default function CheckoutView() {
                       <div className="rounded-lg border border-brand/20 bg-brand-softer p-4 text-[13px] leading-relaxed text-ink">
                         <p className="font-bold text-brand">Cash on Delivery selected</p>
                         <p className="mt-1">
-                          Pay {formatINR(COD_ADVANCE)} now to confirm your order. Remaining{" "}
-                          <span className="font-bold">{formatINR(codRemaining)}</span> will be collected at delivery by our courier partner.
+                          Pay {formatINR(codUpfront)} now (10%{delivery ? " + shipping" : ""}) to confirm your order. The remaining{" "}
+                          <span className="font-bold">{formatINR(codRemaining)}</span> is collected at delivery by our courier partner.
                         </p>
                       </div>
                     ) : (
                       <p className="text-[13px] font-medium text-neutral-500">
-                        COD available on orders up to {formatINR(COD_LIMIT)} only
+                        Not available for orders above {formatINR(COD_LIMIT)}
                       </p>
                     )
                   )}
@@ -632,10 +653,75 @@ export default function CheckoutView() {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-black/5 bg-white p-3 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] lg:hidden"
         style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
       >
-        <button onClick={placeOrder} disabled={placing} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-bold text-white disabled:opacity-50">
+        <button onClick={onPlaceClick} disabled={placing} className="flex w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-bold text-white disabled:opacity-50">
           <LockIcon style={{ width: 16, height: 16 }} /> {placing ? "Placing order…" : payLabel}
         </button>
       </div>
+
+      {/* ── COD terms consent modal (Part F) ── */}
+      {codModalOpen && (
+        <div
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-ink/50 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cod-modal-title"
+          onClick={() => setCodModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-100 text-2xl text-amber-600" aria-hidden="true">⚠</span>
+              <h3 id="cod-modal-title" className="mt-3 text-base font-bold text-ink">Cash on Delivery — Please Note</h3>
+            </div>
+
+            <div className="mt-4 space-y-3 text-[13px] leading-relaxed text-neutral-600">
+              <p>By placing a COD order, you agree to the following:</p>
+              <ul className="space-y-2">
+                <li className="flex gap-2">
+                  <span className="text-amber-500" aria-hidden="true">•</span>
+                  <span>An upfront amount of <span className="font-bold text-ink">{formatINR(codUpfront)}</span> (10% of order value{delivery ? " + shipping" : ""}) is charged now and is <span className="font-semibold text-ink">non-refundable</span> in case of non-delivery.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-amber-500" aria-hidden="true">•</span>
+                  <span>
+                    In case of failed delivery due to a wrong address, customer unavailability, or refusal to accept delivery, both-side courier charges will be deducted from your <span className="font-bold text-ink">{formatINR(codUpfront)}</span> upfront payment. Any remaining amount will be refunded to your original payment method.
+                  </span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-amber-500" aria-hidden="true">•</span>
+                  <span>Please ensure your delivery address and phone number are correct before confirming.</span>
+                </li>
+              </ul>
+            </div>
+
+            <label className="mt-4 flex items-start gap-3 rounded-lg border border-black/10 bg-neutral-50 p-3 text-[13px] font-medium text-ink">
+              <input
+                type="checkbox"
+                checked={codAgreed}
+                onChange={(e) => setCodAgreed(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 rounded accent-brand"
+              />
+              <span>I understand and agree to the COD terms</span>
+            </label>
+
+            <button
+              onClick={confirmCod}
+              disabled={!codAgreed || placing}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-brand py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {placing ? "Placing order…" : "Confirm & Place COD Order"}
+            </button>
+            <button
+              onClick={() => setCodModalOpen(false)}
+              className="mt-2 w-full py-2 text-center text-[13px] font-semibold text-neutral-500 hover:text-ink"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

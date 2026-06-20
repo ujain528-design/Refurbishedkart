@@ -13,6 +13,7 @@ const ROUTE_MAP = {
   Servers: "/products/servers", Workstations: "/products/workstations",
   "About Us": "/about", About: "/about", "Contact Us": "/contact", Contact: "/contact",
   "Returns & Refunds": "/return-policy", "Return Policy": "/return-policy",
+  "Shipping Policy": "/shipping", Shipping: "/shipping",
   "Warranty Claim": "/warranty", Warranty: "/warranty",
   "Privacy Policy": "/privacy-policy", "Terms of Service": "/terms", Terms: "/terms",
 };

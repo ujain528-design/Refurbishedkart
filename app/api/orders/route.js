@@ -43,21 +43,33 @@ export async function POST(req) {
       }
     }
     const { freeDeliveryAbove, deliveryFee } = deliveryRules(settings);
-    const delivery = subtotal > freeDeliveryAbove ? 0 : deliveryFee;
-    const total = subtotal - discount + delivery;
+    // Shipping is free at/above the threshold on the PRODUCT total (after discount);
+    // "₹7,999 and above" ships free → inclusive (>=).
+    const productTotal = subtotal - discount;
+    const delivery = productTotal >= freeDeliveryAbove ? 0 : deliveryFee;
+    const total = productTotal + delivery;
     // Per-line GST at each product's rate; inter-state derived from the ship-to
     // state (CGST+SGST intra-Karnataka, IGST otherwise) — same basis the invoice uses.
     const interState = (shippingAddress?.state || SELLER_STATE) !== SELLER_STATE;
     const gst = computeLineTaxes(lines, discount, interState).gst;
 
+    // Cash on Delivery: upfront = 10% of the product total (rounded up) PLUS the
+    // full shipping fee, charged via Razorpay now; the balance is paid on delivery.
+    const isCod = String(paymentMethod || "").toUpperCase() === "COD";
+    const codUpfront = isCod ? Math.ceil(productTotal * 0.1) + delivery : undefined;
+    const codRemaining = isCod ? total - codUpfront : undefined;
+
     const orderId = await nextOrderId();
     const order = await Order.create({
-      orderId, userId: auth.sub, lines, subtotal, discount, delivery, gst, total,
+      orderId, userId: auth.sub, lines, subtotal, discount, delivery, shippingCharge: delivery, gst, total,
       couponCode: appliedCode, paymentMethod: paymentMethod || "UPI",
       shippingAddress: shippingAddress || null, buyerGstin: buyerGstin || null,
       customerName: shippingAddress?.name || auth.name || null,
-      // Created unconfirmed; payment webhook/verification flips it to Confirmed.
-      // The customer has 30 minutes to pay before auto-cancellation.
+      // COD bookkeeping (only set for COD orders).
+      ...(isCod ? { codUpfront, codRemaining, codStatus: "pending" } : {}),
+      // Created unconfirmed; payment webhook/verification flips it to Confirmed
+      // (online) or cod_pending (COD, after the 10% advance). The customer has
+      // 30 minutes to pay the amount due before auto-cancellation.
       status: "payment_pending",
       paymentDeadline: new Date(Date.now() + 30 * 60 * 1000),
     });

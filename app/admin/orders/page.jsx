@@ -15,6 +15,7 @@ const FILTERS = [
   { label: "All", value: null },
   { label: "Confirmed", value: "Confirmed" },
   { label: "Pending Payment", value: "payment_pending" },
+  { label: "COD", value: "cod_pending" },
   { label: "Cancelled", value: "Cancelled" },
   { label: "Shipped", value: "Shipped" },
   { label: "Delivered", value: "Delivered" },
@@ -42,6 +43,8 @@ function StatusBadge({ order, now }) {
     const failed = order.cancellationReason === "payment_failed";
     return <span className={`${badgeCls} bg-red-100 text-red-700`}>{failed ? "Payment Failed" : "Cancelled"}</span>;
   }
+  if (s === "cod_pending") return <span className={`${badgeCls} bg-amber-100 text-amber-700`}>COD · Awaiting Delivery</span>;
+  if (s === "cod_failed") return <span className={`${badgeCls} bg-red-100 text-red-700`}>Failed Delivery</span>;
   const TONE = {
     Confirmed: "bg-green-100 text-green-700",
     Shipped: "bg-blue-100 text-blue-700",
@@ -98,6 +101,18 @@ export default function Orders() {
     try {
       if (form.status !== view.status) await adminUpdateOrderStatus(view.id, form.status);
       await adminUpdateTracking(view.id, { courier: form.courier, trackingNumber: form.trackingNumber });
+      toast("Order updated");
+      setView(null);
+      load();
+    } catch (e) { toast(e.message || "Update failed"); }
+    finally { setSaving(false); }
+  };
+
+  // Direct status change (used by the COD delivery action buttons).
+  const updateStatus = async (status) => {
+    setSaving(true);
+    try {
+      await adminUpdateOrderStatus(view.id, status);
       toast("Order updated");
       setView(null);
       load();
@@ -245,10 +260,33 @@ export default function Orders() {
                 : view.gst?.total != null
                 ? (<><span className="text-neutral-500">CGST + SGST (incl)</span><span className="text-right">{formatINR(view.gst.cgst)} + {formatINR(view.gst.sgst)}</span></>)
                 : null}
-              {view.delivery != null && (<><span className="text-neutral-500">Delivery</span><span className="text-right">{view.delivery ? formatINR(view.delivery) : "Free"}</span></>)}
-              <span className="font-bold text-ink">Total Paid</span><span className="text-right font-bold text-brand">{formatINR(view.total)}</span>
+              {(view.shippingCharge ?? view.delivery) != null && (<><span className="text-neutral-500">Shipping</span><span className="text-right">{(view.shippingCharge ?? view.delivery) ? formatINR(view.shippingCharge ?? view.delivery) : "FREE"}</span></>)}
+              <span className="font-bold text-ink">Order Total</span><span className="text-right font-bold text-brand">{formatINR(view.total)}</span>
             </div>
-            {isFulfillable(view.status) ? (
+            {view.paymentMethod === "COD" && (view.codUpfront != null || view.codRemaining != null) && (
+              <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <span className="col-span-2 text-[11px] font-bold uppercase tracking-wide text-amber-700">Cash on Delivery</span>
+                <span className="text-neutral-600">Upfront paid (10%)</span><span className="text-right font-semibold text-ink">{formatINR(view.codUpfront)}</span>
+                <span className="text-neutral-600">Remaining (on delivery)</span><span className="text-right font-semibold text-ink">{formatINR(view.codRemaining)}</span>
+              </div>
+            )}
+            {view.status === "cod_pending" ? (
+              <div className="space-y-3">
+                <p className="text-[13px] font-medium text-neutral-600">
+                  This COD order is awaiting delivery. Once the courier delivers and collects the balance, mark it delivered. If delivery fails, mark it failed to trigger the courier-deduction process.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => updateStatus("Confirmed")} disabled={saving} className={btnPrimary}>{saving ? "Saving…" : "Mark as Delivered"}</button>
+                  <button onClick={() => updateStatus("cod_failed")} disabled={saving} className="rounded-full border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50">
+                    Mark as Failed Delivery
+                  </button>
+                </div>
+              </div>
+            ) : view.status === "cod_failed" ? (
+              <div className="rounded-lg border border-dashed border-red-200 bg-red-50 p-3 text-[13px] font-medium text-red-600">
+                COD delivery failed. Both-side courier charges are deducted from the upfront amount; refund any balance to the customer manually.
+              </div>
+            ) : isFulfillable(view.status) ? (
               <>
                 <Field label="Update Status">
                   <select className={inputCls} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>

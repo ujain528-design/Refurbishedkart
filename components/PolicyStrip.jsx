@@ -14,7 +14,7 @@ const POLICY_HREF = {
   return: "/return-policy",
   warranty: "/warranty",
   secure: "/privacy-policy",
-  delivery: "/about",
+  delivery: "/shipping",
 };
 
 export default function PolicyStrip() {

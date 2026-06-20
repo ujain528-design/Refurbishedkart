@@ -76,14 +76,18 @@ export async function POST(request) {
     }
 
     if (event === "payment.captured" || event === "order.paid") {
-      // Idempotent: skip if already confirmed (e.g. client verify ran first).
-      if (order.status !== "Confirmed") {
-        order.status = "Confirmed";
+      // COD pays only the 10% advance here → order becomes "cod_pending" (awaiting
+      // delivery), not "Confirmed". Online orders confirm outright.
+      const isCod = order.paymentMethod === "COD";
+      const targetStatus = isCod ? "cod_pending" : "Confirmed";
+      // Idempotent: skip if already at its post-payment status (e.g. client verify ran first).
+      if (order.status !== targetStatus && order.status !== "Confirmed") {
+        order.status = targetStatus;
         order.razorpayPaymentId = payment?.id || order.razorpayPaymentId;
         order.paymentId = payment?.id || order.paymentId;
         order.razorpaySignature = signature;
         order.paidAt = new Date();
-        if (order.paymentMethod === "COD") order.codAdvancePaid = true;
+        if (isCod) order.codAdvancePaid = true;
         else if (payment?.method) order.paymentMethod = String(payment.method).toUpperCase();
         await order.save();
 

@@ -36,9 +36,10 @@ export async function POST(req) {
     order.razorpaySignature = razorpaySignature;
     order.razorpayOrderId = razorpayOrderId;
     order.paidAt = new Date();
-    if (order.paymentMethod === "COD") {
-      // COD: the ₹500 was an advance; balance on delivery. Keep paymentMethod = "COD"
-      // (the order flow, not the instrument, is what matters here).
+    const isCod = order.paymentMethod === "COD";
+    if (isCod) {
+      // COD: the 10% upfront is now paid; the 90% balance is collected on delivery.
+      // Keep paymentMethod = "COD" (the order flow, not the instrument, matters here).
       order.codAdvancePaid = true;
     } else {
       // Online order: record the ACTUAL instrument the customer used in the Razorpay
@@ -53,7 +54,10 @@ export async function POST(req) {
         // Method fetch failed — keep the "ONLINE" placeholder; the order still confirms.
       }
     }
-    order.status = "Confirmed";
+    // COD orders move to "cod_pending" (admin: "COD – Awaiting Delivery") — they're
+    // only "Confirmed" once the courier delivers and collects the balance. Online
+    // orders confirm immediately on successful payment.
+    order.status = isCod ? "cod_pending" : "Confirmed";
     await order.save();
 
     // TODO: trigger Shiprocket order creation
