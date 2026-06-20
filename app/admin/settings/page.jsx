@@ -129,8 +129,8 @@ export default function Settings() {
         {tab === "Delivery" && (
           <div className="space-y-5 rounded-card border border-black/5 bg-white p-5 shadow-card">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Free Delivery Above (₹)"><input type="number" className={inputCls} value={s.freeDeliveryAbove ?? 999} onChange={(e) => set("freeDeliveryAbove", Number(e.target.value))} /></Field>
-              <Field label="Delivery Charge (₹)"><input type="number" className={inputCls} value={s.deliveryFee ?? 99} onChange={(e) => set("deliveryFee", Number(e.target.value))} /></Field>
+              <Field label="Free Delivery Above (₹)"><input type="number" className={inputCls} value={s.freeDeliveryAbove ?? 7999} onChange={(e) => set("freeDeliveryAbove", Number(e.target.value))} /></Field>
+              <Field label="Delivery Charge (₹)"><input type="number" className={inputCls} value={s.deliveryFee ?? 199} onChange={(e) => set("deliveryFee", Number(e.target.value))} /></Field>
               <Field label="Est. Delivery Days (min)"><input type="number" className={inputCls} value={s.deliveryDaysMin ?? 3} onChange={(e) => set("deliveryDaysMin", Number(e.target.value))} /></Field>
               <Field label="Est. Delivery Days (max)"><input type="number" className={inputCls} value={s.deliveryDaysMax ?? 5} onChange={(e) => set("deliveryDaysMax", Number(e.target.value))} /></Field>
             </div>

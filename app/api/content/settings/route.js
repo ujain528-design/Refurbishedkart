@@ -39,6 +39,6 @@ export async function GET() {
       heroSlides: activeSortedSlides(resolveHeroSlides(s)),
     }, { headers: { "Cache-Control": "no-store, max-age=0, must-revalidate" } });
   } catch (e) {
-    return NextResponse.json({ freeDeliveryAbove: 999, deliveryFee: 99, error: e.message }, { status: 500 });
+    return NextResponse.json({ freeDeliveryAbove: 7999, deliveryFee: 199, error: e.message }, { status: 500 });
   }
 }

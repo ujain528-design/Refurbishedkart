@@ -9,8 +9,8 @@ import { formatINR } from "@/lib/data";
 import { calculatePrice, getPublicSettings } from "@/lib/api";
 import { BrokenDeviceIcon, CartIcon } from "@/components/Icons";
 
-const FREE_DELIVERY_ABOVE = 999;
-const DELIVERY_FEE = 99;
+const FREE_DELIVERY_ABOVE = 7999;
+const DELIVERY_FEE = 199;
 
 function QtyStepper({ qty, max, onChange }) {
   return (
@@ -100,8 +100,11 @@ export default function CartView() {
     );
   }
 
-  const delivery = subtotal > rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
-  const total = subtotal - discount + delivery;
+  // Shipping is free at/above the threshold on the PRODUCT total (after discount);
+  // ₹7,999 exactly ships free (inclusive). Matches checkout + order creation.
+  const productTotal = subtotal - discount;
+  const delivery = productTotal >= rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
+  const total = productTotal + delivery;
 
   const handleApply = async () => {
     setApplying(true);
