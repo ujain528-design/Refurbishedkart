@@ -4,6 +4,7 @@ import { Fraunces, Inter } from "next/font/google";
 import Providers from "@/lib/Providers";
 import AnnouncementBar from "@/components/AnnouncementBar";
 import TopLoader from "@/components/TopLoader";
+import TransitionWrapper from "@/components/TransitionWrapper";
 
 // Body/UI sans — self-hosted via next/font (App Router-correct; no <link> to
 // Google Fonts, which would trip the no-page-custom-font / _document path).
@@ -59,7 +60,9 @@ export default function RootLayout({ children }) {
       <body>
         <TopLoader />
         <AnnouncementBar />
-        <Providers>{children}</Providers>
+        <Providers>
+          <TransitionWrapper>{children}</TransitionWrapper>
+        </Providers>
         <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       </body>
     </html>

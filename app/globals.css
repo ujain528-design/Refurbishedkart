@@ -369,3 +369,63 @@
 @media (max-width: 1023px) {
   .section-heading { font-size: 1.3rem; }
 }
+
+/* ── Page-transition loading screen (components/LoadingScreen.jsx) ──
+   Full-screen dark-green overlay shown only when a navigation crosses the 300ms
+   latency gate. Fade-in 200ms / fade-out 300ms, driven by the data-shown flag. */
+.rk-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 24px;
+  text-align: center;
+  background: #0a1a0a;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms ease; /* fade OUT */
+}
+.rk-loading[data-shown="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 200ms ease; /* fade IN */
+}
+.rk-loading__brand {
+  color: #4ade80;
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+.rk-loading__quote {
+  margin: 0;
+  max-width: 400px;
+  color: #ffffff;
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.6;
+}
+.rk-loading__dots {
+  display: flex;
+  gap: 8px;
+}
+.rk-loading__dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #4ade80;
+  animation: rk-dot-pulse 1.2s ease-in-out infinite;
+}
+.rk-loading__dots span:nth-child(2) { animation-delay: 0.2s; }
+.rk-loading__dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes rk-dot-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rk-loading { transition: none; }
+  .rk-loading__dots span { animation: none; }
+}
