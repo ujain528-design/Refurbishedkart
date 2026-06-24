@@ -49,7 +49,7 @@ export function CartProvider({ children }) {
     return {
       key: lineKey(l.productId, l.ram, l.ssd),
       productId: l.productId, name: l.name, brand: l.brand, category: l.category, image: l.image ?? null,
-      ram: l.ram, ssd: l.ssd, ramType: l.ramType ?? null,
+      ram: l.ram, ssd: l.ssd, ramType: l.ramType ?? null, whatsInBox: l.whatsInBox ?? "",
       unitPrice: price, mrp: l.mrp, sellable,
       outOfStock: price <= 0 || sellable === 0,
       qty: l.qty, lineTotal: price * Math.max(qty, 0),
@@ -93,7 +93,7 @@ export function CartProvider({ children }) {
       return [...prev, {
         productId: product.id, name: product.name, brand: product.brand, category: product.category,
         image: (product.image || product.images?.[0]) ?? null, ram: cfg.ram, ssd: cfg.ssd, ramType: cfg.ramType ?? null,
-        price: cfg.unitPrice, mrp: product.mrp, sellable: cfg.sellable, qty: 1,
+        whatsInBox: product.whatsInBox ?? "", price: cfg.unitPrice, mrp: product.mrp, sellable: cfg.sellable, qty: 1,
       }];
     });
     return true;

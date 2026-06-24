@@ -54,7 +54,7 @@ const TAG_SLUG = { Bestseller: "bestseller", "Flash Sale": "flash-sale", "New Ar
 const SLUG_TAG = Object.fromEntries(Object.entries(TAG_SLUG).map(([k, v]) => [v, k]));
 
 const EMPTY = {
-  brand: "", model: "", category: "Laptops", status: "Draft", description: "",
+  brand: "", model: "", category: "Laptops", status: "Draft", description: "", whatsInBox: "",
   listedPrice: "", mrp: "", chassisStock: 0,
   defaultRam: { capacity: "8GB", type: "DDR4", isOnboard: false, cost: 0 },
   defaultSsd: { capacity: "256GB", cost: 0 },
@@ -80,6 +80,7 @@ function dbToForm(p) {
     category: p.category || "Laptops",
     status: p.stock === 0 ? "Out of Stock" : "Active",
     description: p.description || p.specs || "",
+    whatsInBox: p.whatsInBox || "",
     listedPrice: p.listedPrice ?? p.price ?? "",
     mrp: p.mrp ?? "",
     chassisStock: p.chassisStock ?? p.stock ?? 0,
@@ -146,6 +147,7 @@ function formToDb(f, orig) {
     defaultRam: { capacity: f.defaultRam.capacity, type: f.defaultRam.type, isOnboard: !!f.defaultRam.isOnboard, cost: Number(f.defaultRam.cost) || 0 },
     defaultSsd: { capacity: f.defaultSsd.capacity, cost: Number(f.defaultSsd.cost) || 0 },
     description: f.description,
+    whatsInBox: f.whatsInBox,
     status: f.status,
     chassisStock: Number(f.chassisStock) || 0,
     stock: Number(f.chassisStock) || 0, // mirror
@@ -227,7 +229,7 @@ function Group({ title, children, cols = 2 }) {
   );
 }
 
-function VField({ ctx, k, label, type = "text", placeholder, textarea, options, min, hint }) {
+function VField({ ctx, k, label, type = "text", placeholder, textarea, rows = 5, options, min, hint }) {
   const { f, errors, touched, update, blur } = ctx;
   const err = errors[k];
   const show = touched[k];
@@ -242,7 +244,7 @@ function VField({ ctx, k, label, type = "text", placeholder, textarea, options, 
       {options ? (
         <select value={f[k]} onChange={(e) => { update(k, e.target.value); blur(k); }} className={`${inputCls} ${ring}`}>{options.map((o) => <option key={o}>{o}</option>)}</select>
       ) : textarea ? (
-        <textarea value={f[k]} onChange={(e) => update(k, e.target.value)} onBlur={() => blur(k)} rows={5} placeholder={placeholder} className={`${inputCls} ${ring}`} />
+        <textarea value={f[k]} onChange={(e) => update(k, e.target.value)} onBlur={() => blur(k)} rows={rows} placeholder={placeholder} className={`${inputCls} ${ring}`} />
       ) : (
         <input type={type} min={min} value={f[k]} onChange={(e) => update(k, e.target.value)} onBlur={() => blur(k)} placeholder={placeholder} className={`${inputCls} ${ring}`} />
       )}
@@ -509,6 +511,7 @@ export default function ProductEditor() {
               <VField ctx={ctx} k="category" label="Category" options={Object.values(CATEGORY_SLUGS)} />
               <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Status</span><select value={f.status} onChange={(e) => update("status", e.target.value)} className={inputCls}><option>Draft</option><option>Active</option><option>Out of Stock</option></select></label>
               <div className="sm:col-span-2"><VField ctx={ctx} k="description" label="About This Device (shown on product page)" textarea placeholder={"The Dell Latitude 3420 is a reliable laptop.\n\nKey Features:\n- Fast Performance: 11th Gen Intel i5\n- Compact Design: 14-inch slim frame"} hint="Use - for bullets, a line ending in : for a heading, and a blank line between paragraphs. Leave empty to auto-generate from specs." /></div>
+              <div className="sm:col-span-2"><VField ctx={ctx} k="whatsInBox" label="What's in the Box" textarea rows={4} placeholder={"1 x Laptop\n1 x Power Adapter\n1 x Warranty Card"} hint="One item per line. Leave empty to hide the section." /></div>
 
               {/* ── Warranty & Tax ── per-product overrides; blank ⇒ store default ── */}
               <div className="sm:col-span-2 mt-2 rounded-lg border border-black/10 bg-neutral-50 p-4">

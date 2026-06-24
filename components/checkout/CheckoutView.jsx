@@ -100,6 +100,37 @@ const PAYMENT_METHODS = [
   { id: "cod", label: "Cash on Delivery" },
 ];
 
+/* Collapsed-by-default "What's in the box?" toggle for an order-summary line.
+   Renders nothing when the product has no whatsInBox data. */
+function BoxContents({ raw }) {
+  const [open, setOpen] = useState(false);
+  const list = String(raw || "").split("\n").map((s) => s.trim()).filter(Boolean);
+  if (!list.length) return null;
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1 text-[12px] font-semibold text-brand hover:text-brand-dark"
+      >
+        📦 What&apos;s in the box?
+        <ChevronDown style={{ width: 12, height: 12 }} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <ul className="mt-1.5 space-y-1">
+          {list.map((b, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-[12px] leading-snug text-neutral-500">
+              <span className="text-brand">✓</span>
+              <span>{b}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function CheckoutView() {
   const { ready, items, subtotal, discount, coupon, orderItems, clearCart, clearCoupon } = useCart();
   const { isLoggedIn, user } = useAuth();
@@ -388,6 +419,7 @@ export default function CheckoutView() {
               <p className="text-[12px] text-neutral-500">
                 {it.ram || ""}{it.ram && it.ssd ? " · " : ""}{it.ssd ? `${it.ssd}` : ""} · Qty {it.qty}
               </p>
+              <BoxContents raw={it.whatsInBox} />
             </div>
             <p className="text-[13px] font-bold text-ink">{formatINR(it.unitPrice * it.qty)}</p>
           </div>

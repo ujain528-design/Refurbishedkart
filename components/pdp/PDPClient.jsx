@@ -91,6 +91,8 @@ export default function PDPClient({ category, id }) {
   const variants = variantsFor(product);
   const specRows = specRowsFor(product);
   const description = descriptionFor(product);
+  // "What's in the box" — newline-separated on the product; blank lines dropped.
+  const boxItems = String(product.whatsInBox || "").split("\n").map((s) => s.trim()).filter(Boolean);
   const rating = reviewsData.summary?.avg ?? 4.5;
   const ratingCount = reviewsData.summary?.total ?? 127;
 
@@ -157,6 +159,20 @@ export default function PDPClient({ category, id }) {
               </tbody>
             </table>
           </div>
+
+          {boxItems.length > 0 && (
+            <div className="mt-9 max-w-3xl lg:mt-16">
+              <h2 className="section-heading !text-[1.15rem] lg:!text-[1.75rem]">What&apos;s in the Box</h2>
+              <ul className="mt-3 space-y-2.5 lg:mt-7">
+                {boxItems.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-[13px] leading-relaxed text-neutral-600 lg:text-[15px]">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-soft text-[11px] font-bold text-brand">✓</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="mt-9 max-w-3xl lg:mt-16">
             <h2 className="section-heading">About this device</h2>
