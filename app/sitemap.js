@@ -2,6 +2,7 @@ import { CATEGORY_SLUGS } from "@/lib/data";
 import { queryProducts } from "@/lib/server/products";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Collection } from "@/lib/server/models";
+import { getAllBrandSlugs } from "@/lib/brandContent";
 
 const BASE = "https://refurbishedkart.com";
 
@@ -43,6 +44,14 @@ export default async function sitemap() {
     priority: 0.6,
   }));
 
+  // Brand SEO landing pages (/brands/dell etc.).
+  const brandUrls = getAllBrandSlugs().map((slug) => ({
+    url: `${BASE}/brands/${slug}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
   let productUrls = [];
   try {
     const products = await queryProducts({});
@@ -74,5 +83,5 @@ export default async function sitemap() {
     // DB unavailable — skip collections.
   }
 
-  return [...staticUrls, ...categoryUrls, ...shopTagUrls, ...collectionUrls, ...productUrls];
+  return [...staticUrls, ...categoryUrls, ...brandUrls, ...shopTagUrls, ...collectionUrls, ...productUrls];
 }

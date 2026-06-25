@@ -18,6 +18,11 @@ const nextConfig = {
         destination: "https://refurbishedkart.com/:path*",
         permanent: true,
       },
+      // Keyword-rich brand URLs → clean /brands/[brand] route (canonical points back).
+      { source: "/refurbished-dell-laptops", destination: "/brands/dell", permanent: true },
+      { source: "/refurbished-hp-laptops", destination: "/brands/hp", permanent: true },
+      { source: "/refurbished-lenovo-laptops", destination: "/brands/lenovo", permanent: true },
+      { source: "/refurbished-apple-laptops", destination: "/brands/apple", permanent: true },
     ];
   },
 };

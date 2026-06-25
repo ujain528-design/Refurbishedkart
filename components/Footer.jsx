@@ -14,6 +14,7 @@ const ROUTE_MAP = {
   "About Us": "/about", About: "/about", "Contact Us": "/contact", Contact: "/contact",
   "Returns & Refunds": "/return-policy", "Return Policy": "/return-policy",
   "Shipping Policy": "/shipping", Shipping: "/shipping",
+  Dell: "/brands/dell", HP: "/brands/hp", Lenovo: "/brands/lenovo", Apple: "/brands/apple",
   "Warranty Claim": "/warranty", Warranty: "/warranty",
   "Privacy Policy": "/privacy-policy", "Terms of Service": "/terms", Terms: "/terms",
 };
@@ -38,7 +39,7 @@ export default function Footer() {
           <NewsletterForm />
         </div>
 
-        <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:grid-cols-[1.4fr_repeat(4,1fr)] lg:gap-12">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-7 md:grid-cols-[1.4fr_repeat(5,1fr)] lg:gap-12">
           {/* Brand blurb — full width on mobile, first column on desktop */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-flex items-center" aria-label="RefurbishedKart home">
