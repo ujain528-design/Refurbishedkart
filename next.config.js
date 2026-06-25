@@ -48,6 +48,13 @@ const nextConfig = {
       { source: "/refurbished-workstations-20000-35000", destination: "/budget/workstations/20000-35000", permanent: true },
       { source: "/refurbished-workstations-35000-50000", destination: "/budget/workstations/35000-50000", permanent: true },
       { source: "/refurbished-workstations-above-50000", destination: "/budget/workstations/above-50000", permanent: true },
+      // Legacy URLs from the old site → current canonical paths.
+      { source: "/about/warranty", destination: "/warranty", permanent: true },
+      { source: "/about/return-policy", destination: "/return-policy", permanent: true },
+      { source: "/about/privacy-policy", destination: "/privacy-policy", permanent: true },
+      { source: "/about/terms", destination: "/terms", permanent: true },
+      { source: "/blogs", destination: "/", permanent: true },
+      { source: "/blogs/:path*", destination: "/", permanent: true },
     ];
   },
 };
