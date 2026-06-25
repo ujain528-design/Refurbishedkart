@@ -23,8 +23,14 @@ export default function BudgetCategoryModal({ bucket, onClose }) {
   };
 
   const pick = (slug) => {
-    // Navigation unmounts the homepage; no need to animate out first.
-    router.push(`/budget/${slug}/${bucket.slug}`);
+    // Send the user to the NORMAL category listing with the price filter
+    // pre-applied (full filters/sidebar visible) — NOT the SEO /budget landing.
+    // The SEO pages at /budget/[cat]/[bucket] still exist for Google.
+    const params = new URLSearchParams();
+    if (bucket.minPrice > 0) params.set("minPrice", String(bucket.minPrice));
+    if (bucket.maxPrice < 999999) params.set("maxPrice", String(Math.ceil(bucket.maxPrice / 1000) * 1000));
+    const qs = params.toString();
+    router.push(`/products/${slug}${qs ? `?${qs}` : ""}`);
   };
 
   // ESC + simple focus trap; lock body scroll while open.
