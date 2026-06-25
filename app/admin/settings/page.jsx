@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { PageHeader, Tabs, Toggle, Field, useToast, inputCls, btnPrimary } from "@/components/admin/ui";
 import { adminGetSettings, adminSaveSettings, adminGetIntegrations, adminUploadImage } from "@/lib/api";
 import HeroCarouselManager from "@/components/admin/HeroCarouselManager";
+import AdminCredentialChange from "@/components/admin/AdminCredentialChange";
 import { resolveHeroSlides } from "@/lib/heroSlides";
 
 const TABS = ["General", "Policies", "Delivery", "Appearance", "Flash Sale", "Social", "SEO & Scripts", "Email Templates", "Security", "Integrations", "Admin Users"];
@@ -221,7 +222,7 @@ export default function Settings() {
           </div>
         )}
 
-        {tab === "Security" && <ComingSoon title="Login logs & security" note="Admin login-attempt logging (email, IP, time, success/fail) needs a LoginLog model + auth instrumentation. Planned in a later priority." />}
+        {tab === "Security" && <AdminCredentialChange />}
 
         {tab === "Integrations" && <IntegrationsTab onConfigure={(href) => href && setTab("SEO & Scripts")} />}
 

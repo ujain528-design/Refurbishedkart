@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/AuthContext";
 import { MenuIcon, CloseIcon } from "@/components/Icons";
 
 const NAV = [
@@ -25,22 +24,38 @@ const NAV = [
 ];
 
 export default function AdminShell({ children }) {
-  const { ready, isLoggedIn, isAdmin, user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [drawer, setDrawer] = useState(false);
+  const [adminId, setAdminId] = useState(null);
+  const [checking, setChecking] = useState(true);
 
-  // ⚠️ DEV-ONLY: in `next dev` the admin UI opens without login (matches the
-  // server-side bypass in lib/server/adminAuth.js). REMOVE BEFORE PRODUCTION.
-  const DEV_BYPASS = process.env.NODE_ENV === "development";
+  // The login page renders WITHOUT the admin chrome or the session check.
+  const isLoginPage = pathname === "/admin/login";
 
+  // Verify the admin session (full JWT verification server-side). Middleware
+  // already gates page access; this catches a forged/expired-by-signature cookie
+  // and powers the header identity + logout.
   useEffect(() => {
-    if (!DEV_BYPASS && ready && (!isLoggedIn || !isAdmin)) router.replace("/login?next=/admin");
-  }, [DEV_BYPASS, ready, isLoggedIn, isAdmin, router]);
+    if (isLoginPage) { setChecking(false); return; }
+    let alive = true;
+    fetch("/api/admin/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((d) => { if (alive) { setAdminId(d.adminId || "admin"); setChecking(false); } })
+      .catch(() => { if (alive) router.replace("/admin/login"); });
+    return () => { alive = false; };
+  }, [isLoginPage, pathname, router]);
 
   useEffect(() => setDrawer(false), [pathname]);
 
-  if (!DEV_BYPASS && (!ready || !isLoggedIn || !isAdmin)) {
+  const logout = async () => {
+    try { await fetch("/api/admin/auth/logout", { method: "POST" }); } catch {}
+    window.location.assign("/admin/login");
+  };
+
+  if (isLoginPage) return <>{children}</>;
+
+  if (checking) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-neutral-400">Loading admin…</div>;
   }
 
@@ -110,13 +125,18 @@ export default function AdminShell({ children }) {
           </button>
           <span className="text-sm font-bold text-ink">RefurbishedKart Admin</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="hidden text-sm text-neutral-500 sm:block">
-            {user?.name} <span className="text-[11px] font-bold uppercase text-brand">· {user?.role}</span>
-          </span>
-          <a href="/" target="_blank" rel="noopener noreferrer" className="rounded-full bg-brand px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-dark">
+        <div className="flex items-center gap-3">
+          {adminId && (
+            <span className="hidden text-sm text-neutral-500 sm:block">
+              {adminId} <span className="text-[11px] font-bold uppercase text-brand">· admin</span>
+            </span>
+          )}
+          <a href="/" target="_blank" rel="noopener noreferrer" className="hidden rounded-full bg-brand px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-dark sm:inline-block">
             View Store ↗
           </a>
+          <button onClick={logout} className="rounded-full border border-black/10 px-4 py-2 text-[13px] font-bold text-neutral-600 hover:bg-neutral-100">
+            Logout
+          </button>
         </div>
       </header>
 
