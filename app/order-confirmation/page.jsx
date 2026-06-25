@@ -5,7 +5,7 @@ import PolicyStrip from "@/components/PolicyStrip";
 import BulkEnquiryModal from "@/components/BulkEnquiryModal";
 import OrderConfirmation from "@/components/checkout/OrderConfirmation";
 
-export const metadata = { title: "Order Confirmed — RefurbishedKart" };
+export const metadata = { title: "Order Confirmed — RefurbishedKart", robots: { index: false, follow: false } };
 
 export default function OrderConfirmationPage() {
   return (

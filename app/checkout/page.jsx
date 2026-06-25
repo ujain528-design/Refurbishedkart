@@ -4,7 +4,7 @@ import PolicyStrip from "@/components/PolicyStrip";
 import BulkEnquiryModal from "@/components/BulkEnquiryModal";
 import CheckoutView from "@/components/checkout/CheckoutView";
 
-export const metadata = { title: "Checkout — RefurbishedKart" };
+export const metadata = { title: "Checkout — RefurbishedKart", robots: { index: false, follow: false } };
 
 export default function CheckoutPage() {
   return (

@@ -405,7 +405,7 @@ function CouponsTab() {
 }
 
 /* ── Addresses ── */
-const BLANK_ADDR = { name: "", phone: "", line1: "", line2: "", city: "", state: "Karnataka", pincode: "" };
+const BLANK_ADDR = { name: "", phone: "", line1: "", line2: "", city: "", state: "Delhi", pincode: "" };
 const inputCls = "rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none";
 
 function AddressesTab() {
@@ -424,7 +424,7 @@ function AddressesTab() {
   useEffect(() => { load(); }, [load]);
 
   const startAdd = () => { setForm(BLANK_ADDR); setEditingId("new"); };
-  const startEdit = (a) => { setForm({ name: a.name || "", phone: a.phone || "", line1: a.line1 || "", line2: a.line2 || "", city: a.city || "", state: a.state || "Karnataka", pincode: a.pincode || "" }); setEditingId(a._id); };
+  const startEdit = (a) => { setForm({ name: a.name || "", phone: a.phone || "", line1: a.line1 || "", line2: a.line2 || "", city: a.city || "", state: a.state || "Delhi", pincode: a.pincode || "" }); setEditingId(a._id); };
   const cancel = () => setEditingId(null);
 
   const save = async () => {

@@ -5,7 +5,7 @@ import PolicyStrip from "@/components/PolicyStrip";
 import BulkEnquiryModal from "@/components/BulkEnquiryModal";
 import AccountView from "@/components/account/AccountView";
 
-export const metadata = { title: "My Account — RefurbishedKart" };
+export const metadata = { title: "My Account — RefurbishedKart", robots: { index: false, follow: false } };
 
 export default function AccountPage() {
   return (

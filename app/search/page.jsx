@@ -5,7 +5,7 @@ import PolicyStrip from "@/components/PolicyStrip";
 import BulkEnquiryModal from "@/components/BulkEnquiryModal";
 import SearchView from "@/components/search/SearchView";
 
-export const metadata = { title: "Search — RefurbishedKart" };
+export const metadata = { title: "Search — RefurbishedKart", robots: { index: false, follow: false } };
 
 export default function SearchPage() {
   return (

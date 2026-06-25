@@ -8,6 +8,7 @@ import { BESTSELLERS } from "@/lib/data";
 
 export const metadata = {
   title: "Your Cart — RefurbishedKart",
+  robots: { index: false, follow: false },
 };
 
 export default function CartPage() {

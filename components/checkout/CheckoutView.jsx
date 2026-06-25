@@ -32,11 +32,11 @@ const inputCls =
 const SAVED_ADDRESS = {
   id: "home",
   name: "Utkarsh Jain",
-  line: "402, Brigade Gateway, Rajajinagar",
-  city: "Bengaluru",
-  state: "Karnataka",
-  pincode: "560055",
-  phone: "+91 98765 43210",
+  line: "147, 3rd Floor, Patparganj Industrial Area, Near Anand Vihar",
+  city: "Delhi",
+  state: "Delhi",
+  pincode: "110092",
+  phone: "+91 8448296273",
 };
 
 // ── New-address validation ──

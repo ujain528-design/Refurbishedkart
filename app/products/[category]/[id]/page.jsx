@@ -50,6 +50,8 @@ async function productJsonLd(params) {
       "@type": "Product",
       name: generateProductTitle(p),
       brand: { "@type": "Brand", name: p.brand || "RefurbishedKart" },
+      sku: String(p.id),
+      mpn: p.serialNumber || String(p.id),
       description: generateMetaDescription(p),
       ...(image ? { image: image.startsWith("http") ? image : `${SITE}${image}` } : {}),
       offers: {
@@ -87,10 +89,26 @@ export default async function ProductDetailPage({ params }) {
   }
 
   const jsonLd = await productJsonLd(params);
+
+  // BreadcrumbList: Home › <Category> › <Product>.
+  const catSlug = String(product?.category || "laptops").toLowerCase();
+  const breadcrumbLd = product && {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE },
+      { "@type": "ListItem", position: 2, name: `Refurbished ${product.category || "Laptops"}`, item: `${SITE}/products/${catSlug}` },
+      { "@type": "ListItem", position: 3, name: generateProductTitle(product), item: `${SITE}${canonicalPath(product)}` },
+    ],
+  };
+
   return (
     <>
       {jsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      )}
+      {breadcrumbLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       )}
       <Navbar />
       <main>

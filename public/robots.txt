@@ -4,5 +4,11 @@ Disallow: /admin
 Disallow: /api
 Disallow: /account
 Disallow: /checkout
+Disallow: /cart
+Disallow: /wishlist
+Disallow: /login
+Disallow: /order-confirmation
+Disallow: /payment-pending
+Disallow: /search
 
 Sitemap: https://refurbishedkart.com/sitemap.xml

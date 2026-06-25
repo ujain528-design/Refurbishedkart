@@ -24,12 +24,17 @@ export function generateMetadata({ params }) {
     workstations: "Refurbished Workstations",
   };
   const name = categoryNames[params.category] || `Refurbished ${CATEGORY_SLUGS[params.category] || params.category}`;
+  const canonical = `https://refurbishedkart.com/products/${params.category}`;
   return {
     title: `Buy ${name} in India | Best Prices`,
     description: `Shop certified ${name.toLowerCase()} with GST invoice, warranty and 7-day returns. Best prices in India.`,
+    // Canonical to the clean category URL so faceted filter/sort params
+    // (?ram=8gb&sort=price) don't get indexed as duplicate pages.
+    alternates: { canonical },
     openGraph: {
       title: `${name} — RefurbishedKart`,
       description: `Certified ${name.toLowerCase()} at best prices in India.`,
+      url: canonical,
     },
   };
 }
@@ -53,9 +58,20 @@ export default function CategoryListingPage({ params }) {
     })),
   };
 
+  // BreadcrumbList: Home › <Category>.
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://refurbishedkart.com" },
+      { "@type": "ListItem", position: 2, name: `Refurbished ${categoryName}`, item: `https://refurbishedkart.com/products/${params.category}` },
+    ],
+  };
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       <Navbar />
       <main>
         {/* page header */}

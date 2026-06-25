@@ -8,6 +8,18 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["pdfkit"],
   },
+  // Canonical host: redirect www → non-www (308) so the two hostnames don't split
+  // ranking signals. Keep consistent with metadataBase + canonicals (non-www).
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.refurbishedkart.com" }],
+        destination: "https://refurbishedkart.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

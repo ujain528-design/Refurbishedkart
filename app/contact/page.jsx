@@ -13,10 +13,10 @@ export default function ContactPage() {
         <div>
           <H2>Reach us</H2>
           <dl className="mt-4 space-y-4 text-sm">
-            <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Address</dt><dd className="mt-0.5 text-neutral-600">MMT Global Recycling Pvt. Ltd.<br />402, Brigade Gateway, Rajajinagar,<br />Bengaluru, Karnataka — 560055</dd></div>
-            <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Phone</dt><dd className="mt-0.5 font-semibold text-ink">+91 98765 43210</dd></div>
+            <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Address</dt><dd className="mt-0.5 text-neutral-600">MMT Global Recycling Pvt. Ltd.<br />147, 3rd Floor, Patparganj Industrial Area,<br />Near Anand Vihar, Delhi — 110092</dd></div>
+            <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Phone</dt><dd className="mt-0.5 font-semibold text-ink">+91 8448296273</dd></div>
             <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Email</dt><dd className="mt-0.5 font-semibold text-ink">support@refurbishedkart.com</dd></div>
-            <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Business hours</dt><dd className="mt-0.5 text-neutral-600">Mon–Sat, 10:00 AM – 7:00 PM IST</dd></div>
+            <div><dt className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Business hours</dt><dd className="mt-0.5 text-neutral-600">Mon–Fri, 11:00 AM – 6:00 PM IST</dd></div>
           </dl>
 
           {/* map placeholder */}

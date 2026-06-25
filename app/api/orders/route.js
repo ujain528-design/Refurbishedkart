@@ -49,7 +49,7 @@ export async function POST(req) {
     const delivery = productTotal >= freeDeliveryAbove ? 0 : deliveryFee;
     const total = productTotal + delivery;
     // Per-line GST at each product's rate; inter-state derived from the ship-to
-    // state (CGST+SGST intra-Karnataka, IGST otherwise) — same basis the invoice uses.
+    // state (CGST+SGST intra-Delhi, IGST otherwise) — same basis the invoice uses.
     const interState = (shippingAddress?.state || SELLER_STATE) !== SELLER_STATE;
     const gst = computeLineTaxes(lines, discount, interState).gst;
 

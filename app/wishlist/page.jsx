@@ -4,7 +4,7 @@ import PolicyStrip from "@/components/PolicyStrip";
 import BulkEnquiryModal from "@/components/BulkEnquiryModal";
 import WishlistView from "@/components/wishlist/WishlistView";
 
-export const metadata = { title: "My Wishlist — RefurbishedKart" };
+export const metadata = { title: "My Wishlist — RefurbishedKart", robots: { index: false, follow: false } };
 
 export default function WishlistPage() {
   return (

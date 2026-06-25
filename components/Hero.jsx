@@ -76,8 +76,10 @@ export default function Hero() {
         >
           {/* sliding track */}
           <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${idx * 100}%)` }}>
-            {slides.map((s) => {
+            {slides.map((s, i) => {
               const isImg = s.backgroundType === "image" && s.backgroundImage;
+              // First slide's heading is the page H1 (one per page); others are h2.
+              const HeadingTag = i === 0 ? "h1" : "h2";
               const fill = s.backgroundType === "color" ? (s.backgroundColor || "#1C1C1E") : isImg ? "#13150f" : GRADIENT;
               const x = clamp(s.overlayDarkness) / 100;
               const overlay = `linear-gradient(160deg, rgba(28,28,30,${x}) 0%, rgba(45,80,22,${x * 0.4}) 55%, rgba(28,28,30,${x * 0.9}) 100%)`;
@@ -101,7 +103,7 @@ export default function Hero() {
                     <div className="absolute inset-0 flex items-center">
                       <div className="mx-auto w-full max-w-7xl px-6 md:px-20">
                         <div className="max-w-[600px]">
-                          <h2 className="font-display text-[1.6rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-white sm:text-[2rem] md:text-[3.25rem]">{s.heading}</h2>
+                          <HeadingTag className="font-display text-[1.6rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-white sm:text-[2rem] md:text-[3.25rem]">{s.heading}</HeadingTag>
                           {s.subheading && <p className="mt-3 max-w-[460px] text-[0.9rem] leading-relaxed text-white/[0.72] sm:text-[1rem] md:mt-4 md:text-[1.05rem]">{s.subheading}</p>}
                           {(s.ctaText || s.ctaSecondaryText) && (
                             <div className="mt-4 flex flex-wrap items-center gap-3 md:mt-7">

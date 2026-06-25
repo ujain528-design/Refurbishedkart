@@ -19,7 +19,7 @@ const ROUTE_MAP = {
 };
 const hrefFor = (label) => ROUTE_MAP[label] || "#";
 
-const FALLBACK_INFO = { email: "support@refurbishedkart.com", phone: "+91 98765 43210", gstin: "00AAAAA0000A1Z0" };
+const FALLBACK_INFO = { email: "support@refurbishedkart.com", phone: "+91 8448296273", gstin: "00AAAAA0000A1Z0" };
 
 export default function Footer() {
   const [info, setInfo] = useState(FALLBACK_INFO);

@@ -15,10 +15,86 @@ import BulkEnquiryModal from "@/components/BulkEnquiryModal";
 import Faq from "@/components/Faq";
 import PolicyStrip from "@/components/PolicyStrip";
 import Footer from "@/components/Footer";
+import { FAQS } from "@/lib/data";
+
+const SITE = "https://refurbishedkart.com";
+
+export const metadata = {
+  title: "RefurbishedKart | Buy Certified Refurbished Laptops & Desktops in India",
+  description:
+    "Shop certified refurbished laptops, desktops, monitors & servers. Up to 60% off vs new. GST invoice, 1-year warranty, 7-day returns. Free delivery across India.",
+  alternates: { canonical: SITE },
+};
+
+// Sitewide identity + sitelinks searchbox + local-business + homepage FAQ schema.
+const ADDRESS = {
+  "@type": "PostalAddress",
+  streetAddress: "147, 3rd Floor, Patparganj Industrial Area, Near Anand Vihar",
+  addressLocality: "Delhi",
+  postalCode: "110092",
+  addressCountry: "IN",
+};
+
+const homeJsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "RefurbishedKart",
+    url: SITE,
+    logo: `${SITE}/logo_rk.webp`,
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: "+91-8448296273",
+      contactType: "customer service",
+      availableLanguage: ["English", "Hindi"],
+    },
+    address: ADDRESS,
+    sameAs: [],
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "RefurbishedKart",
+    url: SITE,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: { "@type": "EntryPoint", urlTemplate: `${SITE}/search?q={search_term_string}` },
+      "query-input": "required name=search_term_string",
+    },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: "RefurbishedKart",
+    image: `${SITE}/og-image.jpg`,
+    telephone: "+91-8448296273",
+    email: "support@refurbishedkart.com",
+    url: SITE,
+    address: ADDRESS,
+    geo: { "@type": "GeoCoordinates", latitude: 28.6469, longitude: 77.3063 },
+    openingHoursSpecification: {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      opens: "11:00",
+      closes: "18:00",
+    },
+    priceRange: "₹₹",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  },
+];
 
 export default function HomePage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd) }} />
       <Navbar />
       {/* fixed-navbar offset is handled by the spacer inside Navbar */}
       <main>
