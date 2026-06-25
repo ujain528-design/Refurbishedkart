@@ -29,7 +29,7 @@ export const metadata = {
 // Sitewide identity + sitelinks searchbox + local-business + homepage FAQ schema.
 const ADDRESS = {
   "@type": "PostalAddress",
-  streetAddress: "147, 3rd Floor, Patparganj Industrial Area, Near Anand Vihar",
+  streetAddress: "147, Patparganj Industrial Area, Near Anand Vihar",
   addressLocality: "Delhi",
   postalCode: "110092",
   addressCountry: "IN",
@@ -74,7 +74,7 @@ const homeJsonLd = [
     geo: { "@type": "GeoCoordinates", latitude: 28.6469, longitude: 77.3063 },
     openingHoursSpecification: {
       "@type": "OpeningHoursSpecification",
-      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
       opens: "11:00",
       closes: "18:00",
     },

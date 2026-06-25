@@ -95,7 +95,7 @@ export default function WarrantyPage() {
       <H2>How to claim warranty — step by step</H2>
       <div className="mt-4 space-y-3">
         <Step n={1} title="Contact us">
-          Call or WhatsApp <a href={WHATSAPP} className="font-semibold text-brand hover:underline">+91 8448296273</a>, Monday to Friday, 11:00 AM – 6:00 PM. Share your order number, a description of the issue, and photos or a video of the problem.
+          Call or WhatsApp <a href={WHATSAPP} className="font-semibold text-brand hover:underline">+91 8448296273</a>, Monday to Saturday, 11:00 AM – 6:00 PM. Share your order number, a description of the issue, and photos or a video of the problem.
         </Step>
         <Step n={2} title="Diagnosis">
           Our team will review your claim within 2 working days and confirm whether it is covered under warranty.
@@ -117,11 +117,11 @@ export default function WarrantyPage() {
       <div className="mt-3 rounded-card border border-black/5 bg-white p-5 shadow-card">
         <p className="text-sm font-bold text-ink">RefurbishedKart Service Center</p>
         <p className="mt-1 text-[14px] leading-relaxed text-neutral-600">
-          147, 3rd Floor, Patparganj Industrial Area, Near Anand Vihar<br />
+          147, Patparganj Industrial Area, Near Anand Vihar<br />
           Delhi – 110092
         </p>
         <p className="mt-3 text-[13px] text-neutral-500">
-          <span className="font-semibold text-ink">Working hours:</span> Monday to Friday, 11:00 AM – 6:00 PM
+          <span className="font-semibold text-ink">Working hours:</span> Monday to Saturday, 11:00 AM – 6:00 PM
         </p>
       </div>
 
@@ -168,7 +168,7 @@ export default function WarrantyPage() {
       {/* 11 — Contact CTA */}
       <div className="mt-10 rounded-card border border-brand/15 bg-brand-softer/40 p-6 text-center">
         <h2 className="text-lg lg:text-xl font-bold text-ink">Have a warranty question?</h2>
-        <p className="mt-2 text-[13px] lg:text-[15px] text-neutral-600">We&apos;re here Monday–Friday, 11:00 AM – 6:00 PM.</p>
+        <p className="mt-2 text-[13px] lg:text-[15px] text-neutral-600">We&apos;re here Monday–Saturday, 11:00 AM – 6:00 PM.</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <a href={WHATSAPP} className="rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark">
             WhatsApp +91 8448296273

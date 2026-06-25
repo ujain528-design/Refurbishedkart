@@ -109,7 +109,7 @@ export default function ReturnPolicyPage() {
       <H2>How to raise a return request</H2>
       <div className="mt-4 space-y-3">
         <Step n={1} title="Contact us within 7 days">
-          WhatsApp or call <a href={WHATSAPP} className="font-semibold text-brand hover:underline">+91 8448296273</a>, Monday to Friday, 11:00 AM – 6:00 PM. Share your order number, the reason for return, and photos or a video of the issue.
+          WhatsApp or call <a href={WHATSAPP} className="font-semibold text-brand hover:underline">+91 8448296273</a>, Monday to Saturday, 11:00 AM – 6:00 PM. Share your order number, the reason for return, and photos or a video of the issue.
         </Step>
         <Step n={2} title="Share unboxing video">
           For damage / defect / wrong-item claims, share your unboxing video within 24 hours of delivery. Without this, the claim cannot be processed.
@@ -193,7 +193,7 @@ export default function ReturnPolicyPage() {
       {/* 10 — Contact */}
       <div className="mt-10 rounded-card border border-brand/15 bg-brand-softer/40 p-6 text-center">
         <h2 className="text-lg lg:text-xl font-bold text-ink">Have a return query?</h2>
-        <p className="mt-2 text-[13px] lg:text-[15px] text-neutral-600">We&apos;re here Monday–Friday, 11:00 AM – 6:00 PM.</p>
+        <p className="mt-2 text-[13px] lg:text-[15px] text-neutral-600">We&apos;re here Monday–Saturday, 11:00 AM – 6:00 PM.</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <a href={WHATSAPP} className="rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark">
             WhatsApp +91 8448296273

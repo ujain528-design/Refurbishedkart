@@ -32,7 +32,7 @@ const inputCls =
 const SAVED_ADDRESS = {
   id: "home",
   name: "Utkarsh Jain",
-  line: "147, 3rd Floor, Patparganj Industrial Area, Near Anand Vihar",
+  line: "147, Patparganj Industrial Area, Near Anand Vihar",
   city: "Delhi",
   state: "Delhi",
   pincode: "110092",

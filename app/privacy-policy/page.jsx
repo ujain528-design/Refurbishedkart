@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
         <InfoRow label="Company">MMT Global Recycling Pvt. Ltd.</InfoRow>
         <InfoRow label="Operating as">RefurbishedKart</InfoRow>
         <InfoRow label="Registered Address">Ground Floor, E-13, Laxmi Nagar, West Delhi – 110092</InfoRow>
-        <InfoRow label="Working Address">147, 3rd Floor, Patparganj Industrial Area, Near Anand Vihar, Delhi – 110092</InfoRow>
+        <InfoRow label="Working Address">147, Patparganj Industrial Area, Near Anand Vihar, Delhi – 110092</InfoRow>
         <InfoRow label="Email"><a href={`mailto:${EMAIL}`} className="font-semibold text-brand hover:underline">{EMAIL}</a></InfoRow>
       </div>
 
@@ -193,17 +193,17 @@ export default function PrivacyPolicyPage() {
       <div className="mt-3 space-y-1.5 rounded-card border border-black/5 bg-white p-5 shadow-card">
         <InfoRow label="Name">Utkarsh Jain</InfoRow>
         <InfoRow label="Company">MMT Global Recycling Pvt. Ltd.</InfoRow>
-        <InfoRow label="Address">147, 3rd Floor, Patparganj Industrial Area, Near Anand Vihar, Delhi – 110092</InfoRow>
+        <InfoRow label="Address">147, Patparganj Industrial Area, Near Anand Vihar, Delhi – 110092</InfoRow>
         <InfoRow label="Email"><a href={`mailto:${EMAIL}`} className="font-semibold text-brand hover:underline">{EMAIL}</a></InfoRow>
         <InfoRow label="Phone"><a href={WHATSAPP} className="font-semibold text-brand hover:underline">+91 8448296273</a></InfoRow>
-        <InfoRow label="Time">Monday to Friday, 11:00 AM – 6:00 PM</InfoRow>
+        <InfoRow label="Time">Monday to Saturday, 11:00 AM – 6:00 PM</InfoRow>
       </div>
       <P>The Grievance Officer will acknowledge your complaint within 24 hours and resolve it within 15 days.</P>
 
       {/* 14 — Contact */}
       <div className="mt-10 rounded-card border border-brand/15 bg-brand-softer/40 p-6 text-center">
         <h2 className="text-lg lg:text-xl font-bold text-ink">Contact us</h2>
-        <p className="mt-2 text-[13px] lg:text-[15px] text-neutral-600">For any privacy-related queries — Monday to Friday, 11:00 AM – 6:00 PM.</p>
+        <p className="mt-2 text-[13px] lg:text-[15px] text-neutral-600">For any privacy-related queries — Monday to Saturday, 11:00 AM – 6:00 PM.</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <a href={WHATSAPP} className="rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark">
             WhatsApp +91 8448296273

@@ -151,7 +151,7 @@ export default function AboutPage() {
             <div className="mt-5 rounded-card border border-black/5 bg-white p-5 shadow-card">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Registered office</p>
               <p className="mt-1 text-[14px] font-semibold text-ink">
-                147, 3rd Floor, Patparganj Industrial Area, Near Anand Vihar, Delhi – 110092
+                147, Patparganj Industrial Area, Near Anand Vihar, Delhi – 110092
               </p>
             </div>
           </div>

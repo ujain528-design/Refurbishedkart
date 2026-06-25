@@ -173,7 +173,7 @@ export default function ShippingPolicyPage() {
       {/* 10 — Contact */}
       <div className="mt-10 rounded-card border border-brand/15 bg-brand-softer/40 p-6 text-center">
         <h2 className="text-lg lg:text-xl font-bold text-ink">Have a shipping query?</h2>
-        <p className="mt-2 text-[13px] lg:text-[15px] text-neutral-600">We&apos;re here Monday–Friday, 11:00 AM – 6:00 PM.</p>
+        <p className="mt-2 text-[13px] lg:text-[15px] text-neutral-600">We&apos;re here Monday–Saturday, 11:00 AM – 6:00 PM.</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <a href={WHATSAPP} className="rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark">
             WhatsApp +91 8448296273
