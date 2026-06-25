@@ -6,11 +6,11 @@ import { CloseIcon } from "@/components/Icons";
 import { CATEGORY_TILES, CatIcon } from "@/components/CategoryTiles";
 import { categoryColor } from "@/lib/categoryColors";
 
-/* Budget → category picker. `tier` = { cap, min, max }. Picking a category
-   navigates to that category filtered to the tier's price range. Pure-CSS
+/* Budget → category picker. `bucket` = { slug, label }. Picking a category
+   navigates to the SEO budget landing page /budget/[category]/[bucket]. Pure-CSS
    enter/exit animation; ESC + backdrop close; focus trapped; focus returns to
    the trigger (handled by the parent's onClose). */
-export default function BudgetCategoryModal({ tier, onClose }) {
+export default function BudgetCategoryModal({ bucket, onClose }) {
   const router = useRouter();
   const dialogRef = useRef(null);
   const [closing, setClosing] = useState(false);
@@ -24,7 +24,7 @@ export default function BudgetCategoryModal({ tier, onClose }) {
 
   const pick = (slug) => {
     // Navigation unmounts the homepage; no need to animate out first.
-    router.push(`/products/${slug}?minPrice=${tier.min}&maxPrice=${tier.max}`);
+    router.push(`/budget/${slug}/${bucket.slug}`);
   };
 
   // ESC + simple focus trap; lock body scroll while open.
@@ -65,7 +65,7 @@ export default function BudgetCategoryModal({ tier, onClose }) {
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`Shop ${tier.cap}`}
+        aria-label={`Shop ${bucket.label}`}
         onClick={(e) => e.stopPropagation()}
         className={`relative max-h-[90vh] w-full max-w-[900px] overflow-y-auto rounded-2xl bg-white p-7 shadow-card-hover ${closing ? "picker-scale-out" : "picker-scale-in"}`}
       >
@@ -79,9 +79,9 @@ export default function BudgetCategoryModal({ tier, onClose }) {
 
         <p className="flex items-center gap-2 text-[0.75rem] font-semibold uppercase tracking-[0.15em] text-[#B8860B]">
           <span className="inline-block h-px w-5 shrink-0 bg-[#B8860B]" aria-hidden="true" />
-          Choose a Category
+          {bucket.label}
         </p>
-        <h2 className="mt-2 font-display text-[1.6rem] font-bold tracking-[-0.02em] text-dark">Shop {tier.cap}</h2>
+        <h2 className="mt-2 font-display text-[1.6rem] font-bold tracking-[-0.02em] text-dark">What are you looking for?</h2>
         <p className="mt-1 text-sm text-muted">Pick a category to browse in this budget.</p>
 
         {/* Compact category tiles — 5 across (wrap 3 → 2 on smaller screens) */}

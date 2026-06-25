@@ -23,6 +23,31 @@ const nextConfig = {
       { source: "/refurbished-hp-laptops", destination: "/brands/hp", permanent: true },
       { source: "/refurbished-lenovo-laptops", destination: "/brands/lenovo", permanent: true },
       { source: "/refurbished-apple-laptops", destination: "/brands/apple", permanent: true },
+      // Keyword-rich price-bucket URLs (laptops) → clean /budget route.
+      { source: "/refurbished-laptops-under-20000", destination: "/budget/laptops/under-20000", permanent: true },
+      { source: "/refurbished-laptops-20000-35000", destination: "/budget/laptops/20000-35000", permanent: true },
+      { source: "/refurbished-laptops-35000-50000", destination: "/budget/laptops/35000-50000", permanent: true },
+      { source: "/refurbished-laptops-above-50000", destination: "/budget/laptops/above-50000", permanent: true },
+      // Desktops
+      { source: "/refurbished-desktops-under-20000", destination: "/budget/desktops/under-20000", permanent: true },
+      { source: "/refurbished-desktops-20000-35000", destination: "/budget/desktops/20000-35000", permanent: true },
+      { source: "/refurbished-desktops-35000-50000", destination: "/budget/desktops/35000-50000", permanent: true },
+      { source: "/refurbished-desktops-above-50000", destination: "/budget/desktops/above-50000", permanent: true },
+      // Monitors
+      { source: "/refurbished-monitors-under-20000", destination: "/budget/monitors/under-20000", permanent: true },
+      { source: "/refurbished-monitors-20000-35000", destination: "/budget/monitors/20000-35000", permanent: true },
+      { source: "/refurbished-monitors-35000-50000", destination: "/budget/monitors/35000-50000", permanent: true },
+      { source: "/refurbished-monitors-above-50000", destination: "/budget/monitors/above-50000", permanent: true },
+      // Servers
+      { source: "/refurbished-servers-under-20000", destination: "/budget/servers/under-20000", permanent: true },
+      { source: "/refurbished-servers-20000-35000", destination: "/budget/servers/20000-35000", permanent: true },
+      { source: "/refurbished-servers-35000-50000", destination: "/budget/servers/35000-50000", permanent: true },
+      { source: "/refurbished-servers-above-50000", destination: "/budget/servers/above-50000", permanent: true },
+      // Workstations
+      { source: "/refurbished-workstations-under-20000", destination: "/budget/workstations/under-20000", permanent: true },
+      { source: "/refurbished-workstations-20000-35000", destination: "/budget/workstations/20000-35000", permanent: true },
+      { source: "/refurbished-workstations-35000-50000", destination: "/budget/workstations/35000-50000", permanent: true },
+      { source: "/refurbished-workstations-above-50000", destination: "/budget/workstations/above-50000", permanent: true },
     ];
   },
 };

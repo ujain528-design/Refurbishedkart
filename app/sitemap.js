@@ -3,6 +3,7 @@ import { queryProducts } from "@/lib/server/products";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Collection } from "@/lib/server/models";
 import { getAllBrandSlugs } from "@/lib/brandContent";
+import { getAllBucketSlugs, getAllBudgetCategorySlugs } from "@/lib/priceBuckets";
 
 const BASE = "https://refurbishedkart.com";
 
@@ -52,6 +53,14 @@ export default async function sitemap() {
     priority: 0.7,
   }));
 
+  // Price-bucket landing pages: every category × bucket (20 pages).
+  const budgetUrls = [];
+  for (const category of getAllBudgetCategorySlugs()) {
+    for (const bucket of getAllBucketSlugs()) {
+      budgetUrls.push({ url: `${BASE}/budget/${category}/${bucket}`, lastModified: now, changeFrequency: "weekly", priority: 0.6 });
+    }
+  }
+
   let productUrls = [];
   try {
     const products = await queryProducts({});
@@ -83,5 +92,5 @@ export default async function sitemap() {
     // DB unavailable — skip collections.
   }
 
-  return [...staticUrls, ...categoryUrls, ...brandUrls, ...shopTagUrls, ...collectionUrls, ...productUrls];
+  return [...staticUrls, ...categoryUrls, ...brandUrls, ...budgetUrls, ...shopTagUrls, ...collectionUrls, ...productUrls];
 }
