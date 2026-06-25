@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 const ID_RE = /^[A-Za-z0-9]{4,20}$/;
@@ -19,7 +19,7 @@ async function postJson(url, body) {
   return { ok: res.ok, status: res.status, data: data || {} };
 }
 
-export default function AdminLoginPage() {
+function AdminLoginContent() {
   const params = useSearchParams();
   const next = params.get("next");
   const target = next && next.startsWith("/admin") ? next : "/admin";
@@ -144,5 +144,13 @@ export default function AdminLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-neutral-50" />}>
+      <AdminLoginContent />
+    </Suspense>
   );
 }
