@@ -12,7 +12,12 @@ import {
   formatCountdown, msUntilDeadline, PAY_WARNING_MS,
 } from "@/lib/orderStatus";
 
-const COD_ADVANCE = 500; // ₹500 advance for COD orders (full amount otherwise)
+// Amount due now to keep the order alive: the COD upfront (10% of order value +
+// shipping, saved on the order at creation) for COD; the full total otherwise.
+// Falls back to the full total for any legacy COD order missing codUpfront —
+// never a flat ₹500.
+const amountDue = (order) =>
+  order?.paymentMethod === "COD" ? (order?.codUpfront ?? order?.total ?? 0) : (order?.total ?? 0);
 
 /* Ensure the Razorpay checkout script is available. */
 function loadRazorpay() {
@@ -96,7 +101,7 @@ function PaymentPendingInner() {
     setPaying(true);
     setPayError("");
     try {
-      const payAmount = order.paymentMethod === "COD" ? COD_ADVANCE : order.total;
+      const payAmount = amountDue(order);
       const created = await createRazorpayOrder(order.id, payAmount);
       const ok = await loadRazorpay();
       if (!ok || typeof window === "undefined" || !window.Razorpay) {
@@ -236,7 +241,7 @@ function PaymentPendingInner() {
               disabled={paying}
               className="mt-5 w-full rounded-full bg-brand px-6 py-4 text-base font-bold text-white shadow-card transition-colors hover:bg-brand-dark disabled:opacity-60"
             >
-              {paying ? "Opening payment…" : `Pay Now · ${formatINR(order.paymentMethod === "COD" ? COD_ADVANCE : order.total)}`}
+              {paying ? "Opening payment…" : `Pay Now · ${formatINR(amountDue(order))}`}
             </button>
           )}
           {expired && (

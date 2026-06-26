@@ -51,6 +51,17 @@ export const metadata = {
   },
   twitter: { card: "summary_large_image", site: "@refurbishedkart" },
   robots: { index: true, follow: true },
+  // Browser tab / bookmark / home-screen icons — multi-size for crisp rendering
+  // everywhere (generated from the logo via scripts/generate-favicons.mjs).
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
+  },
   verification: { google: "add-google-search-console-code-here" },
 };
 
