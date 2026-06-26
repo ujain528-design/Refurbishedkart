@@ -7,14 +7,14 @@ import { useAuth } from "@/lib/AuthContext";
 import { formatINR, INDIAN_STATES, paymentMethodLabel } from "@/lib/data";
 import { MOCK_COUPONS } from "@/lib/account-data";
 import {
-  getOrders, cancelOrder, downloadInvoice,
+  getOrders, downloadInvoice,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
   getUserProfile, updateProfile,
   getReturns, createReturn, uploadReturnPhoto, getReturnReasons, getPublicSettings,
 } from "@/lib/api";
 import { ErrorState, EmptyState } from "@/components/ui/States";
 import { ChevronDown, BrokenDeviceIcon } from "@/components/Icons";
-import { isPaymentPending, formatCountdown, PAY_WARNING_MS } from "@/lib/orderStatus";
+import { isPaymentPending, isCancelled, cancellationReasonLabel, formatCountdown, PAY_WARNING_MS } from "@/lib/orderStatus";
 
 const TABS = [
   { id: "orders", label: "My Orders" },
@@ -30,7 +30,11 @@ const STATUS_COLOR = {
   Delivered: "bg-green-100 text-green-700",
   Cancelled: "bg-neutral-200 text-neutral-600",
 };
-const CANCELLABLE = ["Pending", "Confirmed"];
+// Self-serve cancel disabled — cancellations handled by support team only.
+// An order counts as "paid" if any payment signal is present (online capture or
+// COD advance). A cancelled order with no such signal was never paid — i.e. it
+// auto-expired from payment_pending after the 30-minute window.
+const wasPaid = (o) => !!(o?.paidAt || o?.razorpayPaymentId || o?.codAdvancePaid);
 // Invoice exists only once payment is confirmed (not for pending_payment / cancelled).
 const INVOICE_STATUSES = ["Confirmed", "Packed", "Shipped", "Delivered", "Returned"];
 const variantText = (it) => (it.ram ? `${it.ram}GB${it.ssd ? ` · ${it.ssd} SSD` : ""}` : it.ssd ? it.ssd : "");
@@ -46,6 +50,61 @@ const RETURN_STATUS_COLOR = {
   Refunded: "bg-brand-soft text-brand",
 };
 
+/* Low-key "how to cancel" helper shown at the bottom of the orders list. Not a
+   CTA — a last-resort reference. Self-serve cancel is disabled; all cancellations
+   go through the support team, explained here. */
+function CancellationHelp() {
+  return (
+    <div className="mt-6 rounded-card border border-black/5 bg-neutral-50 p-5">
+      <h3 className="text-sm font-bold text-ink">Want to Cancel Your Order?</h3>
+      <p className="mt-1 text-[13px] leading-relaxed text-neutral-500">
+        Cancellations are handled by our support team.
+      </p>
+
+      <div className="mt-4 space-y-3">
+        {/* Before dispatch — positive path */}
+        <div className="rounded-lg border border-green-200 bg-green-50/60 p-4">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold text-green-700">
+            <span aria-hidden="true">✅</span> Before Dispatch
+          </p>
+          <p className="mt-1 text-[13px] leading-relaxed text-neutral-600">
+            Full refund processed within 5–7 business days. Contact us immediately:
+          </p>
+          <div className="mt-2.5 flex flex-col gap-1.5 text-[13px]">
+            <a href="tel:+918448296273" className="font-semibold text-green-800 hover:underline">
+              📞 Call: +91 8448296273
+            </a>
+            <a
+              href="https://wa.me/918448296273"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-green-800 hover:underline"
+            >
+              💬 WhatsApp: +91 8448296273
+            </a>
+          </div>
+          <p className="mt-2 text-[12px] text-neutral-500">Monday to Saturday, 11:00 AM – 6:00 PM</p>
+        </div>
+
+        {/* After dispatch — warning path */}
+        <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold text-amber-700">
+            <span aria-hidden="true">❌</span> After Dispatch
+          </p>
+          <p className="mt-1 text-[13px] leading-relaxed text-neutral-600">
+            If your order has already been dispatched, cancellation is not possible. You may initiate a
+            return after delivery — a ₹999 restocking fee will apply.{" "}
+            <Link href="/return-policy" className="font-semibold text-amber-800 hover:underline">
+              See our Return Policy
+            </Link>{" "}
+            for details.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OrdersTab() {
   const router = useRouter();
   const [status, setStatus] = useState("loading");
@@ -54,7 +113,6 @@ function OrdersTab() {
   const [returnDays, setReturnDays] = useState(7);
   const [reasons, setReasons] = useState([]);
   const [open, setOpen] = useState(null);
-  const [cancelling, setCancelling] = useState(null);
   const [downloading, setDownloading] = useState(null);
   const [returnFor, setReturnFor] = useState(null); // order object whose modal is open
   const [now, setNow] = useState(Date.now());       // ticks every second for live countdowns
@@ -108,18 +166,6 @@ function OrdersTab() {
     return Math.floor((Date.now() - base.getTime()) / DAY) <= returnDays;
   };
 
-  const doCancel = async (id) => {
-    setCancelling(id);
-    try {
-      const updated = await cancelOrder(id);
-      setOrders((os) => os.map((o) => (o.id === id ? updated : o)));
-    } catch (e) {
-      alert(e.message || "Couldn't cancel this order.");
-    } finally {
-      setCancelling(null);
-    }
-  };
-
   if (status === "loading") return <div className="py-16 text-center text-sm text-neutral-400">Loading your orders…</div>;
   if (status === "error") return <ErrorState message="Couldn't load your orders." onRetry={load} />;
   if (!orders.length)
@@ -170,6 +216,28 @@ function OrdersTab() {
             </button>
             {open === o.id && (
               <div className="border-t border-black/5 px-5 py-4">
+                {isCancelled(o.status) && (
+                  <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-[12px] leading-relaxed text-neutral-500">
+                    {!wasPaid(o) ? (
+                      // Never paid → auto-expired from payment_pending.
+                      "This order was automatically cancelled as payment was not completed within 30 minutes."
+                    ) : o.cancellationReason ? (
+                      // Paid + a reason recorded → show the reason to the customer.
+                      <>
+                        This order was cancelled.{" "}
+                        <span className="font-semibold text-neutral-600">Reason: {cancellationReasonLabel(o.cancellationReason)}.</span>{" "}
+                        Questions? Contact{" "}
+                        <a href="tel:+918448296273" className="font-semibold text-neutral-600 hover:text-brand hover:underline">+91 8448296273</a>.
+                      </>
+                    ) : (
+                      // Paid, no reason recorded → generic fallback.
+                      <>
+                        This order was cancelled. If you have questions contact{" "}
+                        <a href="tel:+918448296273" className="font-semibold text-neutral-600 hover:text-brand hover:underline">+91 8448296273</a>.
+                      </>
+                    )}
+                  </div>
+                )}
                 <div className="space-y-3">
                   {lines.map((it, i) => (
                     <div key={i} className="flex items-center gap-3">
@@ -227,15 +295,6 @@ function OrdersTab() {
                         {downloading === o.id ? "Preparing…" : "Download Invoice"}
                       </button>
                     )}
-                    {CANCELLABLE.includes(o.status) && (
-                      <button
-                        onClick={() => doCancel(o.id)}
-                        disabled={cancelling === o.id}
-                        className="rounded-full border border-red-200 px-4 py-2 text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                      >
-                        {cancelling === o.id ? "Cancelling…" : "Cancel Order"}
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -243,6 +302,8 @@ function OrdersTab() {
           </div>
         );
       })}
+
+      <CancellationHelp />
 
       {returnFor && (
         <RequestReturnModal

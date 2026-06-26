@@ -18,7 +18,7 @@ const EMAIL = "support@refurbishedkart.com";
 const HOURS = "Monday to Saturday, 11:00 AM – 6:00 PM";
 
 const CARDS = [
-  { icon: "📞", title: "Call Us", lines: [PHONE, HOURS], href: "tel:+918448296273" },
+  { icon: "📞", title: "Call Us", lines: [PHONE, HOURS, "For order cancellations, contact us before dispatch."], href: "tel:+918448296273" },
   { icon: "💬", title: "WhatsApp", lines: [PHONE, "Chat with us on WhatsApp"], href: WHATSAPP },
   { icon: "📧", title: "Email", lines: [EMAIL, "We respond within 24 hours"], href: `mailto:${EMAIL}` },
   { icon: "📍", title: "Visit Us", lines: ["147, Patparganj Industrial Area,", "Near Anand Vihar, Delhi – 110092", HOURS] },

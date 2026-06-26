@@ -96,6 +96,14 @@ export default function OrderConfirmation() {
         Estimated delivery: 3–5 business days
       </div>
 
+      {/* Cancellation note — subtle, not a CTA */}
+      <p className="mt-4 text-center text-[12px] leading-relaxed text-neutral-400">
+        Need to cancel? Call or WhatsApp{" "}
+        <a href="tel:+918448296273" className="font-semibold text-neutral-500 hover:text-brand hover:underline">+91 8448296273</a>{" "}
+        before dispatch. Cancellations after dispatch are not accepted —{" "}
+        <Link href="/return-policy" className="font-semibold text-neutral-500 hover:text-brand hover:underline">return policy</Link> applies.
+      </p>
+
       <div className="mt-5 lg:mt-8 flex flex-col gap-3 sm:flex-row">
         <Link href="/account?tab=orders" className="flex-1 rounded-full border-2 border-brand py-2.5 lg:py-3 text-center text-sm font-bold text-brand transition-colors hover:bg-brand-softer">
           View My Orders

@@ -10,6 +10,19 @@ import { isPaymentPending, isCancelled, formatCountdown, cancellationReasonLabel
 
 const STATUSES = ["Pending", "Confirmed", "Packed", "Shipped", "Delivered", "Cancelled", "Returned"];
 
+// Preset cancellation reasons shown to the admin (and, in turn, the customer).
+// "Other (specify)" reveals a free-text input.
+const CANCEL_REASONS = [
+  "Customer requested cancellation",
+  "Out of stock",
+  "Pricing error",
+  "Duplicate order",
+  "Fraudulent order",
+  "Unable to deliver to location",
+  "Other (specify)",
+];
+const OTHER_REASON = "Other (specify)";
+
 // Top filter bar. Each tab maps to an exact status query (null = no filter / all).
 const FILTERS = [
   { label: "All", value: null },
@@ -94,12 +107,20 @@ export default function Orders() {
     return () => clearInterval(t);
   }, []);
 
-  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courier || "", trackingNumber: o.trackingNumber || "" }); };
+  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courier || "", trackingNumber: o.trackingNumber || "", cancelReason: "", cancelOther: "" }); };
+
+  // Effective cancellation reason from the dropdown (+ free-text when "Other").
+  const effectiveCancelReason = (f) => (f.cancelReason === OTHER_REASON ? f.cancelOther.trim() : f.cancelReason);
 
   const save = async () => {
+    const reason = effectiveCancelReason(form);
+    // Cancelling requires a reason — block the save and tell the admin.
+    if (form.status === "Cancelled" && !reason) { toast("Cancellation reason required"); return; }
     setSaving(true);
     try {
-      if (form.status !== view.status) await adminUpdateOrderStatus(view.id, form.status);
+      if (form.status !== view.status) {
+        await adminUpdateOrderStatus(view.id, form.status, form.status === "Cancelled" ? reason : undefined);
+      }
       await adminUpdateTracking(view.id, { courier: form.courier, trackingNumber: form.trackingNumber });
       toast("Order updated");
       setView(null);
@@ -291,11 +312,39 @@ export default function Orders() {
                 <Field label="Update Status">
                   <select className={inputCls} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
                 </Field>
+                {form.status === "Cancelled" && (
+                  <div className="rounded-lg border border-red-200 bg-red-50/60 p-3">
+                    <Field label="Cancellation Reason" hint="Shown to the customer on their order.">
+                      <select
+                        className={inputCls}
+                        value={form.cancelReason}
+                        onChange={(e) => setForm((f) => ({ ...f, cancelReason: e.target.value }))}
+                      >
+                        <option value="">Select a reason…</option>
+                        {CANCEL_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </Field>
+                    {form.cancelReason === OTHER_REASON && (
+                      <input
+                        className={`${inputCls} mt-2`}
+                        placeholder="Specify the reason"
+                        value={form.cancelOther}
+                        onChange={(e) => setForm((f) => ({ ...f, cancelOther: e.target.value }))}
+                      />
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Courier"><input className={inputCls} placeholder="Delhivery" value={form.courier} onChange={(e) => setForm((f) => ({ ...f, courier: e.target.value }))} /></Field>
                   <Field label="Tracking #"><input className={inputCls} value={form.trackingNumber} onChange={(e) => setForm((f) => ({ ...f, trackingNumber: e.target.value }))} /></Field>
                 </div>
-                <button onClick={save} disabled={saving} className={btnPrimary}>{saving ? "Saving…" : "Save Changes"}</button>
+                <button
+                  onClick={save}
+                  disabled={saving || (form.status === "Cancelled" && !effectiveCancelReason(form))}
+                  className={`${btnPrimary} disabled:opacity-50`}
+                >
+                  {saving ? "Saving…" : "Save Changes"}
+                </button>
               </>
             ) : (
               <div className="rounded-lg border border-dashed border-black/10 bg-neutral-50 p-3 text-[13px] font-medium text-neutral-500">

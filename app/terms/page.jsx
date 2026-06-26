@@ -88,6 +88,7 @@ export default function TermsPage() {
         "COD is available on orders up to ₹29,999. A 10% advance is collected at checkout for COD orders.",
         "For COD orders: if delivery fails due to wrong address, unavailability, or refusal — both-side courier charges will be deducted from the advance amount.",
         "GST invoices are provided for all orders.",
+        <span key="cancel">Orders can be cancelled only before dispatch by contacting our support team at <a href="tel:+918448296273" className="font-semibold text-brand hover:underline">+91 8448296273</a> (Mon–Sat, 11AM–6PM). Orders cancelled after dispatch are not eligible for cancellation. Return policy applies with a ₹999 restocking fee.</span>,
       ]} />
 
       {/* 7 — Data wiping (HIGHLIGHTED) */}

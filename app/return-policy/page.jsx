@@ -61,6 +61,14 @@ export default function ReturnPolicyPage() {
     <StaticPage title="Return Policy" subtitle="Easy returns, honest process.">
       <p className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Last updated: June 2025</p>
 
+      {/* 1 — Cancellation policy */}
+      <H2>Cancellation policy</H2>
+      <UL items={[
+        "Orders can be cancelled only before dispatch by contacting our support team.",
+        <span key="contact">Call or WhatsApp: <a href={WHATSAPP} className="font-semibold text-brand hover:underline">+91 8448296273</a> (Mon–Sat, 11:00 AM – 6:00 PM).</span>,
+        "Orders cancelled after dispatch are not eligible for cancellation — the return process applies, with a ₹999 restocking fee.",
+      ]} />
+
       {/* 2 — Return window */}
       <H2>Return window</H2>
       <P>We offer a 7-day return window from the date of delivery for the following reasons:</P>
