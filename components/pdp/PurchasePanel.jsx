@@ -86,6 +86,10 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
   const unavailable = chassis === 0 || !configAvailable;
   const lowStock = chassis > 0 && chassis <= 5;
   const total = serverPrice ?? (selectedConfig ? selectedConfig.price : product.listedPrice ?? product.price);
+  // MRP must shift by the same delta as the listed price so the discount %
+  // stays consistent across variants: selectedMRP = baseMRP + (selectedPrice − baseListedPrice).
+  const baseListed = product.listedPrice ?? product.price ?? 0;
+  const displayMrp = product.mrp ? product.mrp + (total - baseListed) : null;
 
   // Re-render Razorpay's affordability widget when the price changes (variant switch).
   useEffect(() => {
@@ -144,10 +148,10 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
       {/* Price + Add to Cart + Wishlist */}
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
-          {product.mrp ? <p className="text-[13px] text-neutral-400 line-through">{formatINR(product.mrp)}</p> : null}
+          {displayMrp ? <p className="text-[13px] text-neutral-400 line-through">{formatINR(displayMrp)}</p> : null}
           <div className="flex items-baseline gap-2">
             <span className={`text-2xl font-extrabold tracking-tight text-ink transition-opacity lg:text-3xl ${pricing ? "opacity-50" : ""}`}>{formatINR(total)}</span>
-            {product.mrp ? <span className="text-sm font-bold text-brand-mid">{Math.round((1 - total / product.mrp) * 100)}% off</span> : null}
+            {displayMrp ? <span className="text-sm font-bold text-brand-mid">{Math.round((1 - total / displayMrp) * 100)}% off</span> : null}
           </div>
         </div>
         <div className="flex items-center gap-3">
