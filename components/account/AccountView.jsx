@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { formatINR, INDIAN_STATES, paymentMethodLabel } from "@/lib/data";
-import { MOCK_COUPONS } from "@/lib/account-data";
 import {
   getOrders, downloadInvoice,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
@@ -18,7 +17,6 @@ import { isPaymentPending, isCancelled, cancellationReasonLabel, formatCountdown
 
 const TABS = [
   { id: "orders", label: "My Orders" },
-  { id: "coupons", label: "Coupons" },
   { id: "addresses", label: "Addresses" },
   { id: "profile", label: "My Profile" },
 ];
@@ -435,36 +433,6 @@ function RequestReturnModal({ order, reasons, onClose, onSubmitted }) {
   );
 }
 
-/* ── Coupons (mock — no coupons-list endpoint specified) ── */
-function CouponsTab() {
-  const [copied, setCopied] = useState(null);
-  return (
-    <div className="space-y-3">
-      {MOCK_COUPONS.map((c) => {
-        const inactive = c.state !== "active";
-        return (
-          <div key={c.code} className={`flex flex-wrap items-center gap-4 rounded-card border border-dashed p-4 ${inactive ? "border-black/10 bg-neutral-50 opacity-60" : "border-brand/40 bg-brand-softer/40"}`}>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-sm font-extrabold text-ink">{c.code}</span>
-                {c.state === "expired" && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">EXPIRED</span>}
-                {c.state === "used" && <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-bold text-neutral-600">USED</span>}
-              </div>
-              <p className="mt-0.5 text-[13px] text-neutral-600">{c.desc}</p>
-              <p className="text-[12px] text-neutral-400">Min order {c.min ? formatINR(c.min) : "—"} · Expires {c.expiry}</p>
-            </div>
-            {!inactive && (
-              <button onClick={() => { navigator.clipboard?.writeText(c.code); setCopied(c.code); setTimeout(() => setCopied(null), 1500); }} className="rounded-full bg-brand px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-dark">
-                {copied === c.code ? "Copied ✓" : "Copy Code"}
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 /* ── Addresses ── */
 const BLANK_ADDR = { name: "", phone: "", line1: "", line2: "", city: "", state: "Delhi", pincode: "" };
 const inputCls = "rounded-lg border border-black/10 px-3.5 py-2.5 text-sm focus:border-brand focus:outline-none";
@@ -620,7 +588,10 @@ export default function AccountView() {
   const { ready, isLoggedIn, logout } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
-  const [tab, setTab] = useState(params.get("tab") || "orders");
+  // Clamp to a known tab so a stale URL (e.g. ?tab=coupons after the coupons tab
+  // was removed) falls back to Orders instead of rendering an empty panel.
+  const requestedTab = params.get("tab");
+  const [tab, setTab] = useState(TABS.some((t) => t.id === requestedTab) ? requestedTab : "orders");
 
   useEffect(() => {
     if (ready && !isLoggedIn) router.replace("/login?next=/account");
@@ -653,7 +624,6 @@ export default function AccountView() {
 
         <div className="mt-6 lg:mt-0">
           {tab === "orders" && <OrdersTab />}
-          {tab === "coupons" && <CouponsTab />}
           {tab === "addresses" && <AddressesTab />}
           {tab === "profile" && <ProfileTab />}
 

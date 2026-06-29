@@ -59,7 +59,7 @@ const FILTER_FIELDS = [
   { key: "processor", label: "Processor", get: (p) => processorFamily(p.attrs?.processor) },
   { key: "gen", label: "Processor Generation", get: (p) => p.attrs?.gen },
   { key: "ram", label: "RAM (GB)", get: (p) => p.attrs?.ram, format: (v) => `${v} GB` },
-  { key: "ramType", label: "RAM Type", get: (p) => p.attrs?.ramType },
+  { key: "ramType", label: "RAM Type", get: (p) => p.attrs?.ramType || p.defaultRam?.type },
   { key: "ssd", label: "SSD Capacity", get: (p) => p.attrs?.ssd },
   { key: "screen", label: "Screen Size", get: (p) => p.attrs?.screen, hideFor: ["Workstations", "Servers"] },
   { key: "touch", label: "Touchscreen", get: (p) => (p.attrs?.touchscreen === undefined ? undefined : p.attrs.touchscreen ? "Yes" : "No"), hideFor: ["Workstations", "Servers"] },
