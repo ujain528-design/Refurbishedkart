@@ -36,6 +36,9 @@ const FILTER_FIELDS = [
 ];
 
 const SORTS = [
+  // "Featured" is the default: it preserves the server's order, which is RANDOM
+  // (see queryProducts) so brands are mixed instead of clumped by upload order.
+  { id: "featured", label: "Featured" },
   { id: "bestselling", label: "Bestselling" },
   { id: "price-asc", label: "Price: Low to High" },
   { id: "price-desc", label: "Price: High to Low" },
@@ -96,7 +99,7 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
     return s;
   });
   const [price, setPrice] = useState(null);
-  const [sort, setSort] = useState("bestselling");
+  const [sort, setSort] = useState("featured");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [visible, setVisible] = useState(PAGE);
 
@@ -172,13 +175,13 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
 
   const filtered = useMemo(() => {
     const get = Object.fromEntries(FILTER_FIELDS.map((f) => [f.key, f.get]));
-    return products
-      .filter(
-        (p) =>
-          (!price || (p.price >= price[0] && p.price <= price[1])) &&
-          Object.entries(selected).every(([key, vals]) => vals.length === 0 || vals.includes(get[key](p)))
-      )
-      .sort(sortFns[sort]);
+    const list = products.filter(
+      (p) =>
+        (!price || (p.price >= price[0] && p.price <= price[1])) &&
+        Object.entries(selected).every(([key, vals]) => vals.length === 0 || vals.includes(get[key](p)))
+    );
+    // "featured" → keep the server's (random) order; otherwise apply the chosen sort.
+    return sortFns[sort] ? list.sort(sortFns[sort]) : list;
   }, [products, selected, price, sort]);
 
   const shown = filtered.slice(0, visible);

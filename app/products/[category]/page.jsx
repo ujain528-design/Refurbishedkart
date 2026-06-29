@@ -89,14 +89,22 @@ export default function CategoryListingPage({ params }) {
             <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink lg:text-[1.75rem]">Refurbished {categoryName} in India</h1>
             <span className="mt-2.5 block h-[3px] w-14 rounded-full" style={{ background: cc.color }} aria-hidden="true" />
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-neutral-500">{intro}</p>
-            {/* Shop by Budget — quick price-bucket landing chips */}
+            {/* Shop by Budget — chips apply a price filter on THIS listing (same
+                as the homepage budget popup). The /budget/[cat]/[bucket] SEO
+                landing pages still exist for Google; chips just don't link there. */}
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-neutral-400">Shop by budget:</span>
-              {Object.values(PRICE_BUCKETS).map((b) => (
-                <Link key={b.slug} href={`/budget/${params.category}/${b.slug}`} className="rounded-full bg-white/70 px-3.5 py-1.5 text-[12px] font-semibold text-ink shadow-sm ring-1 ring-black/5 transition-colors hover:bg-brand hover:text-white">
-                  {b.label}
-                </Link>
-              ))}
+              {Object.values(PRICE_BUCKETS).map((b) => {
+                const qs = new URLSearchParams();
+                if (b.minPrice > 0) qs.set("minPrice", String(b.minPrice));
+                if (b.maxPrice < 999999) qs.set("maxPrice", String(Math.ceil(b.maxPrice / 1000) * 1000));
+                const query = qs.toString();
+                return (
+                  <Link key={b.slug} href={`/products/${params.category}${query ? `?${query}` : ""}`} className="rounded-full bg-white/70 px-3.5 py-1.5 text-[12px] font-semibold text-ink shadow-sm ring-1 ring-black/5 transition-colors hover:bg-brand hover:text-white">
+                    {b.label}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
