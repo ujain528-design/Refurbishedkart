@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/server/mongoose";
-import { Return, Product } from "@/lib/server/models";
+import { Return, Product, Order } from "@/lib/server/models";
 import { requireAdmin } from "@/lib/server/adminAuth";
-import { getStoreSettings } from "@/lib/server/settings";
 import { sendReturnEmail } from "@/lib/server/mailer";
 
 export const dynamic = "force-dynamic";
 
-const VALID = ["Requested", "Approved", "Rejected", "Received", "Refunded"];
+const VALID = ["Requested", "Approved", "Rejected", "Picked Up", "Received", "Refunded"];
 
 // PUT — update a return. Drives the workflow:
 //   Requested → Approved (with refund/deduction) | Rejected (with reason)
@@ -34,6 +33,14 @@ export async function PUT(req, { params }) {
     if (deductionAmount !== undefined) ret.deductionAmount = Number(deductionAmount) || 0;
     if (deductionReason !== undefined) ret.deductionReason = deductionReason;
 
+    // Append to the status-history audit trail on every actual transition.
+    if (status !== undefined && status !== prevStatus) {
+      ret.statusHistory = [
+        ...(ret.statusHistory || []),
+        { status, timestamp: new Date(), note: adminNotes || "", updatedBy: "admin" },
+      ];
+    }
+
     // Stamp refundedAt the first time it becomes Refunded.
     if (ret.status === "Refunded" && !ret.refundedAt) ret.refundedAt = new Date();
 
@@ -53,23 +60,22 @@ export async function PUT(req, { params }) {
 
     await ret.save();
 
-    // Email the customer on meaningful transitions (non-blocking).
+    // When a refund is finalised, reflect it on the order too (non-blocking).
+    if (status === "Refunded" && status !== prevStatus) {
+      try { await Order.updateOne({ orderId: ret.orderId }, { $set: { status: "refunded" } }); } catch {}
+    }
+
+    // Email the customer on meaningful transitions (non-blocking). Picked Up and
+    // Received are internal logistics steps — no customer email.
     if (status && status !== prevStatus && ret.userEmail) {
+      const common = { returnId: ret.returnId, orderNumber: ret.orderId, customerName: ret.userName, productName: ret.productName };
       try {
         if (status === "Approved") {
-          const settings = await getStoreSettings();
-          await sendReturnEmail(ret.userEmail, "approved", {
-            returnId: ret.returnId,
-            productName: ret.productName,
-            refundAmount: ret.refundAmount,
-            deductionAmount: ret.deductionAmount,
-            deductionReason: ret.deductionReason,
-            shipTo: settings.address || "",
-          });
+          await sendReturnEmail(ret.userEmail, "approved", common);
         } else if (status === "Rejected") {
-          await sendReturnEmail(ret.userEmail, "rejected", { returnId: ret.returnId, reason: ret.adminNotes || "" });
+          await sendReturnEmail(ret.userEmail, "rejected", { ...common, reason: ret.adminNotes || "" });
         } else if (status === "Refunded") {
-          await sendReturnEmail(ret.userEmail, "refunded", { returnId: ret.returnId, refundAmount: ret.refundAmount });
+          await sendReturnEmail(ret.userEmail, "refunded", { ...common, refundAmount: ret.refundAmount });
         }
       } catch {}
     }

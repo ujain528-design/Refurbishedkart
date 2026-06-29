@@ -9,7 +9,7 @@ import {
   getOrders, downloadInvoice,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
   getUserProfile, updateProfile,
-  getReturns, createReturn, uploadReturnPhoto, getReturnReasons, getPublicSettings,
+  getReturns, createReturn, uploadReturnPhoto,
 } from "@/lib/api";
 import { ErrorState, EmptyState } from "@/components/ui/States";
 import { ChevronDown, BrokenDeviceIcon } from "@/components/Icons";
@@ -40,12 +40,25 @@ const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "nume
 
 /* ── Orders ── */
 const DAY = 24 * 60 * 60 * 1000;
+// Return window is a fixed 7 days from delivery (policy) — NOT settings-driven,
+// so the UI gate always matches the "7 days" copy and the server-side check.
+const RETURN_WINDOW_DAYS = 7;
 const RETURN_STATUS_COLOR = {
   Requested: "bg-amber-100 text-amber-700",
   Approved: "bg-green-100 text-green-700",
   Rejected: "bg-red-100 text-red-600",
+  "Picked Up": "bg-blue-100 text-blue-700",
   Received: "bg-indigo-100 text-indigo-700",
   Refunded: "bg-brand-soft text-brand",
+};
+// Icon + label for each status in the customer-facing return timeline.
+const RETURN_TIMELINE = {
+  Requested: { icon: "🔄", label: "Return Requested" },
+  Approved: { icon: "✅", label: "Return Approved" },
+  "Picked Up": { icon: "🚚", label: "Device Picked Up" },
+  Received: { icon: "📦", label: "Device Received" },
+  Refunded: { icon: "💰", label: "Refund Processed" },
+  Rejected: { icon: "❌", label: "Return Rejected" },
 };
 
 /* Low-key "how to cancel" helper shown at the bottom of the orders list. Not a
@@ -97,6 +110,13 @@ function CancellationHelp() {
             </Link>{" "}
             for details.
           </p>
+          <p className="mt-2.5 text-[13px] leading-relaxed text-neutral-600">
+            <span className="font-semibold text-amber-800">Within 7 days of delivery?</span> You can request a
+            return — use the Request Return button on the order above (shown while the window is open), or call /
+            WhatsApp{" "}
+            <a href="tel:+918448296273" className="font-semibold text-amber-800 hover:underline">+91 8448296273</a>.
+            After 7 days the return window is closed.
+          </p>
         </div>
       </div>
     </div>
@@ -108,8 +128,6 @@ function OrdersTab() {
   const [status, setStatus] = useState("loading");
   const [orders, setOrders] = useState([]);
   const [returnsByOrder, setReturnsByOrder] = useState({});
-  const [returnDays, setReturnDays] = useState(7);
-  const [reasons, setReasons] = useState([]);
   const [open, setOpen] = useState(null);
   const [downloading, setDownloading] = useState(null);
   const [returnFor, setReturnFor] = useState(null); // order object whose modal is open
@@ -128,17 +146,15 @@ function OrdersTab() {
 
   const load = useCallback(() => {
     setStatus("loading");
-    Promise.all([getOrders(), getReturns().catch(() => []), getPublicSettings().catch(() => ({}))])
-      .then(([o, rets, s]) => {
+    Promise.all([getOrders(), getReturns().catch(() => [])])
+      .then(([o, rets]) => {
         setOrders(o);
         const map = {};
         (rets || []).forEach((r) => { if (!map[r.orderId]) map[r.orderId] = r; });
         setReturnsByOrder(map);
-        if (s?.returnDays) setReturnDays(Number(s.returnDays));
         setStatus("ready");
       })
       .catch(() => setStatus("error"));
-    getReturnReasons().then(setReasons).catch(() => setReasons([]));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -157,11 +173,13 @@ function OrdersTab() {
     return () => clearInterval(p);
   }, [hasPending]);
 
-  // Eligible = delivered, within window (deliveredAt → updatedAt → createdAt), no return yet.
+  // Eligible = delivered, within the 7-day window, no return yet. Base date is
+  // deliveredAt, falling back to createdAt — deliberately NOT updatedAt, which an
+  // admin edit would bump to today and wrongly reopen an expired window.
   const returnEligible = (o) => {
     if (o.status !== "Delivered" || returnsByOrder[o.id]) return false;
-    const base = new Date(o.deliveredAt || o.updatedAt || o.createdAt || Date.now());
-    return Math.floor((Date.now() - base.getTime()) / DAY) <= returnDays;
+    const base = new Date(o.deliveredAt || o.createdAt || Date.now());
+    return Math.floor((Date.now() - base.getTime()) / DAY) <= RETURN_WINDOW_DAYS;
   };
 
   if (status === "loading") return <div className="py-16 text-center text-sm text-neutral-400">Loading your orders…</div>;
@@ -268,6 +286,20 @@ function OrdersTab() {
                     {returnsByOrder[o.id].status === "Refunded" && (
                       <p className="mt-1 text-[12px] text-brand">Refund of {formatINR(returnsByOrder[o.id].refundAmount)} processed.</p>
                     )}
+                    {Array.isArray(returnsByOrder[o.id].statusHistory) && returnsByOrder[o.id].statusHistory.length > 0 && (
+                      <ol className="mt-3 space-y-1.5 border-t border-black/5 pt-2.5">
+                        {returnsByOrder[o.id].statusHistory.map((h, i) => {
+                          const t = RETURN_TIMELINE[h.status] || { icon: "•", label: h.status };
+                          return (
+                            <li key={i} className="text-[12px] leading-snug">
+                              <span className="font-semibold text-ink">{t.icon} {t.label}</span>
+                              <span className="text-neutral-400"> — {fmtDate(h.timestamp)}</span>
+                              {h.status === "Rejected" && h.note && <span className="mt-0.5 block text-red-600">Reason: {h.note}</span>}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
                   </div>
                 )}
                 <div className="mt-4 flex flex-wrap items-center gap-2.5">
@@ -282,7 +314,7 @@ function OrdersTab() {
                       </button>
                     )}
                     {o.status === "Delivered" && !returnsByOrder[o.id] && !returnEligible(o) && (
-                      <span className="text-[12px] font-semibold text-neutral-400">Return window closed</span>
+                      <span className="text-[12px] font-semibold text-neutral-400">Return window expired (7 days from delivery)</span>
                     )}
                     {INVOICE_STATUSES.includes(o.status) && (
                       <button
@@ -306,7 +338,6 @@ function OrdersTab() {
       {returnFor && (
         <RequestReturnModal
           order={returnFor}
-          reasons={reasons}
           onClose={() => setReturnFor(null)}
           onSubmitted={(r) => { setReturnsByOrder((m) => ({ ...m, [r.orderId]: r })); setReturnFor(null); setOpen(r.orderId); }}
         />
@@ -316,11 +347,19 @@ function OrdersTab() {
 }
 
 /* ── Request Return modal ── */
-function RequestReturnModal({ order, reasons, onClose, onSubmitted }) {
+const RETURN_REASONS = [
+  "Defective / Not working",
+  "Physical damage received",
+  "Wrong item received",
+  "Change of mind",
+  "Other",
+];
+function RequestReturnModal({ order, onClose, onSubmitted }) {
   const lines = order.lines || [];
   const [productIdx, setProductIdx] = useState(0);
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [photos, setPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -342,10 +381,12 @@ function RequestReturnModal({ order, reasons, onClose, onSubmitted }) {
     }
   };
 
+  const waDigits = whatsapp.replace(/\D/g, "");
   const submit = async () => {
     setError("");
     if (!reason) { setError("Please select a reason"); return; }
-    if (!description.trim()) { setError("Please describe the issue"); return; }
+    if (description.trim().length < 20) { setError("Please describe the issue in at least 20 characters"); return; }
+    if (!/^[6-9]\d{9}$/.test(waDigits)) { setError("Enter a valid 10-digit WhatsApp number (the one you sent the unboxing video from)"); return; }
     setSubmitting(true);
     try {
       const line = lines[productIdx] || lines[0] || {};
@@ -355,6 +396,7 @@ function RequestReturnModal({ order, reasons, onClose, onSubmitted }) {
         productName: line.name || "",
         reason,
         description: description.trim(),
+        whatsappNumber: waDigits,
         photos,
       });
       setDone(true);
@@ -394,12 +436,33 @@ function RequestReturnModal({ order, reasons, onClose, onSubmitted }) {
               <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Reason</span>
               <select value={reason} onChange={(e) => setReason(e.target.value)} className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-brand focus:outline-none">
                 <option value="">— Select a reason —</option>
-                {reasons.map((r) => <option key={r} value={r}>{r}</option>)}
+                {RETURN_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </label>
             <label className="block">
               <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Description <span className="text-red-500">*</span></span>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Tell us what's wrong…" className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-brand focus:outline-none" />
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder="Please describe the issue in detail…" className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-brand focus:outline-none" />
+              <span className="mt-1 block text-[11px] text-neutral-400">Minimum 20 characters.</span>
+            </label>
+
+            {/* Unboxing-video instruction — prominent, must be done before submitting */}
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <p className="text-[13px] font-bold text-amber-900">📹 Before submitting, send your unboxing video to{" "}
+                <a href="https://wa.me/918448296273" target="_blank" rel="noopener noreferrer" className="underline">+91 8448296273</a>{" "}
+                on WhatsApp.</p>
+              <p className="mt-1 text-[12px] text-amber-800">Returns without an unboxing video will not be accepted.</p>
+            </div>
+
+            <label className="block">
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">WhatsApp number used to send the video <span className="text-red-500">*</span></span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="10-digit mobile number"
+                className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus:border-brand focus:outline-none"
+              />
             </label>
             <div>
               <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Photos (optional, up to 3)</span>
@@ -423,7 +486,7 @@ function RequestReturnModal({ order, reasons, onClose, onSubmitted }) {
             <div className="flex justify-end gap-2 pt-1">
               <button onClick={onClose} className="rounded-full border border-black/10 px-5 py-2.5 text-sm font-bold text-ink hover:border-brand hover:text-brand">Cancel</button>
               <button onClick={submit} disabled={submitting || uploading} className="rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-dark disabled:opacity-50">
-                {submitting ? "Submitting…" : "Submit Request"}
+                {submitting ? "Submitting…" : "Submit Return Request"}
               </button>
             </div>
           </div>

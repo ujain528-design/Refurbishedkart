@@ -114,8 +114,7 @@ export default function Settings() {
 
         {tab === "Policies" && (
           <div className="space-y-5 rounded-card border border-black/5 bg-white p-5 shadow-card">
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Return Policy (days)"><input type="number" className={inputCls} value={s.returnDays ?? 7} onChange={(e) => set("returnDays", Number(e.target.value))} /></Field>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div><Label>Default Warranty</Label><select className={inputCls} value={s.warrantyDefault || "6 Months"} onChange={(e) => set("warrantyDefault", e.target.value)}>{WARRANTY_OPTS.map((o) => <option key={o}>{o}</option>)}</select></div>
               <div><Label>Default GST Rate</Label><select className={inputCls} value={s.gstRate ?? 18} onChange={(e) => set("gstRate", Number(e.target.value))}>{GST_OPTS.map((o) => <option key={o} value={o}>{o}%</option>)}</select></div>
             </div>

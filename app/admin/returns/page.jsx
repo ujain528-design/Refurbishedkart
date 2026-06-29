@@ -5,9 +5,19 @@ import { PageHeader, Badge, Modal, Field, useToast, inputCls, btnPrimary, btnGho
 import { formatINR } from "@/lib/admin-data";
 import { adminGetReturns, adminUpdateReturn } from "@/lib/api";
 
-const STATUSES = ["Requested", "Approved", "Rejected", "Received", "Refunded"];
+const STATUSES = ["Requested", "Approved", "Rejected", "Picked Up", "Received", "Refunded"];
 const FILTERS = ["All", ...STATUSES];
+// Allowed forward transitions from each status (workflow). Rejected/Refunded are terminal.
+const NEXT = {
+  Requested: ["Approved", "Rejected"],
+  Approved: ["Picked Up"],
+  "Picked Up": ["Received"],
+  Received: ["Refunded"],
+  Rejected: [],
+  Refunded: [],
+};
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—");
+const fmtDateTime = (d) => (d ? new Date(d).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
 
 export default function Returns() {
   const toast = useToast();
@@ -99,8 +109,16 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
 
   const showRefund = ["Approved", "Received", "Refunded"].includes(form.status);
 
+  // Current status + the steps it may move to (workflow-enforced in the dropdown).
+  const statusOptions = [ret.status, ...(NEXT[ret.status] || [])];
+
   const save = async (overrideStatus) => {
     const status = overrideStatus || form.status;
+    // A rejection must carry a reason — it's shown to the customer.
+    if (status === "Rejected" && !form.adminNotes.trim()) {
+      toast("Admin note is required to reject a return", "error");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -149,7 +167,24 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
           <p className="text-[12px] font-semibold uppercase text-neutral-400">Reason</p>
           <p className="mt-0.5 text-ink">{ret.reason}</p>
           <p className="mt-2 whitespace-pre-wrap text-[13px] text-neutral-600">{ret.description}</p>
+          {ret.whatsappNumber && <p className="mt-2 text-[13px] text-neutral-500">WhatsApp (video sent from): <span className="font-semibold text-ink">+91 {ret.whatsappNumber}</span></p>}
         </div>
+
+        {Array.isArray(ret.statusHistory) && ret.statusHistory.length > 0 && (
+          <div>
+            <p className="mb-1.5 text-[12px] font-semibold uppercase text-neutral-400">Status history</p>
+            <ol className="space-y-2 border-l-2 border-black/10 pl-3">
+              {ret.statusHistory.map((h, i) => (
+                <li key={i} className="text-[13px]">
+                  <span className="font-semibold text-ink">{h.status}</span>
+                  <span className="text-neutral-400"> · {fmtDateTime(h.timestamp)}</span>
+                  {h.updatedBy && <span className="text-neutral-400"> · {h.updatedBy}</span>}
+                  {h.note && <p className="text-[12px] text-neutral-500">{h.note}</p>}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
 
         {Array.isArray(ret.photos) && ret.photos.length > 0 && (
           <div>
@@ -165,8 +200,9 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
 
         <Field label="Status">
           <select className={inputCls} value={form.status} onChange={(e) => set("status", e.target.value)}>
-            {STATUSES.map((s) => <option key={s}>{s}</option>)}
+            {statusOptions.map((s) => <option key={s}>{s}</option>)}
           </select>
+          {NEXT[ret.status]?.length === 0 && <p className="mt-1 text-[11px] text-neutral-400">This return is in a final state.</p>}
         </Field>
 
         <Field label="Admin notes (shown to customer on rejection)">

@@ -17,7 +17,6 @@ export async function GET() {
       lowStockThreshold: Number(s.lowStockThreshold ?? 5),
       whatsappNumber: s.whatsappNumber,
       storeName: s.storeName,
-      returnDays: Number(s.returnDays ?? 7),
       gstRate: Number(s.gstRate ?? 18), // store default GST rate (per-product overrides win)
       // Homepage hero — admin-editable (Settings → Appearance)
       hero: {

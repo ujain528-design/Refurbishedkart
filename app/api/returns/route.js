@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Order, Return, nextReturnId } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
-import { getStoreSettings } from "@/lib/server/settings";
-import { sendReturnEmail } from "@/lib/server/mailer";
+import { sendReturnEmail, sendReturnAdminAlert } from "@/lib/server/mailer";
 
 export const dynamic = "force-dynamic";
 
 const DAY = 24 * 60 * 60 * 1000;
+const RETURN_WINDOW_DAYS = 7; // fixed by policy; mirrors the client-side gate
 const ACTIVE = ["Requested", "Approved", "Received", "Refunded"]; // a Rejected return may be re-requested
 
 // GET — the signed-in customer's own returns, newest first.
@@ -29,11 +29,18 @@ export async function POST(req) {
   if (!auth) return NextResponse.json({ error: "Login required" }, { status: 401 });
   try {
     await dbConnect();
-    const { orderId, productId, productName, reason, description, photos } = await req.json();
+    const { orderId, productId, productName, reason, description, photos, whatsappNumber } = await req.json();
 
     if (!orderId) return NextResponse.json({ error: "Order is required" }, { status: 400 });
     if (!reason) return NextResponse.json({ error: "Please select a reason" }, { status: 400 });
-    if (!description || !String(description).trim()) return NextResponse.json({ error: "Please describe the issue" }, { status: 400 });
+    if (!description || String(description).trim().length < 20) {
+      return NextResponse.json({ error: "Please describe the issue in at least 20 characters" }, { status: 400 });
+    }
+    // WhatsApp number used to send the unboxing video: exactly 10 digits, 6–9 lead.
+    const wa = String(whatsappNumber || "").replace(/\D/g, "");
+    if (!/^[6-9]\d{9}$/.test(wa)) {
+      return NextResponse.json({ error: "Enter a valid 10-digit WhatsApp number (the one you sent the unboxing video from)" }, { status: 400 });
+    }
 
     // Ownership: the order must belong to this user.
     const order = await Order.findOne({ orderId, userId: auth.sub }).lean();
@@ -42,12 +49,19 @@ export async function POST(req) {
     // Must be delivered.
     if (order.status !== "Delivered") return NextResponse.json({ error: "Only delivered orders can be returned" }, { status: 409 });
 
-    // Within the return window (deliveredAt → fallback updatedAt/createdAt).
-    const settings = await getStoreSettings();
-    const returnDays = Number(settings.returnDays ?? 7);
-    const base = new Date(order.deliveredAt || order.updatedAt || order.createdAt);
+    // Within the fixed 7-day return window (policy). Base date is deliveredAt,
+    // falling back to createdAt — deliberately NOT updatedAt, which an admin edit
+    // would bump to today and wrongly reopen an expired window. This server check
+    // is authoritative: it blocks late returns even via direct API calls when the
+    // UI button is hidden.
+    const base = new Date(order.deliveredAt || order.createdAt);
     const days = Math.floor((Date.now() - base.getTime()) / DAY);
-    if (days > returnDays) return NextResponse.json({ error: "Return window closed" }, { status: 409 });
+    if (days > RETURN_WINDOW_DAYS) {
+      return NextResponse.json(
+        { error: "Return window expired. Returns are only accepted within 7 days of delivery. Contact us at +91 8448296273 for assistance." },
+        { status: 400 }
+      );
+    }
 
     // Resolve the line being returned (default: the only/first line).
     const lines = order.lines || [];
@@ -64,25 +78,35 @@ export async function POST(req) {
     const dup = await Return.findOne({ orderId, productId: resolvedProductId, status: { $in: ACTIVE } }).lean();
     if (dup) return NextResponse.json({ error: "A return for this item is already in progress" }, { status: 409 });
 
+    const customerEmail = auth.email || order.shippingAddress?.email || "";
+    const customerName = order.customerName || auth.name || "";
+
     const returnId = await nextReturnId();
     const doc = await Return.create({
       returnId,
       orderId,
       orderObjectId: order._id,
       userId: auth.sub,
-      userEmail: auth.email || "",
-      userName: order.customerName || auth.name || "",
+      userEmail: customerEmail,
+      userName: customerName,
       productName: resolvedProductName,
       productId: resolvedProductId,
       reason,
       description: String(description).trim(),
+      whatsappNumber: wa,
       photos: Array.isArray(photos) ? photos.slice(0, 3) : [],
       status: "Requested",
+      statusHistory: [{ status: "Requested", timestamp: new Date(), note: "Return requested by customer", updatedBy: "customer" }],
       paidAmount,
     });
 
-    // Notify the customer (non-blocking).
-    try { await sendReturnEmail(auth.email, "requested", { returnId, productName: resolvedProductName }); } catch {}
+    // Reflect the in-progress return on the order so the customer's order list shows it.
+    try { await Order.updateOne({ orderId, userId: auth.sub }, { $set: { status: "return_requested" } }); } catch {}
+
+    // Emails (non-blocking): support-team alert + customer confirmation.
+    const emailData = { returnId, orderNumber: orderId, customerName, customerEmail, productName: resolvedProductName, reason, description: String(description).trim(), whatsappNumber: wa };
+    try { await sendReturnAdminAlert(emailData); } catch {}
+    try { await sendReturnEmail(customerEmail, "requested", emailData); } catch {}
 
     return NextResponse.json({ return: { id: doc.returnId, ...doc.toObject() } }, { status: 201 });
   } catch (e) {

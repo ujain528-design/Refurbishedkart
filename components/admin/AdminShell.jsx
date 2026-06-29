@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { MenuIcon, CloseIcon } from "@/components/Icons";
+import { adminGetReturns } from "@/lib/api";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -29,6 +30,7 @@ export default function AdminShell({ children }) {
   const [drawer, setDrawer] = useState(false);
   const [adminId, setAdminId] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [pendingReturns, setPendingReturns] = useState(0);
 
   // The login page renders WITHOUT the admin chrome or the session check.
   const isLoginPage = pathname === "/admin/login";
@@ -47,6 +49,17 @@ export default function AdminShell({ children }) {
   }, [isLoginPage, pathname, router]);
 
   useEffect(() => setDrawer(false), [pathname]);
+
+  // Pending-returns count for the sidebar badge. Refreshes on route change so it
+  // updates after an admin processes a return. (Non-blocking; failure → no badge.)
+  useEffect(() => {
+    if (isLoginPage) return;
+    let alive = true;
+    adminGetReturns({ status: "Requested" })
+      .then((r) => { if (alive) setPendingReturns(Array.isArray(r) ? r.length : 0); })
+      .catch(() => { if (alive) setPendingReturns(0); });
+    return () => { alive = false; };
+  }, [isLoginPage, pathname]);
 
   const logout = async () => {
     try { await fetch("/api/admin/auth/logout", { method: "POST" }); } catch {}
@@ -78,11 +91,14 @@ export default function AdminShell({ children }) {
           <Link
             key={item.href}
             href={item.href}
-            className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
               isActive(item.href) ? "bg-brand text-white" : "text-white/60 hover:bg-white/10 hover:text-white"
             }`}
           >
-            {item.label}
+            <span>{item.label}</span>
+            {item.href === "/admin/returns" && pendingReturns > 0 && (
+              <span className="ml-2 inline-flex min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[11px] font-bold text-white">{pendingReturns}</span>
+            )}
           </Link>
         )
       )}

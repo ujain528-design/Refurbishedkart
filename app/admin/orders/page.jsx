@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { formatINR } from "@/lib/admin-data";
 import { paymentMethodLabel } from "@/lib/data";
-import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking } from "@/lib/api";
+import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, getReturnReasons } from "@/lib/api";
 import { WhatsAppIcon } from "@/components/Icons";
 import { isPaymentPending, isCancelled, formatCountdown, cancellationReasonLabel, PAY_WARNING_MS } from "@/lib/orderStatus";
 
@@ -91,6 +91,11 @@ export default function Orders() {
   const [view, setView] = useState(null);
   const [form, setForm] = useState({ status: "", courier: "", trackingNumber: "" });
   const [saving, setSaving] = useState(false);
+  const [returnReasons, setReturnReasons] = useState([]);
+  // Admin "create return on behalf of customer" form. null = closed.
+  const [retForm, setRetForm] = useState(null);
+
+  useEffect(() => { getReturnReasons().then(setReturnReasons).catch(() => setReturnReasons([])); }, []);
 
   const load = useCallback(() => {
     setLoad("loading");
@@ -107,10 +112,33 @@ export default function Orders() {
     return () => clearInterval(t);
   }, []);
 
-  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courier || "", trackingNumber: o.trackingNumber || "", cancelReason: "", cancelOther: "" }); };
+  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courier || "", trackingNumber: o.trackingNumber || "", cancelReason: "", cancelOther: "" }); setRetForm(null); };
 
   // Effective cancellation reason from the dropdown (+ free-text when "Other").
   const effectiveCancelReason = (f) => (f.cancelReason === OTHER_REASON ? f.cancelOther.trim() : f.cancelReason);
+
+  // Admin override: create a return on the customer's behalf (no 7-day window).
+  const submitReturn = async () => {
+    if (!retForm.reason) { toast("Select a reason"); return; }
+    if (!retForm.description.trim()) { toast("Add a description"); return; }
+    if (!retForm.adminNote.trim()) { toast("Admin note is required"); return; }
+    setRetForm((f) => ({ ...f, submitting: true }));
+    try {
+      await adminCreateReturn(view.id, {
+        reason: retForm.reason,
+        description: retForm.description.trim(),
+        whatsappNumber: retForm.whatsapp.trim(),
+        adminNote: retForm.adminNote.trim(),
+      });
+      toast("Return created for customer");
+      setView(null);
+      setRetForm(null);
+      load();
+    } catch (e) {
+      toast(e.message || "Couldn't create return");
+      setRetForm((f) => ({ ...f, submitting: false }));
+    }
+  };
 
   const save = async () => {
     const reason = effectiveCancelReason(form);
@@ -351,6 +379,50 @@ export default function Orders() {
                 {isCancelled(view.status)
                   ? "This order is cancelled — fulfillment and Shiprocket are locked."
                   : "Awaiting payment — fulfillment unlocks automatically once payment is confirmed."}
+              </div>
+            )}
+
+            {/* Admin override: create a return on the customer's behalf, bypassing
+                the 7-day window — for legitimate late returns support agrees to honour. */}
+            {(view.status === "Delivered" || view.deliveredAt || view.status === "return_requested") && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                {!retForm ? (
+                  <button
+                    onClick={() => setRetForm({ reason: "", description: "", whatsapp: phoneOf(view) || "", adminNote: "", submitting: false })}
+                    className="text-[13px] font-bold text-amber-800 hover:underline"
+                  >
+                    + Create Return for Customer
+                  </button>
+                ) : (
+                  <div className="space-y-2.5">
+                    <p className="text-[12px] font-bold uppercase tracking-wide text-amber-700">Create Return — admin override (no 7-day limit)</p>
+                    <Field label="Reason">
+                      <select className={inputCls} value={retForm.reason} onChange={(e) => setRetForm((f) => ({ ...f, reason: e.target.value }))}>
+                        <option value="">Select a reason…</option>
+                        {returnReasons.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Description">
+                      <textarea rows={2} className={inputCls} value={retForm.description} onChange={(e) => setRetForm((f) => ({ ...f, description: e.target.value }))} />
+                    </Field>
+                    <Field label="Customer WhatsApp">
+                      <input className={inputCls} placeholder="+91…" value={retForm.whatsapp} onChange={(e) => setRetForm((f) => ({ ...f, whatsapp: e.target.value }))} />
+                    </Field>
+                    <Field label="Admin note (required)" hint="Why is this return being created past the normal 7-day window?">
+                      <textarea rows={2} className={inputCls} value={retForm.adminNote} onChange={(e) => setRetForm((f) => ({ ...f, adminNote: e.target.value }))} />
+                    </Field>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={submitReturn}
+                        disabled={retForm.submitting || !retForm.reason || !retForm.description.trim() || !retForm.adminNote.trim()}
+                        className={`${btnPrimary} disabled:opacity-50`}
+                      >
+                        {retForm.submitting ? "Creating…" : "Create Return"}
+                      </button>
+                      <button onClick={() => setRetForm(null)} className={btnGhost}>Cancel</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
