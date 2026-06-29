@@ -21,16 +21,49 @@ import { getProducts } from "@/lib/api";
 // `hideFor` excludes a facet from those categories. Desktop towers
 // (Workstations/Servers) never expose Screen Size / Touchscreen facets, even if a
 // stray row carries those attrs — workstations are desktop-only.
+// Collapse a full processor string to its FAMILY so the Processor filter stays
+// short and scannable (e.g. "Intel Core i5-10310U" → "Core i5", "AMD Ryzen 7
+// 3700U" → "Ryzen 7", "Apple M2" → "M2"). Both the option list AND the match use
+// this, so selecting "Core i5" returns every i5 regardless of exact model.
+// Unknown strings fall back to themselves so nothing silently vanishes.
+function processorFamily(proc) {
+  if (proc == null || String(proc).trim() === "") return undefined;
+  const s = String(proc).trim();
+  let m = s.match(/\bM([1-4])\b/);               // Apple M-series (before Intel "Core")
+  if (m && !/core/i.test(s)) return `M${m[1]}`;
+  m = s.match(/\bi([3579])\b/i) || s.match(/core\s*i([3579])/i) || s.match(/\bi([3579])[-\s]/i);
+  if (m) return `Core i${m[1]}`;
+  if (/celeron/i.test(s)) return "Celeron";
+  if (/pentium/i.test(s)) return "Pentium";
+  m = s.match(/ryzen\s*([3579])/i);
+  if (m) return `Ryzen ${m[1]}`;
+  if (/xeon/i.test(s)) return "Xeon";            // servers / workstations
+  return s;
+}
+
+// Graphics filter: show ONLY dedicated-GPU VRAM sizes (as a number for correct
+// numeric sort; formatted "4GB" for display). Integrated graphics (Intel HD/UHD/
+// Iris, Apple M-series GPU, anything tagged "integrated") and dedicated GPUs with
+// no parseable VRAM return undefined → excluded from options + matching. If every
+// product is integrated, the field yields zero options and is hidden entirely.
+function gpuVram(gpu) {
+  if (gpu == null || String(gpu).trim() === "") return undefined;
+  const s = String(gpu);
+  if (/integrated|intel\s+(hd|uhd|iris)|apple\s+m[1-4]|\bm[1-4]\s+gpu\b/i.test(s)) return undefined;
+  const m = s.match(/(\d+)\s*GB/i);
+  return m ? Number(m[1]) : undefined;
+}
+
 const FILTER_FIELDS = [
   { key: "brand", label: "Brand", get: (p) => p.brand },
-  { key: "processor", label: "Processor", get: (p) => p.attrs?.processor },
+  { key: "processor", label: "Processor", get: (p) => processorFamily(p.attrs?.processor) },
   { key: "gen", label: "Processor Generation", get: (p) => p.attrs?.gen },
   { key: "ram", label: "RAM (GB)", get: (p) => p.attrs?.ram, format: (v) => `${v} GB` },
   { key: "ramType", label: "RAM Type", get: (p) => p.attrs?.ramType },
   { key: "ssd", label: "SSD Capacity", get: (p) => p.attrs?.ssd },
   { key: "screen", label: "Screen Size", get: (p) => p.attrs?.screen, hideFor: ["Workstations", "Servers"] },
   { key: "touch", label: "Touchscreen", get: (p) => (p.attrs?.touchscreen === undefined ? undefined : p.attrs.touchscreen ? "Yes" : "No"), hideFor: ["Workstations", "Servers"] },
-  { key: "gpu", label: "Graphics / GPU", get: (p) => p.attrs?.gpu },
+  { key: "gpu", label: "Graphics (dedicated)", get: (p) => gpuVram(p.attrs?.gpu), format: (v) => `${v}GB` },
   { key: "os", label: "Operating System", get: (p) => p.attrs?.os },
   { key: "warranty", label: "Warranty Period", get: (p) => p.attrs?.warranty },
 ];

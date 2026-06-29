@@ -69,6 +69,45 @@ const EMPTY = {
 
 const CONDITIONS = ["Excellent", "Good", "Fair"];
 
+/* Reconstruct the two-level processor selection (Family + Model) from a stored
+   `attrs.processor` string of ANY shape — full names from bulk import
+   ("Intel Core i5-10310U"), bare models ("i5-10310U"), or already-clean
+   families ("Intel Core i5"). Partial-matches against PROCESSOR_FAMILIES /
+   PROCESSOR_MODELS so a bulk-uploaded product's dropdowns aren't left blank.
+   Longest model token wins (so "M2 Pro" beats "M2"). */
+function deriveProcessor(proc) {
+  const s = String(proc || "").trim();
+  if (!s) return { family: "", procModel: "" };
+  const lc = s.toLowerCase();
+  let family = PROCESSOR_FAMILIES.find((fam) => fam.toLowerCase() === lc) || "";
+  if (!family) {
+    family = PROCESSOR_FAMILIES.find((fam) => {
+      const f = fam.toLowerCase();
+      if (f === "apple") return /apple/i.test(s) || /\bm[1-4]\b/i.test(s);
+      if (f === "xeon") return /xeon/i.test(s);
+      if (f === "intel celeron") return /celeron/i.test(s);
+      if (f === "intel pentium") return /pentium/i.test(s);
+      if (f.startsWith("intel core ")) {
+        const tag = fam.split(" ").pop(); // i3/i5/i7/i9
+        return new RegExp(`\\b${tag}\\b`, "i").test(s) || new RegExp(`core\\s*${tag}`, "i").test(s);
+      }
+      if (f.startsWith("amd ryzen ")) {
+        const num = fam.split(" ").pop(); // 3/5/7/9
+        return new RegExp(`ryzen\\s*${num}`, "i").test(s);
+      }
+      return false;
+    }) || "";
+  }
+  let procModel = "";
+  if (family && PROCESSOR_MODELS[family]) {
+    procModel =
+      [...PROCESSOR_MODELS[family]]
+        .sort((a, b) => b.length - a.length)
+        .find((mdl) => lc.includes(mdl.toLowerCase())) || "";
+  }
+  return { family, procModel };
+}
+
 /* DB document → editor form. The editor's shape diverges from the stored doc, so
    we map every field the DB actually has; the rest stay at EMPTY defaults. */
 function dbToForm(p) {
@@ -106,6 +145,10 @@ function dbToForm(p) {
       brightness: a.brightness ?? "", responseTime: a.responseTime ?? "", hdr: !!a.hdr,
       aspectRatio: a.aspectRatio || "", vesaMount: !!a.vesaMount, builtInSpeakers: !!a.builtInSpeakers,
       driveBays: a.driveBays ?? "", raid: a.raid || "", redundantPower: !!a.redundantPower,
+      // Reconstruct the Family + Model dropdowns from attrs.processor (handles
+      // bulk-imported full names). editorSpecs (an explicit prior admin choice)
+      // is spread last so it still wins when present.
+      ...deriveProcessor(a.processor),
       ...(p.editorSpecs || {}),
     },
     ports: p.ports || {},
