@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { formatINR } from "@/lib/admin-data";
-import { paymentMethodLabel } from "@/lib/data";
-import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, getReturnReasons } from "@/lib/api";
+import { paymentMethodLabel, RETURN_REASONS } from "@/lib/data";
+import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn } from "@/lib/api";
 import { WhatsAppIcon } from "@/components/Icons";
 import { isPaymentPending, isCancelled, formatCountdown, cancellationReasonLabel, PAY_WARNING_MS } from "@/lib/orderStatus";
 
@@ -40,6 +40,13 @@ const isFulfillable = (s) => !isPaymentPending(s) && !isCancelled(s);
 
 const badgeCls = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold tabular-nums";
 
+// Friendly labels for the raw lowercase lifecycle statuses set by the return flow
+// (mirrors the customer order list in AccountView).
+const STATUS_LABEL = {
+  return_requested: "Return In Progress",
+  refunded: "Refunded",
+};
+
 /* Color-coded status pill. Payment-pending shows a live countdown while inside the
    30-min window; a Cancelled order caused by a failed payment reads "Payment Failed". */
 function StatusBadge({ order, now }) {
@@ -65,8 +72,10 @@ function StatusBadge({ order, now }) {
     Packed: "bg-indigo-100 text-indigo-700",
     Pending: "bg-amber-100 text-amber-700",
     Returned: "bg-neutral-200 text-neutral-600",
+    return_requested: "bg-amber-100 text-amber-700",
+    refunded: "bg-brand-soft text-brand",
   };
-  return <span className={`${badgeCls} ${TONE[s] || "bg-neutral-100 text-neutral-600"}`}>{s}</span>;
+  return <span className={`${badgeCls} ${TONE[s] || "bg-neutral-100 text-neutral-600"}`}>{STATUS_LABEL[s] || s}</span>;
 }
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—");
 const itemsText = (o) => (o.lines || []).map((l) => `${l.name} ×${l.qty}`).join(", ");
@@ -91,11 +100,8 @@ export default function Orders() {
   const [view, setView] = useState(null);
   const [form, setForm] = useState({ status: "", courier: "", trackingNumber: "" });
   const [saving, setSaving] = useState(false);
-  const [returnReasons, setReturnReasons] = useState([]);
   // Admin "create return on behalf of customer" form. null = closed.
   const [retForm, setRetForm] = useState(null);
-
-  useEffect(() => { getReturnReasons().then(setReturnReasons).catch(() => setReturnReasons([])); }, []);
 
   const load = useCallback(() => {
     setLoad("loading");
@@ -399,7 +405,7 @@ export default function Orders() {
                     <Field label="Reason">
                       <select className={inputCls} value={retForm.reason} onChange={(e) => setRetForm((f) => ({ ...f, reason: e.target.value }))}>
                         <option value="">Select a reason…</option>
-                        {returnReasons.map((r) => <option key={r} value={r}>{r}</option>)}
+                        {RETURN_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </Field>
                     <Field label="Description">

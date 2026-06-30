@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
-import { formatINR, INDIAN_STATES, paymentMethodLabel } from "@/lib/data";
+import { formatINR, INDIAN_STATES, paymentMethodLabel, RETURN_REASONS } from "@/lib/data";
 import {
   getOrders, downloadInvoice,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
@@ -27,7 +27,15 @@ const STATUS_COLOR = {
   Shipped: "bg-indigo-100 text-indigo-700",
   Delivered: "bg-green-100 text-green-700",
   Cancelled: "bg-neutral-200 text-neutral-600",
+  return_requested: "bg-amber-100 text-amber-700",
+  refunded: "bg-brand-soft text-brand",
 };
+// Friendly labels for the raw lowercase lifecycle statuses set by the return flow.
+const STATUS_LABEL = {
+  return_requested: "Return In Progress",
+  refunded: "Refunded",
+};
+const statusLabel = (s) => STATUS_LABEL[s] || s;
 // Self-serve cancel disabled — cancellations handled by support team only.
 // An order counts as "paid" if any payment signal is present (online capture or
 // COD advance). A cancelled order with no such signal was never paid — i.e. it
@@ -214,7 +222,7 @@ function OrdersTab() {
               ) : expired ? (
                 <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700">Cancelled</span>
               ) : (
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_COLOR[o.status] || "bg-neutral-100 text-neutral-600"}`}>{o.status}</span>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_COLOR[o.status] || "bg-neutral-100 text-neutral-600"}`}>{statusLabel(o.status)}</span>
               )}
               {pending && !expired && (
                 <span
@@ -346,14 +354,8 @@ function OrdersTab() {
   );
 }
 
-/* ── Request Return modal ── */
-const RETURN_REASONS = [
-  "Defective / Not working",
-  "Physical damage received",
-  "Wrong item received",
-  "Change of mind",
-  "Other",
-];
+/* ── Request Return modal ── (reasons imported from lib/data so the admin
+   override form and this form always offer the same list) */
 function RequestReturnModal({ order, onClose, onSubmitted }) {
   const lines = order.lines || [];
   const [productIdx, setProductIdx] = useState(0);
