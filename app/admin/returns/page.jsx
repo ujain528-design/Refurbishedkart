@@ -90,7 +90,11 @@ export default function Returns() {
 }
 
 function ReturnDetail({ ret, onClose, onSaved, toast }) {
-  const paid = Number(ret.paidAmount) || 0;
+  // The refund basis is what the customer ACTUALLY paid (orderPaid from the API:
+  // online → order.total; COD → codUpfront), NOT the stored paidAmount line total
+  // (which ignores coupons and would over-refund). Fall back to paidAmount only if
+  // the order couldn't be resolved.
+  const paid = Number(ret.orderPaid ?? ret.paidAmount) || 0;
   const [form, setForm] = useState({
     status: ret.status,
     adminNotes: ret.adminNotes || "",
@@ -98,6 +102,7 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
     deductionReason: ret.deductionReason || "",
     refundAmount: ret.refundAmount ?? Math.max(0, paid),
     addToStock: false,
+    ackOverRefund: false, // explicit acknowledgment when refund > amount paid
   });
   const [saving, setSaving] = useState(false);
   const [lightbox, setLightbox] = useState(null);
@@ -108,6 +113,10 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
   const onDeduction = (v) => setForm((f) => ({ ...f, deductionAmount: v, refundAmount: Math.max(0, paid - (Number(v) || 0)) }));
 
   const showRefund = ["Approved", "Received", "Refunded"].includes(form.status);
+  // Refund must never silently exceed what was collected. Not blocked (admin may
+  // have a valid reason) but requires explicit acknowledgment.
+  const overRefund = showRefund && (Number(form.refundAmount) || 0) > paid;
+  const refundBlocked = overRefund && !form.ackOverRefund;
 
   // Current status + the steps it may move to (workflow-enforced in the dropdown).
   const statusOptions = [ret.status, ...(NEXT[ret.status] || [])];
@@ -117,6 +126,11 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
     // A rejection must carry a reason — it's shown to the customer.
     if (status === "Rejected" && !form.adminNotes.trim()) {
       toast("Admin note is required to reject a return", "error");
+      return;
+    }
+    // Refund over the amount paid must be explicitly acknowledged first.
+    if (refundBlocked) {
+      toast("Refund exceeds the amount paid — tick the acknowledgment to proceed", "error");
       return;
     }
     setSaving(true);
@@ -147,9 +161,9 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
         <>
           <button onClick={onClose} className={btnGhost}>Close</button>
           {form.status === "Refunded" ? (
-            <button onClick={() => save("Refunded")} disabled={saving} className={btnPrimary}>{saving ? "Saving…" : "Mark as Refunded"}</button>
+            <button onClick={() => save("Refunded")} disabled={saving || refundBlocked} className={`${btnPrimary} disabled:opacity-50`}>{saving ? "Saving…" : "Mark as Refunded"}</button>
           ) : (
-            <button onClick={() => save()} disabled={saving} className={btnPrimary}>{saving ? "Saving…" : "Save"}</button>
+            <button onClick={() => save()} disabled={saving || refundBlocked} className={`${btnPrimary} disabled:opacity-50`}>{saving ? "Saving…" : "Save"}</button>
           )}
         </>
       }
@@ -224,7 +238,17 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
               <Field label="Refund amount (₹)"><input type="number" className={inputCls} value={form.refundAmount} onChange={(e) => set("refundAmount", e.target.value)} /></Field>
             </div>
             <Field label="Deduction reason"><input className={inputCls} value={form.deductionReason} onChange={(e) => set("deductionReason", e.target.value)} placeholder="e.g. restocking fee, missing accessory" /></Field>
-            <p className="mt-1 text-[11px] text-neutral-400">Auto = paid − deduction ({formatINR(autoRefund)}). Refunds are processed manually; mark Refunded once done.</p>
+            <p className="mt-1 text-[11px] text-neutral-400">Auto = paid − deduction ({formatINR(autoRefund)}). Amount paid: {formatINR(paid)}. Refunds are processed manually; mark Refunded once done.</p>
+
+            {overRefund && (
+              <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <p className="text-[13px] font-bold text-amber-900">⚠ This amount exceeds what the customer paid ({formatINR(paid)}). Please verify before proceeding.</p>
+                <label className="mt-2 flex items-center gap-2 text-[12px] font-semibold text-amber-900">
+                  <input type="checkbox" checked={form.ackOverRefund} onChange={(e) => set("ackOverRefund", e.target.checked)} className="accent-amber-600" />
+                  I&apos;ve verified this and want to refund more than was paid.
+                </label>
+              </div>
+            )}
           </div>
         )}
       </div>

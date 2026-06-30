@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Order, Return, nextReturnId } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
+import { lineRefundBasis } from "@/lib/server/refunds";
 import { sendReturnEmail, sendReturnAdminAlert } from "@/lib/server/mailer";
 
 export const dynamic = "force-dynamic";
@@ -72,7 +73,9 @@ export async function POST(req) {
       null;
     const resolvedProductId = productId ?? (line ? String(line.productId) : "");
     const resolvedProductName = productName || (line ? line.name : "");
-    const paidAmount = line ? (Number(line.unitPrice) || 0) * (Number(line.qty) || 1) : 0;
+    // What the customer actually paid for THIS line (coupon discount allocated
+    // proportionally; shipping excluded) — not the raw line total.
+    const paidAmount = line ? lineRefundBasis(order, line) : 0;
 
     // No duplicate active return for this order + product.
     const dup = await Return.findOne({ orderId, productId: resolvedProductId, status: { $in: ACTIVE } }).lean();
