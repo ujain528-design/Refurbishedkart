@@ -33,14 +33,32 @@ export async function POST(req) {
     }
     const subtotal = lines.reduce((a, l) => a + l.unitPrice * l.qty, 0);
 
-    // Validate coupon against the DB, server-side.
+    // Re-validate the coupon against the DB at ORDER TIME — never trust any
+    // client-sent discount. Checks: exists, active, not expired (by date), and
+    // the order meets the minimum. Discount is recomputed here. A coupon that was
+    // valid when applied but has since expired/been disabled is rejected so the
+    // customer is never silently charged full price (and can't sneak a stale
+    // discount through either).
     let discount = 0, appliedCode = null;
     if (couponCode) {
       const c = await Coupon.findOne({ code: String(couponCode).toUpperCase(), active: true }).lean();
-      if (c && subtotal >= (c.minSubtotal || 0)) {
-        discount = c.type === "flat" ? c.value : Math.round(subtotal * (c.value / 100));
-        appliedCode = c.code;
+      const expired = c?.expiry && new Date(c.expiry).getTime() < Date.now();
+      if (!c || expired) {
+        return NextResponse.json({ error: "Coupon no longer valid, please remove and retry." }, { status: 400 });
       }
+      if (subtotal < (c.minSubtotal || 0)) {
+        return NextResponse.json({ error: `This coupon needs a minimum order of ₹${c.minSubtotal}. Please remove it or add more to your cart.` }, { status: 400 });
+      }
+      // Usage limit (null/0 → unlimited). READ-ONLY at order creation — the slot
+      // is NOT claimed here. It's claimed atomically only when payment is confirmed
+      // (lib/server/couponUsage.claimCouponSlotOnce), so an abandoned/unpaid order
+      // never burns a slot. This check just blocks placing an order against a coupon
+      // that's already exhausted.
+      if (Number(c.usageLimit) > 0 && (c.used || 0) >= c.usageLimit) {
+        return NextResponse.json({ error: "This coupon has reached its usage limit." }, { status: 400 });
+      }
+      discount = c.type === "flat" ? c.value : Math.round(subtotal * (c.value / 100));
+      appliedCode = c.code;
     }
     const { freeDeliveryAbove, deliveryFee } = deliveryRules(settings);
     // Shipping is free at/above the threshold on the PRODUCT total (after discount);
@@ -69,7 +87,8 @@ export async function POST(req) {
       ...(isCod ? { codUpfront, codRemaining, codStatus: "pending" } : {}),
       // Created unconfirmed; payment webhook/verification flips it to Confirmed
       // (online) or cod_pending (COD, after the 10% advance). The customer has
-      // 30 minutes to pay the amount due before auto-cancellation.
+      // 30 minutes to pay the amount due before auto-cancellation. The coupon usage
+      // slot is claimed at payment confirmation, not here.
       status: "payment_pending",
       paymentDeadline: new Date(Date.now() + 30 * 60 * 1000),
     });

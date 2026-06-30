@@ -32,6 +32,8 @@ const FILTERS = [
   { label: "Cancelled", value: "Cancelled" },
   { label: "Shipped", value: "Shipped" },
   { label: "Delivered", value: "Delivered" },
+  // Not a status — client-side filter on the couponSlotUnavailable flag.
+  { label: "Coupon Issues", value: null, couponIssues: true },
 ];
 
 // Only paid orders can be fulfilled (status changes / Shiprocket). Pending-payment
@@ -105,8 +107,15 @@ export default function Orders() {
 
   const load = useCallback(() => {
     setLoad("loading");
-    const value = (FILTERS.find((f) => f.label === filter) || {}).value;
-    adminGetOrders(value ? { status: value } : {})
+    const f = FILTERS.find((x) => x.label === filter) || {};
+    // "Coupon Issues" isn't a status — fetch all and filter on the flag client-side.
+    if (f.couponIssues) {
+      adminGetOrders({})
+        .then((o) => { setOrders((o || []).filter((x) => x.couponSlotUnavailable)); setLoad("ready"); })
+        .catch(() => setLoad("error"));
+      return;
+    }
+    adminGetOrders(f.value ? { status: f.value } : {})
       .then((o) => { setOrders(o); setLoad("ready"); })
       .catch(() => setLoad("error"));
   }, [filter]);
@@ -236,7 +245,12 @@ export default function Orders() {
                   <td className="px-3 py-3 text-[12px] text-neutral-500">{itemsText(o)}</td>
                   <td className="px-3 py-3 font-semibold text-ink">{formatINR(o.total)}</td>
                   <td className="px-3 py-3 text-neutral-500">{paymentMethodLabel(o.paymentMethod)}</td>
-                  <td className="px-3 py-3"><StatusBadge order={o} now={now} /></td>
+                  <td className="px-3 py-3">
+                    <StatusBadge order={o} now={now} />
+                    {o.couponSlotUnavailable && (
+                      <span className="mt-1 block w-fit rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">⚠ Coupon limit reached after payment</span>
+                    )}
+                  </td>
                   <td className="px-3 py-3 text-[12px] text-neutral-400">{fmtDate(o.createdAt)}</td>
                 </tr>
               ))}
@@ -254,6 +268,16 @@ export default function Orders() {
                 <span className="text-[12px] font-semibold text-red-600">Reason: {cancellationReasonLabel(view.cancellationReason)}</span>
               )}
             </div>
+
+            {view.couponSlotUnavailable && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <p className="text-[13px] font-bold text-amber-900">⚠ Coupon limit reached after payment</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-amber-800">
+                  This customer paid with a coupon{view.couponCode ? ` (${view.couponCode})` : ""} that reached its usage limit at the
+                  time of payment confirmation. Review and decide whether to honor the discount.
+                </p>
+              </div>
+            )}
             <div className="rounded-lg border border-black/5 bg-neutral-50/60 p-3">
               <p className="text-[12px] font-semibold uppercase text-neutral-400">Customer</p>
               <p className="mt-0.5 font-semibold text-ink">{customerOf(view)}</p>

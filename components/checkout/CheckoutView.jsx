@@ -132,7 +132,7 @@ function BoxContents({ raw }) {
 }
 
 export default function CheckoutView() {
-  const { ready, items, subtotal, discount, coupon, orderItems, clearCart, clearCoupon } = useCart();
+  const { ready, items, subtotal, discount, coupon, orderItems, clearCart, applyCoupon, clearCoupon } = useCart();
   const { isLoggedIn, user } = useAuth();
   const router = useRouter();
 
@@ -148,6 +148,25 @@ export default function CheckoutView() {
   const [placing, setPlacing] = useState(false);
   const [orderError, setOrderError] = useState("");
   const [pendingOrder, setPendingOrder] = useState(null); // created order awaiting payment (for retry)
+  // Coupon input (same flow as the cart page — applyCoupon is shared via CartContext).
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+
+  const handleApplyCoupon = async () => {
+    setApplyingCoupon(true);
+    setCouponError("");
+    try {
+      const r = await applyCoupon(couponCodeInput);
+      if (r.ok) setCouponCodeInput("");
+      else { clearCoupon(); setCouponError(r.error || "Invalid coupon code"); }
+    } catch (e) {
+      clearCoupon();
+      setCouponError(e.message || "Couldn't validate coupon");
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
   const [codModalOpen, setCodModalOpen] = useState(false); // COD terms consent modal
   const [codAgreed, setCodAgreed] = useState(false);       // consent checkbox
   const [rules, setRules] = useState({ freeDeliveryAbove: FREE_DELIVERY_ABOVE, deliveryFee: DELIVERY_FEE, gstRate: 18 });
@@ -433,14 +452,35 @@ export default function CheckoutView() {
         {/* 2. Shipping */}
         <div className="flex justify-between"><dt className="text-neutral-500">Shipping</dt><dd className="font-semibold text-ink">{delivery === 0 ? <span className="text-brand">FREE</span> : formatINR(delivery)}</dd></div>
 
-        {/* 3. Coupon discount — with remove (carried over from cart) */}
-        {coupon && (
+        {/* 3. Coupon — applied row with remove, OR input + Apply when none applied
+               (same flow as the cart page; uses the shared applyCoupon). */}
+        {coupon ? (
           <div className="flex items-center justify-between">
             <dt className="flex items-center gap-1.5 text-brand">
               {coupon.code} applied{coupon.type === "flat" ? "" : ` (${coupon.value}%)`}
               <button onClick={clearCoupon} aria-label="Remove coupon" className="flex h-5 w-5 items-center justify-center rounded-full text-brand transition-colors hover:bg-brand/15">✕</button>
             </dt>
             <dd className="font-semibold text-brand">− {formatINR(discount)}</dd>
+          </div>
+        ) : (
+          <div className="pt-0.5">
+            <div className="flex gap-2">
+              <input
+                value={couponCodeInput}
+                onChange={(e) => setCouponCodeInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && couponCodeInput) handleApplyCoupon(); }}
+                placeholder="Coupon code"
+                className="w-full rounded-lg border border-black/10 px-3 py-2.5 text-sm uppercase placeholder:normal-case placeholder:text-neutral-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15"
+              />
+              <button
+                onClick={handleApplyCoupon}
+                disabled={applyingCoupon || !couponCodeInput}
+                className="shrink-0 rounded-lg bg-ink px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-black disabled:opacity-40"
+              >
+                {applyingCoupon ? "…" : "Apply"}
+              </button>
+            </div>
+            {couponError && <p className="mt-1.5 text-[13px] font-semibold text-red-600">{couponError}</p>}
           </div>
         )}
 

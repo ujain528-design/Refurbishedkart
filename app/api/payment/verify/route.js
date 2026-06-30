@@ -4,6 +4,7 @@ import Razorpay from "razorpay";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Order } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
+import { claimCouponSlotOnce } from "@/lib/server/couponUsage";
 import { log, logError } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +60,10 @@ export async function POST(req) {
     // orders confirm immediately on successful payment.
     order.status = isCod ? "cod_pending" : "Confirmed";
     await order.save();
+
+    // Payment confirmed → claim the coupon usage slot now (idempotent across the
+    // verify + webhook paths; never burns a slot for an unpaid/abandoned order).
+    await claimCouponSlotOnce(order);
 
     // TODO: trigger Shiprocket order creation
     // await createShiprocketOrder(order)

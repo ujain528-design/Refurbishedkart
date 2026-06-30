@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Order, Product } from "@/lib/server/models";
+import { claimCouponSlotOnce } from "@/lib/server/couponUsage";
 import { log, logError } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -90,6 +91,10 @@ export async function POST(request) {
         if (isCod) order.codAdvancePaid = true;
         else if (payment?.method) order.paymentMethod = String(payment.method).toUpperCase();
         await order.save();
+
+        // Payment confirmed → claim the coupon usage slot (idempotent across the
+        // webhook + client-verify paths; never burns a slot for an unpaid order).
+        await claimCouponSlotOnce(order);
 
         // GST invoice — best-effort, never fail the webhook on a PDF error.
         try {
