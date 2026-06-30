@@ -24,19 +24,45 @@ export async function GET(req) {
 
     const orderIds = [...new Set(docs.map((d) => d.orderId).filter(Boolean))];
     const orders = orderIds.length
-      ? await Order.find({ orderId: { $in: orderIds } }).select("orderId subtotal discount lines total codUpfront paymentMethod").lean()
+      ? await Order.find({ orderId: { $in: orderIds } })
+          .select("orderId subtotal discount lines total gst couponCode paymentMethod codUpfront codRemaining codStatus codAdvancePaid codBalanceCollected")
+          .lean()
       : [];
     const byOrderId = Object.fromEntries(orders.map((o) => [o.orderId, o]));
 
     const returns = docs.map((r) => {
       const o = byOrderId[r.orderId];
       let orderPaid = null;
+      let orderInfo = null;
       if (o) {
         const line = findReturnLine(o, r);
         // Per-line basis when the line resolves; else the discounted product total.
         orderPaid = line ? lineRefundBasis(o, line) : Math.max(0, (Number(o.subtotal) || 0) - (Number(o.discount) || 0));
+
+        // Payment breakdown for the returned line (drives the admin modal).
+        const orderSubtotal = Number(o.subtotal) || (o.lines || []).reduce((a, l) => a + (Number(l.unitPrice) || 0) * (Number(l.qty) || 1), 0);
+        const lineTotal = line ? (Number(line.unitPrice) || 0) * (Number(line.qty) || 1) : 0;
+        const lineDiscountShare = orderSubtotal > 0 ? Math.round((lineTotal / orderSubtotal) * (Number(o.discount) || 0)) : 0;
+        const isCod = String(o.paymentMethod || "").toUpperCase() === "COD";
+        orderInfo = {
+          paymentMethod: o.paymentMethod || null,
+          isCod,
+          couponCode: o.couponCode || null,
+          orderDiscount: Number(o.discount) || 0,
+          orderTotal: Number(o.total) || 0,
+          gst: o.gst || null,
+          codUpfront: o.codUpfront ?? null,
+          codRemaining: o.codRemaining ?? null,
+          codStatus: o.codStatus ?? null,
+          // Explicit confirmation (new) vs. inferred-from-status (legacy orders).
+          codDelivered: o.codStatus === "delivered",
+          codBalanceCollected: isCod ? (o.codBalanceCollected === true) : null,
+          line: line ? { name: line.name, ram: line.ram ?? null, ssd: line.ssd ?? null, unitPrice: Number(line.unitPrice) || 0, qty: Number(line.qty) || 1 } : null,
+          lineTotal,
+          lineDiscountShare,
+        };
       }
-      return { id: r.returnId, ...r, orderPaid, orderPaymentMethod: o?.paymentMethod ?? null };
+      return { id: r.returnId, ...r, orderPaid, orderPaymentMethod: o?.paymentMethod ?? null, orderInfo };
     });
     return NextResponse.json({ returns });
   } catch (e) {

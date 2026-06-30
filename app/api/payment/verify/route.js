@@ -56,8 +56,8 @@ export async function POST(req) {
       }
     }
     // COD orders move to "cod_pending" (admin: "COD – Awaiting Delivery") — they're
-    // only "Confirmed" once the courier delivers and collects the balance. Online
-    // orders confirm immediately on successful payment.
+    // only marked "Delivered" once the courier delivers and collects the balance.
+    // Online orders confirm immediately on successful payment.
     order.status = isCod ? "cod_pending" : "Confirmed";
     await order.save();
 

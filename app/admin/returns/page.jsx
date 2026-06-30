@@ -174,8 +174,60 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
           <span className="text-neutral-500">Customer</span><span className="text-right text-ink">{ret.userName || "—"}</span>
           <span className="text-neutral-500">Email</span><span className="text-right text-ink">{ret.userEmail || "—"}</span>
           <span className="text-neutral-500">Product</span><span className="text-right text-ink">{ret.productName || "—"}</span>
-          <span className="text-neutral-500">Amount paid</span><span className="text-right font-semibold text-ink">{formatINR(paid)}</span>
+          <span className="text-neutral-500">Amount paid (this item)</span><span className="text-right font-semibold text-ink">{formatINR(paid)}</span>
         </div>
+
+        {/* ── Order Payment Breakdown ── for the returned line. */}
+        {ret.orderInfo && (() => {
+          const oi = ret.orderInfo;
+          const variant = oi.line ? [oi.line.ram ? `${oi.line.ram}GB` : "", oi.line.ssd ? `${oi.line.ssd}` : ""].filter(Boolean).join("/") : "";
+          // GST is INCLUSIVE in the stored prices (computeLineTaxes extracts it) — shown
+          // as an informational order-level figure, not added on top.
+          const g = oi.gst || {};
+          const gstTotal = Number(g.total ?? ((Number(g.cgst) || 0) + (Number(g.sgst) || 0)) ?? g.igst) || (Number(g.igst) || 0);
+          const codTotalPaid = oi.codBalanceCollected ? (Number(oi.codUpfront) || 0) + (Number(oi.codRemaining) || 0) : (Number(oi.codUpfront) || 0);
+          return (
+            <div className="rounded-lg border border-black/10 p-3">
+              <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-brand">Order Payment Breakdown</p>
+              <div className="space-y-1.5 text-[13px]">
+                <div className="flex justify-between gap-3">
+                  <span className="text-neutral-500">Product</span>
+                  <span className="text-right font-semibold text-ink">{oi.line?.name || ret.productName || "—"}{variant ? ` | ${variant}` : ""}</span>
+                </div>
+                <div className="flex justify-between"><span className="text-neutral-500">Original price</span><span className="text-right text-ink">{formatINR(oi.lineTotal)}</span></div>
+                {oi.lineDiscountShare > 0 && (
+                  <div className="flex justify-between"><span className="text-brand">Coupon discount{oi.couponCode ? ` (${oi.couponCode})` : ""}</span><span className="text-right text-brand">− {formatINR(oi.lineDiscountShare)}</span></div>
+                )}
+                {gstTotal > 0 && (
+                  <div className="flex justify-between"><span className="text-neutral-400">GST (included in prices, order-level)</span><span className="text-right text-neutral-400">{formatINR(gstTotal)}</span></div>
+                )}
+                <div className="flex justify-between border-t border-black/5 pt-1.5"><span className="text-neutral-500">Payment method</span><span className="text-right font-semibold text-ink">{oi.isCod ? "Cash on Delivery" : "Online (Razorpay)"}</span></div>
+
+                {oi.isCod ? (
+                  <div className="mt-1 rounded-md bg-amber-50 p-2.5 text-[12px]">
+                    <div className="flex justify-between"><span className="text-amber-800">COD upfront paid (10%, Razorpay)</span><span className="font-semibold text-amber-900">{formatINR(oi.codUpfront)}</span></div>
+                    <div className="flex justify-between">
+                      <span className="text-amber-800">COD balance at delivery (90%, cash)</span>
+                      <span className="font-semibold text-amber-900">
+                        {formatINR(oi.codRemaining)}
+                        {oi.codBalanceCollected ? "" : oi.codDelivered ? " (collection unconfirmed)" : " (not yet collected)"}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex justify-between border-t border-amber-200 pt-1"><span className="font-bold text-amber-900">Total actually paid</span><span className="font-bold text-amber-900">{formatINR(codTotalPaid)}</span></div>
+                    {!oi.codBalanceCollected && oi.codDelivered && (
+                      <p className="mt-1 text-[11px] font-semibold text-red-600">⚠ Balance collection not confirmed for this order — verify with delivery records before refunding the full amount.</p>
+                    )}
+                    {!oi.codBalanceCollected && !oi.codDelivered && (
+                      <p className="mt-1 text-[11px] text-amber-700">Order not marked delivered — only the upfront advance is confirmed collected.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex justify-between"><span className="text-neutral-500">Amount paid via Razorpay</span><span className="text-right font-semibold text-ink">{formatINR(oi.orderTotal)}</span></div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         <div>
           <p className="text-[12px] font-semibold uppercase text-neutral-400">Reason</p>

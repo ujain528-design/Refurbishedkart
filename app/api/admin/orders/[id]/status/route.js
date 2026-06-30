@@ -12,7 +12,7 @@ export async function PUT(req, { params }) {
   if (error) return error;
   try {
     await dbConnect();
-    const { status, cancellationReason } = await req.json();
+    const { status, cancellationReason, codBalanceCollected } = await req.json();
     if (!VALID.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     // Cancellation requires a reason (shown to the customer on their order). All
     // other status changes don't need one.
@@ -26,11 +26,20 @@ export async function PUT(req, { params }) {
     const patch = { status };
     if (status === "Cancelled") patch.cancellationReason = reason;
     if (status === "Delivered" && existing && !existing.deliveredAt) patch.deliveredAt = new Date();
-    // COD delivery outcome → codStatus. Marking a COD order Confirmed means the
+    // COD delivery outcome → codStatus. Marking a COD order Delivered means the
     // courier delivered and collected the balance; cod_failed means delivery failed.
+    // ("Confirmed" is accepted for backward compatibility with any pre-unification
+    // records, but every UI path now sends "Delivered".)
     if (existing?.paymentMethod === "COD") {
-      if (status === "Confirmed" || status === "Delivered") patch.codStatus = "delivered";
-      else if (status === "cod_failed") patch.codStatus = "failed";
+      if (status === "Confirmed" || status === "Delivered") {
+        patch.codStatus = "delivered";
+        // Record the explicit cash/UPI balance-collection confirmation when the
+        // admin ticks the box at delivery (drives the refund breakdown).
+        if (codBalanceCollected === true) {
+          patch.codBalanceCollected = true;
+          patch.codBalanceCollectedAt = new Date();
+        }
+      } else if (status === "cod_failed") patch.codStatus = "failed";
     }
     const o = await Order.findOneAndUpdate({ orderId: params.id }, { $set: patch }, { new: true });
     if (!o) return NextResponse.json({ error: "Order not found" }, { status: 404 });

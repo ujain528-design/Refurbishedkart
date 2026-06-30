@@ -104,6 +104,8 @@ export default function Orders() {
   const [saving, setSaving] = useState(false);
   // Admin "create return on behalf of customer" form. null = closed.
   const [retForm, setRetForm] = useState(null);
+  // COD balance-collection confirmation (must be ticked to mark COD delivered).
+  const [codBalanceConfirmed, setCodBalanceConfirmed] = useState(false);
 
   const load = useCallback(() => {
     setLoad("loading");
@@ -127,7 +129,7 @@ export default function Orders() {
     return () => clearInterval(t);
   }, []);
 
-  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courier || "", trackingNumber: o.trackingNumber || "", cancelReason: "", cancelOther: "" }); setRetForm(null); };
+  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courier || "", trackingNumber: o.trackingNumber || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); };
 
   // Effective cancellation reason from the dropdown (+ free-text when "Other").
   const effectiveCancelReason = (f) => (f.cancelReason === OTHER_REASON ? f.cancelOther.trim() : f.cancelReason);
@@ -159,10 +161,14 @@ export default function Orders() {
     const reason = effectiveCancelReason(form);
     // Cancelling requires a reason — block the save and tell the admin.
     if (form.status === "Cancelled" && !reason) { toast("Cancellation reason required"); return; }
+    // Marking a COD order Delivered requires explicit balance-collection confirmation,
+    // on every path (this dropdown as well as the COD "Mark as Delivered" button).
+    const codDeliverConfirm = view.paymentMethod === "COD" && form.status === "Delivered";
+    if (codDeliverConfirm && !codBalanceConfirmed) { toast("Confirm the COD balance was collected"); return; }
     setSaving(true);
     try {
       if (form.status !== view.status) {
-        await adminUpdateOrderStatus(view.id, form.status, form.status === "Cancelled" ? reason : undefined);
+        await adminUpdateOrderStatus(view.id, form.status, form.status === "Cancelled" ? reason : undefined, codDeliverConfirm ? { codBalanceCollected: true } : {});
       }
       await adminUpdateTracking(view.id, { courier: form.courier, trackingNumber: form.trackingNumber });
       toast("Order updated");
@@ -172,11 +178,12 @@ export default function Orders() {
     finally { setSaving(false); }
   };
 
-  // Direct status change (used by the COD delivery action buttons).
-  const updateStatus = async (status) => {
+  // Direct status change (used by the COD delivery action buttons). `extra` carries
+  // the codBalanceCollected confirmation when marking a COD order delivered.
+  const updateStatus = async (status, extra = {}) => {
     setSaving(true);
     try {
-      await adminUpdateOrderStatus(view.id, status);
+      await adminUpdateOrderStatus(view.id, status, undefined, extra);
       toast("Order updated");
       setView(null);
       load();
@@ -354,8 +361,12 @@ export default function Orders() {
                 <p className="text-[13px] font-medium text-neutral-600">
                   This COD order is awaiting delivery. Once the courier delivers and collects the balance, mark it delivered. If delivery fails, mark it failed to trigger the courier-deduction process.
                 </p>
+                <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[13px] text-amber-900">
+                  <input type="checkbox" checked={codBalanceConfirmed} onChange={(e) => setCodBalanceConfirmed(e.target.checked)} className="mt-0.5 accent-amber-600" />
+                  <span>I confirm the remaining <b>{formatINR(view.codRemaining)}</b> was collected in cash/UPI at delivery.</span>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => updateStatus("Confirmed")} disabled={saving} className={btnPrimary}>{saving ? "Saving…" : "Mark as Delivered"}</button>
+                  <button onClick={() => updateStatus("Delivered", { codBalanceCollected: true })} disabled={saving || !codBalanceConfirmed} className={`${btnPrimary} disabled:opacity-50`}>{saving ? "Saving…" : "Mark as Delivered"}</button>
                   <button onClick={() => updateStatus("cod_failed")} disabled={saving} className="rounded-full border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50">
                     Mark as Failed Delivery
                   </button>
@@ -392,13 +403,19 @@ export default function Orders() {
                     )}
                   </div>
                 )}
+                {view.paymentMethod === "COD" && form.status === "Delivered" && (
+                  <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[13px] text-amber-900">
+                    <input type="checkbox" checked={codBalanceConfirmed} onChange={(e) => setCodBalanceConfirmed(e.target.checked)} className="mt-0.5 accent-amber-600" />
+                    <span>I confirm the remaining <b>{formatINR(view.codRemaining)}</b> was collected in cash/UPI at delivery.</span>
+                  </label>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Courier"><input className={inputCls} placeholder="Delhivery" value={form.courier} onChange={(e) => setForm((f) => ({ ...f, courier: e.target.value }))} /></Field>
                   <Field label="Tracking #"><input className={inputCls} value={form.trackingNumber} onChange={(e) => setForm((f) => ({ ...f, trackingNumber: e.target.value }))} /></Field>
                 </div>
                 <button
                   onClick={save}
-                  disabled={saving || (form.status === "Cancelled" && !effectiveCancelReason(form))}
+                  disabled={saving || (form.status === "Cancelled" && !effectiveCancelReason(form)) || (view.paymentMethod === "COD" && form.status === "Delivered" && !codBalanceConfirmed)}
                   className={`${btnPrimary} disabled:opacity-50`}
                 >
                   {saving ? "Saving…" : "Save Changes"}
