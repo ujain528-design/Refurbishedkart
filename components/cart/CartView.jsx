@@ -103,10 +103,12 @@ export default function CartView() {
     );
   }
 
-  // Shipping is free at/above the threshold on the PRODUCT total (after discount);
-  // ₹7,999 exactly ships free (inclusive). Matches checkout + order creation.
+  // Free-shipping threshold uses the PRODUCT SUBTOTAL **before** the coupon
+  // discount — a coupon can't push an order under the free-shipping line. ₹7,999
+  // exactly ships free (inclusive). Matches CheckoutView + order creation.
+  // productTotal (post-discount) still drives the total shown.
   const productTotal = subtotal - discount;
-  const delivery = productTotal >= rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
+  const delivery = subtotal >= rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
   const total = productTotal + delivery;
 
   const handleApply = async () => {

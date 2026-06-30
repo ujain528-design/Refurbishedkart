@@ -245,10 +245,12 @@ export default function CheckoutView() {
     );
   }
 
-  // Shipping is free at/above the threshold on the PRODUCT total (after discount);
-  // below it a flat fee applies. ₹7,999 exactly ships free (inclusive).
+  // Free-shipping threshold is judged on the PRODUCT SUBTOTAL **before** the coupon
+  // discount: an ₹8,500 cart with a ₹1,000 coupon still ships free even though the
+  // post-discount amount (₹7,500) is under ₹7,999. ₹7,999 exactly ships free.
+  // (productTotal — post-discount — still drives the grand total and COD upfront.)
   const productTotal = subtotal - discount;
-  const delivery = productTotal >= rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
+  const delivery = subtotal >= rules.freeDeliveryAbove ? 0 : rules.deliveryFee;
   const interState = shipState !== SELLER_STATE;
   // GST is a flat store-wide rate (default 18%), identical basis to the invoice
   // (computeLineTaxes). Inter-state → IGST; intra-state → CGST + SGST (half each).

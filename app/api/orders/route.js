@@ -61,10 +61,12 @@ export async function POST(req) {
       appliedCode = c.code;
     }
     const { freeDeliveryAbove, deliveryFee } = deliveryRules(settings);
-    // Shipping is free at/above the threshold on the PRODUCT total (after discount);
-    // "₹7,999 and above" ships free → inclusive (>=).
+    // Free-shipping threshold uses the PRODUCT SUBTOTAL **before** the coupon
+    // discount, so a coupon can't push an order under the free-shipping line. Must
+    // match the checkout UI (CheckoutView). "₹7,999 and above" ships free (>=).
+    // productTotal (post-discount) still drives the total + COD upfront below.
     const productTotal = subtotal - discount;
-    const delivery = productTotal >= freeDeliveryAbove ? 0 : deliveryFee;
+    const delivery = subtotal >= freeDeliveryAbove ? 0 : deliveryFee;
     const total = productTotal + delivery;
     // Per-line GST at each product's rate; inter-state derived from the ship-to
     // state (CGST+SGST intra-Delhi, IGST otherwise) — same basis the invoice uses.
