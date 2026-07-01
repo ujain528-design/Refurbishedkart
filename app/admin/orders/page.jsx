@@ -365,30 +365,20 @@ export default function Orders() {
                 <span className="text-neutral-600">Remaining (on delivery)</span><span className="text-right font-semibold text-ink">{formatINR(view.codRemaining)}</span>
               </div>
             )}
-            {view.status === "cod_pending" ? (
-              <div className="space-y-3">
-                <p className="text-[13px] font-medium text-neutral-600">
-                  This COD order is awaiting delivery. Once the courier delivers and collects the balance, mark it delivered. If delivery fails, mark it failed to trigger the courier-deduction process.
-                </p>
-                <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[13px] text-amber-900">
-                  <input type="checkbox" checked={codBalanceConfirmed} onChange={(e) => setCodBalanceConfirmed(e.target.checked)} className="mt-0.5 accent-amber-600" />
-                  <span>I confirm the remaining <b>{formatINR(view.codRemaining)}</b> was collected in cash/UPI at delivery.</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => updateStatus("Delivered", { codBalanceCollected: true })} disabled={saving || !codBalanceConfirmed} className={`${btnPrimary} disabled:opacity-50`}>{saving ? "Saving…" : "Mark as Delivered"}</button>
-                  <button onClick={() => updateStatus("cod_failed")} disabled={saving} className="rounded-full border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50">
-                    Mark as Failed Delivery
-                  </button>
-                </div>
-              </div>
-            ) : view.status === "cod_failed" ? (
+            {view.status === "cod_failed" ? (
               <div className="rounded-lg border border-dashed border-red-200 bg-red-50 p-3 text-[13px] font-medium text-red-600">
                 COD delivery failed. Both-side courier charges are deducted from the upfront amount; refund any balance to the customer manually.
               </div>
             ) : isFulfillable(view.status) ? (
               <>
                 <Field label="Update Status">
-                  <select className={inputCls} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>
+                  {/* COD orders use the SAME flow as online (Confirmed → Packed → Shipped → Delivered).
+                      cod_pending isn't in STATUSES, so surface it as the current option. */}
+                  <select className={inputCls} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
+                    {(STATUSES.includes(form.status) ? STATUSES : [form.status, ...STATUSES]).map((s) => (
+                      <option key={s} value={s}>{s === "cod_pending" ? "COD · Awaiting Delivery" : s}</option>
+                    ))}
+                  </select>
                 </Field>
                 {form.status === "Cancelled" && (
                   <div className="rounded-lg border border-red-200 bg-red-50/60 p-3">
@@ -433,6 +423,12 @@ export default function Orders() {
                 >
                   {saving ? "Saving…" : "Save Changes"}
                 </button>
+                {/* Failed-delivery path for COD orders not yet delivered (courier-deduction flow). */}
+                {view.paymentMethod === "COD" && view.codStatus !== "delivered" && (
+                  <button onClick={() => updateStatus("cod_failed")} disabled={saving} className="w-full rounded-full border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50">
+                    Mark as Failed Delivery
+                  </button>
+                )}
               </>
             ) : (
               <div className="rounded-lg border border-dashed border-black/10 bg-neutral-50 p-3 text-[13px] font-medium text-neutral-500">
