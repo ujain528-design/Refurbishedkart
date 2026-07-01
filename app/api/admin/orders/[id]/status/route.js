@@ -33,8 +33,6 @@ function fireStatusEmail(status, order) {
 }
 
 export async function PUT(req, { params }) {
-  // eslint-disable-next-line no-console
-  console.log("STATUS ROUTE HIT:", new Date().toISOString());
   const { error } = requireAdmin(req);
   if (error) return error;
   try {
@@ -82,17 +80,8 @@ export async function PUT(req, { params }) {
     const o = await Order.findOneAndUpdate({ orderId: params.id }, { $set: patch }, { new: true });
     if (!o) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     // Customer status email (async, non-blocking). Admin is making the change, so no
-    // admin notification here. Log the exact object the email receives.
-    const oObj = o.toObject();
-    // eslint-disable-next-line no-console
-    console.log("ORDER EMAIL CHECK:", JSON.stringify({
-      email: oObj.email,
-      shippingEmail: oObj.shippingAddress?.email,
-      shippingKeys: oObj.shippingAddress ? Object.keys(oObj.shippingAddress) : "no shippingAddress",
-    }));
-    // eslint-disable-next-line no-console
-    console.log("FIRING EMAIL FOR STATUS:", status, "TO:", oObj?.shippingAddress?.email);
-    fireStatusEmail(status, oObj);
+    // admin notification here.
+    fireStatusEmail(status, o.toObject());
     return NextResponse.json({ order: { id: o.orderId, ...o.toObject() } });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

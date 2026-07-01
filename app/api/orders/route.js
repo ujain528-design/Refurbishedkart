@@ -81,10 +81,16 @@ export async function POST(req) {
     const codRemaining = isCod ? total - codUpfront : undefined;
 
     const orderId = await nextOrderId();
+    // Guarantee a recipient email on the order: the address form's email if present,
+    // else the signed-in account email. Saved addresses may not carry an email, so
+    // this backfills it at order time (status emails depend on it).
+    const shipTo = shippingAddress
+      ? { ...shippingAddress, email: shippingAddress.email || auth.email || "" }
+      : null;
     const order = await Order.create({
       orderId, userId: auth.sub, lines, subtotal, discount, delivery, shippingCharge: delivery, gst, total,
       couponCode: appliedCode, paymentMethod: paymentMethod || "UPI",
-      shippingAddress: shippingAddress || null, buyerGstin: buyerGstin || null,
+      shippingAddress: shipTo, buyerGstin: buyerGstin || null,
       customerName: shippingAddress?.name || auth.name || null,
       // COD bookkeeping (only set for COD orders).
       ...(isCod ? { codUpfront, codRemaining, codStatus: "pending" } : {}),
