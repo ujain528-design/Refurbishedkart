@@ -5,6 +5,7 @@ import { userFromRequest } from "@/lib/server/jwt";
 import { calcPrice } from "@/lib/server/products";
 import { getStoreSettings, deliveryRules } from "@/lib/server/settings";
 import { computeLineTaxes, SELLER_STATE } from "@/lib/data";
+import { sendOrderConfirmationEmail, sendOrderAdminNotification } from "@/lib/server/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +106,22 @@ export async function POST(req) {
         p.chassisStock = next; p.stock = next; // mirror
         await p.save();
       }
+    }
+
+    // Order confirmation emails — customer + admin, in parallel. Best-effort: a mail
+    // failure must NEVER block order creation (the order is already saved). Errors are
+    // logged, not thrown.
+    try {
+      const orderObj = order.toObject();
+      const customerEmail = auth.email || shippingAddress?.email || "";
+      const whatsappOptIn = (shippingAddress?.whatsappOptIn ?? orderObj.shippingAddress?.whatsappOptIn) === true;
+      await Promise.all([
+        sendOrderConfirmationEmail(customerEmail, orderObj),
+        sendOrderAdminNotification(orderObj, { customerEmail, phone: shippingAddress?.phone, whatsappOptIn }),
+      ]);
+    } catch (mailErr) {
+      // eslint-disable-next-line no-console
+      console.error("Order email failed:", mailErr.message);
     }
 
     return NextResponse.json({ order: { id: order.orderId, ...order.toObject() } }, { status: 201 });
