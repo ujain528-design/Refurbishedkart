@@ -82,10 +82,17 @@ export async function PUT(req, { params }) {
     const o = await Order.findOneAndUpdate({ orderId: params.id }, { $set: patch }, { new: true });
     if (!o) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     // Customer status email (async, non-blocking). Admin is making the change, so no
-    // admin notification here.
+    // admin notification here. Log the exact object the email receives.
+    const oObj = o.toObject();
     // eslint-disable-next-line no-console
-    console.log("FIRING EMAIL FOR STATUS:", status, "TO:", o?.shippingAddress?.email);
-    fireStatusEmail(status, o.toObject());
+    console.log("ORDER EMAIL CHECK:", JSON.stringify({
+      email: oObj.email,
+      shippingEmail: oObj.shippingAddress?.email,
+      shippingKeys: oObj.shippingAddress ? Object.keys(oObj.shippingAddress) : "no shippingAddress",
+    }));
+    // eslint-disable-next-line no-console
+    console.log("FIRING EMAIL FOR STATUS:", status, "TO:", oObj?.shippingAddress?.email);
+    fireStatusEmail(status, oObj);
     return NextResponse.json({ order: { id: o.orderId, ...o.toObject() } });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
