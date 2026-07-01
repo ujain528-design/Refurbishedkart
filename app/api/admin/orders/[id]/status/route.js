@@ -33,6 +33,8 @@ function fireStatusEmail(status, order) {
 }
 
 export async function PUT(req, { params }) {
+  // eslint-disable-next-line no-console
+  console.log("STATUS ROUTE HIT:", new Date().toISOString());
   const { error } = requireAdmin(req);
   if (error) return error;
   try {
@@ -46,6 +48,8 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ error: "Cancellation reason required" }, { status: 400 });
     }
     const existing = await Order.findOne({ orderId: params.id }).select("deliveredAt packedAt shippedAt paymentMethod").lean();
+    // Validate the order exists before doing any work (fail fast).
+    if (!existing) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     // Stamp deliveredAt the first time an order is marked Delivered — it's the
     // base date for the return window. packedAt/shippedAt likewise stamp once.
     const patch = { status };
@@ -79,6 +83,8 @@ export async function PUT(req, { params }) {
     if (!o) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     // Customer status email (async, non-blocking). Admin is making the change, so no
     // admin notification here.
+    // eslint-disable-next-line no-console
+    console.log("FIRING EMAIL FOR STATUS:", status, "TO:", o?.shippingAddress?.email);
     fireStatusEmail(status, o.toObject());
     return NextResponse.json({ order: { id: o.orderId, ...o.toObject() } });
   } catch (e) {
