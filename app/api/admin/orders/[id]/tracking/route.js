@@ -10,10 +10,13 @@ export async function PUT(req, { params }) {
   if (error) return error;
   try {
     await dbConnect();
-    const { trackingNumber, courier } = await req.json();
+    const { trackingNumber, courier, courierName, trackingUrl } = await req.json();
     const set = {};
     if (trackingNumber != null) set.trackingNumber = trackingNumber;
-    if (courier != null) set.courier = courier;
+    // Keep courier + courierName in sync (courierName is the field the emails read).
+    const cn = courierName ?? courier;
+    if (cn != null) { set.courier = cn; set.courierName = cn; }
+    if (trackingUrl != null) set.trackingUrl = trackingUrl;
     const o = await Order.findOneAndUpdate({ orderId: params.id }, { $set: set }, { new: true });
     if (!o) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     return NextResponse.json({ order: { id: o.orderId, ...o.toObject() } });

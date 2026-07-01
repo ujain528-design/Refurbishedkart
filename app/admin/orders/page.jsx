@@ -100,7 +100,7 @@ export default function Orders() {
   const [now, setNow] = useState(Date.now());  // ticks for pending-payment countdowns
   const [load_, setLoad] = useState("loading");
   const [view, setView] = useState(null);
-  const [form, setForm] = useState({ status: "", courier: "", trackingNumber: "" });
+  const [form, setForm] = useState({ status: "", courier: "", trackingNumber: "", trackingUrl: "" });
   const [saving, setSaving] = useState(false);
   // Admin "create return on behalf of customer" form. null = closed.
   const [retForm, setRetForm] = useState(null);
@@ -129,7 +129,7 @@ export default function Orders() {
     return () => clearInterval(t);
   }, []);
 
-  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courier || "", trackingNumber: o.trackingNumber || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); };
+  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courierName || o.courier || "", trackingNumber: o.trackingNumber || "", trackingUrl: o.trackingUrl || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); };
 
   // Effective cancellation reason from the dropdown (+ free-text when "Other").
   const effectiveCancelReason = (f) => (f.cancelReason === OTHER_REASON ? f.cancelOther.trim() : f.cancelReason);
@@ -167,10 +167,19 @@ export default function Orders() {
     if (codDeliverConfirm && !codBalanceConfirmed) { toast("Confirm the COD balance was collected"); return; }
     setSaving(true);
     try {
-      if (form.status !== view.status) {
-        await adminUpdateOrderStatus(view.id, form.status, form.status === "Cancelled" ? reason : undefined, codDeliverConfirm ? { codBalanceCollected: true } : {});
+      // When shipping, save the shipment details WITH the status change so the
+      // dispatch email (fired server-side on that transition) has them.
+      const extra = { ...(codDeliverConfirm ? { codBalanceCollected: true } : {}) };
+      if (form.status === "Shipped") {
+        extra.courierName = form.courier;
+        extra.trackingNumber = form.trackingNumber;
+        extra.trackingUrl = form.trackingUrl;
       }
-      await adminUpdateTracking(view.id, { courier: form.courier, trackingNumber: form.trackingNumber });
+      if (form.status !== view.status) {
+        await adminUpdateOrderStatus(view.id, form.status, form.status === "Cancelled" ? reason : undefined, extra);
+      }
+      // Persist tracking edits (also covers editing an already-Shipped order).
+      await adminUpdateTracking(view.id, { courierName: form.courier, trackingNumber: form.trackingNumber, trackingUrl: form.trackingUrl });
       toast("Order updated");
       setView(null);
       load();
@@ -409,10 +418,14 @@ export default function Orders() {
                     <span>I confirm the remaining <b>{formatINR(view.codRemaining)}</b> was collected in cash/UPI at delivery.</span>
                   </label>
                 )}
+                {form.status === "Shipped" && (
+                  <p className="rounded-md bg-brand-soft/60 px-2.5 py-1.5 text-[12px] font-semibold text-brand">Shipment details — saved before the dispatch email is sent to the customer.</p>
+                )}
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Courier"><input className={inputCls} placeholder="Delhivery" value={form.courier} onChange={(e) => setForm((f) => ({ ...f, courier: e.target.value }))} /></Field>
-                  <Field label="Tracking #"><input className={inputCls} value={form.trackingNumber} onChange={(e) => setForm((f) => ({ ...f, trackingNumber: e.target.value }))} /></Field>
+                  <Field label="Courier Name"><input className={inputCls} placeholder="Delhivery" value={form.courier} onChange={(e) => setForm((f) => ({ ...f, courier: e.target.value }))} /></Field>
+                  <Field label="Tracking Number"><input className={inputCls} value={form.trackingNumber} onChange={(e) => setForm((f) => ({ ...f, trackingNumber: e.target.value }))} /></Field>
                 </div>
+                <Field label="Tracking URL (optional)"><input className={inputCls} placeholder="https://…" value={form.trackingUrl} onChange={(e) => setForm((f) => ({ ...f, trackingUrl: e.target.value }))} /></Field>
                 <button
                   onClick={save}
                   disabled={saving || (form.status === "Cancelled" && !effectiveCancelReason(form)) || (view.paymentMethod === "COD" && form.status === "Delivered" && !codBalanceConfirmed)}
