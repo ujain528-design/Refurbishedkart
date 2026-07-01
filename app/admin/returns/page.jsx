@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Badge, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { formatINR } from "@/lib/admin-data";
-import { adminGetReturns, adminUpdateReturn } from "@/lib/api";
+import { adminGetReturns, adminUpdateReturn, adminRequestBankResubmission } from "@/lib/api";
 
 const STATUSES = ["Requested", "Approved", "Rejected", "Picked Up", "Received", "Refunded"];
 const FILTERS = ["All", ...STATUSES];
@@ -108,6 +108,29 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
   const [lightbox, setLightbox] = useState(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Customer refund payout details (masked in this payload). For COD/manual refunds
+  // these must be on file before the refund can be marked processed.
+  const bank = ret.refundBankDetails;
+  const bankSubmitted = !!(bank && bank.submittedAt);
+  const isCod = !!ret.orderInfo?.isCod;
+  const needsBankForRefund = isCod && !bankSubmitted;
+  // Request-resubmission: clears the masked details so the customer can re-enter.
+  const [resubNote, setResubNote] = useState("");
+  const [resubOpen, setResubOpen] = useState(false);
+  const [resubBusy, setResubBusy] = useState(false);
+  const requestResub = async () => {
+    setResubBusy(true);
+    try {
+      await adminRequestBankResubmission(ret.id, resubNote.trim());
+      toast("Resubmission requested — customer can re-enter their details");
+      onSaved();
+    } catch (e) {
+      toast(e.message || "Couldn't request resubmission", "error");
+    } finally {
+      setResubBusy(false);
+    }
+  };
+
   // Refund auto-tracks paid − deduction unless the admin has typed a custom value.
   const autoRefund = Math.max(0, paid - (Number(form.deductionAmount) || 0));
   const onDeduction = (v) => setForm((f) => ({ ...f, deductionAmount: v, refundAmount: Math.max(0, paid - (Number(v) || 0)) }));
@@ -131,6 +154,12 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
     // Refund over the amount paid must be explicitly acknowledged first.
     if (refundBlocked) {
       toast("Refund exceeds the amount paid — tick the acknowledgment to proceed", "error");
+      return;
+    }
+    // COD/manual refund can't be marked processed until the customer's bank details
+    // are on file (server enforces this too).
+    if (status === "Refunded" && needsBankForRefund) {
+      toast("Customer hasn't submitted refund bank details yet — can't mark a COD refund processed", "error");
       return;
     }
     setSaving(true);
@@ -161,7 +190,7 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
         <>
           <button onClick={onClose} className={btnGhost}>Close</button>
           {form.status === "Refunded" ? (
-            <button onClick={() => save("Refunded")} disabled={saving || refundBlocked} className={`${btnPrimary} disabled:opacity-50`}>{saving ? "Saving…" : "Mark as Refunded"}</button>
+            <button onClick={() => save("Refunded")} disabled={saving || refundBlocked || needsBankForRefund} title={needsBankForRefund ? "Customer hasn't submitted refund bank details yet" : undefined} className={`${btnPrimary} disabled:opacity-50`}>{saving ? "Saving…" : "Mark as Refunded"}</button>
           ) : (
             <button onClick={() => save()} disabled={saving || refundBlocked} className={`${btnPrimary} disabled:opacity-50`}>{saving ? "Saving…" : "Save"}</button>
           )}
@@ -228,6 +257,45 @@ function ReturnDetail({ ret, onClose, onSaved, toast }) {
             </div>
           );
         })()}
+
+        {/* ── Customer Refund Details ── (masked only; full details are emailed to
+            support@ at submission and are the record used for the transfer) */}
+        <div className="rounded-lg border border-black/10 p-3">
+          <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-brand">Customer Refund Details</p>
+          {!bankSubmitted ? (
+            <p className="text-[13px] text-amber-700">
+              {ret.bankResubmissionRequested
+                ? "↩ Resubmission requested — waiting for the customer to re-enter their details."
+                : `⏳ Waiting for customer to submit bank details${ret.status === "Approved" ? "" : " (requested once the return is Approved)"}.`}
+            </p>
+          ) : (
+            <div className="space-y-1 text-[13px]">
+              <div className="flex justify-between"><span className="text-neutral-500">Method</span><span className="font-semibold text-ink">{bank.method === "upi" ? "UPI" : "Bank Transfer"}</span></div>
+              {bank.method === "upi" ? (
+                <div className="flex justify-between"><span className="text-neutral-500">UPI ID</span><span className="font-mono font-semibold text-ink">{bank.upiIdMasked}</span></div>
+              ) : (
+                <>
+                  <div className="flex justify-between"><span className="text-neutral-500">Account holder</span><span className="font-semibold text-ink">{bank.accountHolderName}</span></div>
+                  <div className="flex justify-between"><span className="text-neutral-500">Account number</span><span className="font-mono font-semibold text-ink">{bank.accountNumberMasked}</span></div>
+                </>
+              )}
+              <div className="flex justify-between"><span className="text-neutral-500">Submitted on</span><span className="text-neutral-600">{fmtDateTime(bank.submittedAt)}</span></div>
+              <p className="mt-1 text-[11px] text-neutral-400">Full details were emailed to support@ at submission — use that email for the transfer.</p>
+              {!resubOpen ? (
+                <button onClick={() => setResubOpen(true)} className="mt-1 text-[12px] font-bold text-amber-700 hover:underline">Request Resubmission</button>
+              ) : (
+                <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2.5">
+                  <p className="text-[12px] font-semibold text-amber-900">Ask the customer to re-enter their details. This clears the current details.</p>
+                  <input className={`${inputCls} mt-2`} value={resubNote} onChange={(e) => setResubNote(e.target.value)} placeholder="Reason (shown to customer, optional)" />
+                  <div className="mt-2 flex gap-2">
+                    <button onClick={requestResub} disabled={resubBusy} className={`${btnPrimary} disabled:opacity-50`}>{resubBusy ? "Sending…" : "Confirm Resubmission"}</button>
+                    <button onClick={() => { setResubOpen(false); setResubNote(""); }} className={btnGhost}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         <div>
           <p className="text-[12px] font-semibold uppercase text-neutral-400">Reason</p>

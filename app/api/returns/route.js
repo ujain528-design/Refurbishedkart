@@ -18,6 +18,7 @@ export async function GET(req) {
   try {
     await dbConnect();
     const docs = await Return.find({ userId: auth.sub }).sort({ createdAt: -1 }).lean();
+    // refundBankDetails is stored masked-only, so docs are safe to return as-is.
     return NextResponse.json({ returns: docs.map((r) => ({ id: r.returnId, ...r })) });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

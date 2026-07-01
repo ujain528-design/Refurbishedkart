@@ -9,7 +9,7 @@ import {
   getOrders, downloadInvoice,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
   getUserProfile, updateProfile,
-  getReturns, createReturn, uploadReturnPhoto,
+  getReturns, createReturn, uploadReturnPhoto, submitReturnBankDetails,
 } from "@/lib/api";
 import { ErrorState, EmptyState } from "@/components/ui/States";
 import { ChevronDown, BrokenDeviceIcon } from "@/components/Icons";
@@ -288,6 +288,14 @@ function OrdersTab() {
                     {returnsByOrder[o.id].status === "Approved" && (
                       <p className="mt-1 text-[12px] text-neutral-500">Approved — refund {formatINR(returnsByOrder[o.id].refundAmount)}{returnsByOrder[o.id].deductionAmount ? ` (after ${formatINR(returnsByOrder[o.id].deductionAmount)} deduction)` : ""} once we receive the item.</p>
                     )}
+                    {returnsByOrder[o.id].status === "Approved" && (
+                      <RefundBankDetails
+                        ret={returnsByOrder[o.id]}
+                        onSubmitted={(masked) =>
+                          setReturnsByOrder((m) => ({ ...m, [o.id]: { ...m[o.id], refundBankDetails: masked } }))
+                        }
+                      />
+                    )}
                     {returnsByOrder[o.id].status === "Rejected" && returnsByOrder[o.id].adminNotes && (
                       <p className="mt-1 text-[12px] text-red-600">Reason: {returnsByOrder[o.id].adminNotes}</p>
                     )}
@@ -351,6 +359,87 @@ function OrdersTab() {
         />
       )}
     </div>
+  );
+}
+
+/* ── Refund bank-details form ── shown inside an Approved return. Customer picks
+   bank transfer OR UPI; locked once submitted (only admin can amend after). */
+function RefundBankDetails({ ret, onSubmitted }) {
+  const submitted = ret.refundBankDetails && ret.refundBankDetails.submittedAt;
+  const [method, setMethod] = useState("bank");
+  const [holder, setHolder] = useState("");
+  const [account, setAccount] = useState("");
+  const [ifsc, setIfsc] = useState("");
+  const [upi, setUpi] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  if (submitted) {
+    const d = ret.refundBankDetails;
+    return (
+      <div className="mt-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 text-[12px]">
+        <p className="font-semibold text-green-800">✅ Bank details received. Refund will be processed within 5–7 business days.</p>
+        <p className="mt-1 text-green-700">
+          {d.method === "upi" ? <>UPI: <b>{d.upiIdMasked}</b></> : <>{d.accountHolderName} · A/C <b>{d.accountNumberMasked}</b></>}
+        </p>
+      </div>
+    );
+  }
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (method === "upi") {
+      if (!/^[a-zA-Z0-9.\-_]{2,}@[a-zA-Z][a-zA-Z0-9.\-_]{1,}$/.test(upi.trim())) { setError("Enter a valid UPI ID (e.g. name@bank)"); return; }
+    } else {
+      if (holder.trim().length < 2) { setError("Enter the account holder name"); return; }
+      if (!/^\d{9,18}$/.test(account.replace(/\s+/g, ""))) { setError("Account number must be 9–18 digits"); return; }
+      if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(ifsc.trim())) { setError("Enter a valid 11-character IFSC code"); return; }
+    }
+    setSaving(true);
+    try {
+      const payload = method === "upi"
+        ? { method: "upi", upiId: upi.trim() }
+        : { method: "bank", accountHolderName: holder.trim(), accountNumber: account.replace(/\s+/g, ""), ifscCode: ifsc.trim().toUpperCase() };
+      const masked = await submitReturnBankDetails(ret.id, payload);
+      onSubmitted(masked);
+    } catch (err) {
+      setError(err.message || "Couldn't submit bank details");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldCls = "w-full rounded-lg border border-black/15 px-3 py-2 text-[13px] outline-none focus:border-brand";
+  return (
+    <form onSubmit={submit} className="mt-2 rounded-lg border border-amber-200 bg-amber-50/70 p-3">
+      {ret.bankResubmissionRequested && (
+        <p className="mb-2 rounded-md bg-red-50 px-2.5 py-1.5 text-[12px] font-semibold text-red-700">
+          We need you to resubmit your refund details.{ret.bankResubmissionNote ? ` Reason: ${ret.bankResubmissionNote}` : ""}
+        </p>
+      )}
+      <p className="text-[12px] font-bold text-amber-900">Please provide your bank details for refund processing</p>
+      <div className="mt-2 flex gap-4 text-[12px] font-semibold text-ink">
+        <label className="flex items-center gap-1.5"><input type="radio" name={`m-${ret.id}`} checked={method === "bank"} onChange={() => setMethod("bank")} className="accent-brand" /> Bank transfer</label>
+        <label className="flex items-center gap-1.5"><input type="radio" name={`m-${ret.id}`} checked={method === "upi"} onChange={() => setMethod("upi")} className="accent-brand" /> UPI</label>
+      </div>
+      <div className="mt-2 space-y-2">
+        {method === "bank" ? (
+          <>
+            <input className={fieldCls} placeholder="Account holder name" value={holder} onChange={(e) => setHolder(e.target.value)} />
+            <input className={fieldCls} placeholder="Bank account number" inputMode="numeric" value={account} onChange={(e) => setAccount(e.target.value)} />
+            <input className={fieldCls} placeholder="IFSC code (e.g. HDFC0001234)" value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} />
+          </>
+        ) : (
+          <input className={fieldCls} placeholder="UPI ID (e.g. name@bank)" value={upi} onChange={(e) => setUpi(e.target.value)} />
+        )}
+      </div>
+      {error && <p className="mt-2 text-[12px] font-semibold text-red-600">{error}</p>}
+      <button type="submit" disabled={saving} className="mt-2.5 rounded-full bg-brand px-4 py-2 text-[12px] font-bold text-white hover:bg-brand-dark disabled:opacity-50">
+        {saving ? "Submitting…" : "Submit Bank Details"}
+      </button>
+      <p className="mt-1.5 text-[11px] text-amber-700">Details are locked once submitted. Contact support if you need to change them.</p>
+    </form>
   );
 }
 

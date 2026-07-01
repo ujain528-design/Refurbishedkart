@@ -62,6 +62,8 @@ export async function GET(req) {
           lineDiscountShare,
         };
       }
+      // refundBankDetails is stored masked-only — the full details exist only in the
+      // submission email to support@, never in this payload or the DB.
       return { id: r.returnId, ...r, orderPaid, orderPaymentMethod: o?.paymentMethod ?? null, orderInfo };
     });
     return NextResponse.json({ returns });

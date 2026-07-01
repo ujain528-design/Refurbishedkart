@@ -26,6 +26,16 @@ export async function PUT(req, { params }) {
 
     if (status !== undefined) {
       if (!VALID.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+      // For COD / manual refunds the customer's bank/UPI details must be on file
+      // before the refund can be marked processed (online refunds reverse to source,
+      // so they don't need them). Authoritative server-side guard.
+      if (status === "Refunded" && prevStatus !== "Refunded" && !(ret.refundBankDetails && ret.refundBankDetails.submittedAt)) {
+        const ord = await Order.findOne({ orderId: ret.orderId }).select("paymentMethod").lean();
+        const isCod = String(ord?.paymentMethod || "").toUpperCase() === "COD";
+        if (isCod) {
+          return NextResponse.json({ error: "Customer's refund bank details are required before a COD refund can be marked processed." }, { status: 409 });
+        }
+      }
       ret.status = status;
     }
     if (adminNotes !== undefined) ret.adminNotes = adminNotes;
@@ -80,6 +90,7 @@ export async function PUT(req, { params }) {
       } catch {}
     }
 
+    // refundBankDetails is stored masked-only, so the doc is safe to return as-is.
     return NextResponse.json({ return: { id: ret.returnId, ...ret.toObject() }, stockAdded });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
