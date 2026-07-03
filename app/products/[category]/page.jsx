@@ -89,6 +89,12 @@ export default function CategoryListingPage({ params }) {
             <h1 className="mt-1.5 font-display text-2xl font-bold tracking-tight text-ink lg:text-[1.75rem]">Refurbished {categoryName} in India</h1>
             <span className="mt-2.5 block h-[3px] w-14 rounded-full" style={{ background: cc.color }} aria-hidden="true" />
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-neutral-500">{intro}</p>
+            {/* Laptop-only battery-backup promise (not shown on other categories). */}
+            {params.category === "laptops" && (
+              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3.5 py-1.5 text-[12px] font-bold text-brand">
+                🔋 1.5hr+ Battery Backup Tested
+              </span>
+            )}
             {/* Shop by Budget — chips apply a price filter on THIS listing (same
                 as the homepage budget popup). The /budget/[cat]/[bucket] SEO
                 landing pages still exist for Google; chips just don't link there. */}

@@ -55,7 +55,7 @@ export default function TermsPage() {
 
         <p className="mt-5 text-sm font-bold text-ink">Battery</p>
         <P>
-          Batteries in refurbished devices have been tested and provide functional backup. However, battery capacity may be lower than the original manufacturer specifications due to natural degradation from prior use. Battery performance is not comparable to a brand new device. Battery health is tested and confirmed to provide functional backup. Exact battery health percentage is not displayed on the product page. If you need specific battery health information for a product, please contact us before purchasing at{" "}
+          Batteries in refurbished devices have been tested and provide functional backup. All laptop batteries are tested to deliver a minimum of 1.5 hours of backup under standard usage conditions before dispatch. However, battery capacity may be lower than the original manufacturer specifications due to natural degradation from prior use. Battery performance is not comparable to a brand new device. Battery health is tested and confirmed to provide functional backup. Exact battery health percentage is not displayed on the product page. If you need specific battery health information for a product, please contact us before purchasing at{" "}
           <a href={WHATSAPP} className="font-semibold text-brand hover:underline">+91 8448296273</a>.
         </P>
 

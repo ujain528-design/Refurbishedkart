@@ -32,6 +32,8 @@ function useDeliveryDate() {
 
 export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127 }) {
   const a = product.attrs || {};
+  // Battery-backup promise is laptop-only (not desktops/monitors/servers/workstations).
+  const isLaptop = String(product.category || "").toLowerCase() === "laptops";
   const showConfigs = (product.configs || []).filter((c) => c.show !== false);
   const defaultConfig = showConfigs.find((c) => c.isDefault) || showConfigs[0] || null;
   const multi = showConfigs.length > 1;
@@ -191,6 +193,14 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
         <TruckIcon style={{ width: 22, height: 22 }} className="shrink-0 text-indigo-500" />
         <p className="text-sm text-ink"><span className="font-bold">Free delivery</span> by {deliveryDate}</p>
       </div>
+
+      {/* Laptop-only battery-backup promise. */}
+      {isLaptop && (
+        <div className="mt-3 flex items-center gap-3 rounded-card bg-brand-soft px-4 py-3">
+          <span className="shrink-0 text-lg" aria-hidden="true">🔋</span>
+          <p className="text-sm text-ink"><span className="font-bold">1.5hr+ Battery Backup</span> Tested</p>
+        </div>
+      )}
 
       <CheckpointCards onOpen={() => setInspectOpen(true)} />
 
