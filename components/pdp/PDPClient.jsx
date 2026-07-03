@@ -89,6 +89,9 @@ export default function PDPClient({ category, id }) {
 
   const categoryName = CATEGORY_SLUGS[category] || product.category;
   const variants = variantsFor(product);
+  // Servers & workstations are built to order — show a custom-config CTA below the
+  // gallery (fills the empty left-column space). Case/plural tolerant match.
+  const showCustomConfigCta = ["servers", "workstations", "server", "workstation"].includes(String(category || product.category || "").toLowerCase());
   const specRows = specRowsFor(product);
   const description = descriptionFor(product);
   // "What's in the box" — newline-separated on the product; blank lines dropped.
@@ -117,6 +120,21 @@ export default function PDPClient({ category, id }) {
                 alt={`${generateProductTitle(product)} — Refurbished ${singularCat(product.category)} for sale in India`}
                 altBase={`${product.brand || ""} ${product.name || ""} — Refurbished ${singularCat(product.category)}`.trim()}
               />
+              {/* Custom-configuration CTA — servers & workstations only. Sits in the
+                  empty space below the gallery. WhatsApp + email are click-to-contact. */}
+              {showCustomConfigCta && (
+                <div className="mt-5 rounded-card border-l-4 border-brand bg-brand-soft/40 px-4 py-3.5">
+                  <p className="text-sm font-bold text-ink">Need a Custom Configuration?</p>
+                  <p className="mt-1 text-[13px] leading-relaxed text-neutral-600">
+                    Servers and workstations can be configured to your exact requirements — RAM, storage, processors, and more.
+                  </p>
+                  <div className="mt-2.5 space-y-1 text-[13px]">
+                    <p>💬 WhatsApp us: <a href="https://wa.me/918448296273" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand hover:underline">+91 8448296273</a></p>
+                    <p>📧 Email us: <a href="mailto:info@refurbishedkart.com" className="font-semibold text-brand hover:underline">info@refurbishedkart.com</a></p>
+                  </div>
+                  <p className="mt-1.5 text-[12px] text-neutral-500">Mon–Sat, 11:00 AM – 6:00 PM</p>
+                </div>
+              )}
             </div>
             <div className="min-w-0">
               <div className="mb-2 flex flex-wrap items-center gap-2">

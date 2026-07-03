@@ -19,6 +19,10 @@ export default function ProductCard({ product, className = "w-[200px] shrink-0 s
   // Display the SEO title (API-provided or computed); fall back to the raw name.
   const displayTitle = product.generatedTitle || seoTitle || product.name;
   const imgAlt = `${seoTitle} — Refurbished ${singular(product.category)} for sale in India`;
+  // Primary image + optional hover image (second in the array). CSS-only swap below;
+  // if there's no second image, no swap happens.
+  const primaryImg = product.images?.[0] || product.image;
+  const hoverImg = product.images?.[1];
   const stock = product.chassisStock ?? product.stock;
   const oos = stock === 0;
   const lowStock = stock > 0 && stock <= 5;
@@ -39,17 +43,36 @@ export default function ProductCard({ product, className = "w-[200px] shrink-0 s
       {/* Image area — subtle 1.03 zoom on hover (Apple-restraint; no lift/shadow) */}
       <div className="relative h-[112px] overflow-hidden rounded-t-card bg-white lg:h-[180px]">
         <div
-          className={`flex h-full w-full items-center justify-center transition-transform duration-[250ms] ease-out group-hover:scale-[1.03] ${
+          className={`relative flex h-full w-full items-center justify-center transition-transform duration-[250ms] ease-out group-hover:scale-[1.03] ${
             oos ? "opacity-50 grayscale" : ""
           }`}
         >
-          {(product.image || product.images?.[0]) ? (
-            <img
-              src={product.image || product.images?.[0]}
-              alt={imgAlt}
-              loading="lazy"
-              className="h-full w-full object-contain p-3"
-            />
+          {primaryImg ? (
+            hoverImg ? (
+              // CSS-only crossfade to the second image on hover (no JS state).
+              <>
+                <img
+                  src={primaryImg}
+                  alt={imgAlt}
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-contain p-3 transition-opacity duration-300 ease-out group-hover:opacity-0"
+                />
+                <img
+                  src={hoverImg}
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  className="absolute inset-0 h-full w-full object-contain p-3 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
+                />
+              </>
+            ) : (
+              <img
+                src={primaryImg}
+                alt={imgAlt}
+                loading="lazy"
+                className="h-full w-full object-contain p-3"
+              />
+            )
           ) : (
             <div className="flex flex-col items-center gap-2 text-neutral-300">
               <BrokenDeviceIcon style={{ width: 56, height: 56 }} />
