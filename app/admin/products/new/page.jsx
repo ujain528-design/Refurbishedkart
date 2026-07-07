@@ -69,6 +69,22 @@ const EMPTY = {
 
 const CONDITIONS = ["Excellent", "Good", "Fair"];
 
+// Per-category field visibility. showField() gates whole editor groups so, e.g., a
+// Monitor never shows RAM/SSD/processor/OS/variants. Keys are logical groups (not raw
+// spec keys). A category not listed here falls through to "show everything".
+const CATEGORY_FIELDS = {
+  laptops: ["processor", "ram", "storage", "os", "display", "gpu", "battery", "variants", "formFactor", "ports", "physical"],
+  desktops: ["processor", "ram", "storage", "os", "gpu", "variants", "formFactor", "ports", "physical"],
+  monitors: ["display", "monitor", "physical", "ports"],
+  servers: ["processor", "ram", "storage", "os", "variants", "formFactor", "ports"],
+  workstations: ["processor", "ram", "storage", "os", "gpu", "variants", "formFactor", "ports", "physical"],
+};
+
+// Chassis / form-factor pickers for laptops & desktops (servers & workstations
+// already have their own Form Factor / Chassis dropdowns).
+const LAPTOP_CHASSIS = ["Ultrabook", "Business Laptop", "Gaming Laptop", "2-in-1 Convertible", "Rugged Laptop"];
+const DESKTOP_CHASSIS = ["Tower", "Small Form Factor (SFF)", "Mini PC", "All-in-One (AIO)", "Micro Desktop"];
+
 /* Reconstruct the two-level processor selection (Family + Model) from a stored
    `attrs.processor` string of ANY shape — full names from bulk import
    ("Intel Core i5-10310U"), bare models ("i5-10310U"), or already-clean
@@ -389,8 +405,26 @@ export default function ProductEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [f.listedPrice, f.defaultRam, f.defaultSsd, JSON.stringify(f.configs.map((c) => [c.ramCap, c.ramType, c.ssd, c.override])), pricingCfg]);
 
-  const update = (key, value) => { setF((s) => ({ ...s, [key]: value })); setDirty(true); };
+  const update = (key, value) => {
+    setF((s) => {
+      // Switching category clears category-specific spec fields (and RAM/SSD variant
+      // configs when moving to a category that has none, e.g. Monitors) so stale
+      // laptop fields never linger on a monitor. Shared top-level fields are kept.
+      if (key === "category" && value !== s.category) {
+        return { ...s, category: value, specs: {}, configs: value === "Monitors" ? [] : s.configs, touch: value === "Laptops" ? s.touch : false };
+      }
+      return { ...s, [key]: value };
+    });
+    setDirty(true);
+  };
   const updateSpec = (key, value) => { setF((s) => ({ ...s, specs: { ...s.specs, [key]: value } })); setDirty(true); };
+  // Category-driven group visibility. Blank/unknown category → show all (backward compatible).
+  const showField = (field) => {
+    if (!f.category) return true;
+    const allowed = CATEGORY_FIELDS[f.category.toLowerCase()];
+    if (!allowed) return true;
+    return allowed.includes(field);
+  };
   const blur = (key) => setTouched((t) => ({ ...t, [key]: true }));
   const toggleArr = (key, v) => update(key, f[key].includes(v) ? f[key].filter((x) => x !== v) : [...f[key], v]);
   const switchTab = (t) => setTab(t);
@@ -633,6 +667,8 @@ export default function ProductEditor() {
             <div className="max-w-3xl space-y-8">
               {/* SECTION 1 — Default Configuration */}
               <section>
+                {/* Default RAM/SSD config — variant categories only (hidden for Monitors). */}
+                {showField("variants") && (<>
                 <p className="mb-1 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide text-brand">
                   Default Configuration
                   <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-bold text-brand">Base (included)</span>
@@ -656,6 +692,7 @@ export default function ProductEditor() {
                       <input type="number" value={f.defaultSsd.cost} onChange={(e) => setDefaultSsd("cost", Number(e.target.value) || 0)} className={inputCls} /></label>
                   </div>
                 </div>
+                </>)}
                 <div className="mt-4 grid items-end gap-4 sm:grid-cols-2">
                   <div className="max-w-[240px]"><VField ctx={ctx} k="listedPrice" label="Listed Price ₹ (default config)" type="number" min={0} placeholder="27499" hint="Price buyers pay for the default config" /></div>
                   <div className="rounded-lg bg-brand-softer/50 px-4 py-3">
@@ -678,7 +715,8 @@ export default function ProductEditor() {
                 </div>
               </section>
 
-              {/* SECTION 2 — Additional Configurations */}
+              {/* SECTION 2 — Additional Configurations — variant categories only (hidden for Monitors) */}
+              {showField("variants") && (
               <section>
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-[12px] font-bold uppercase tracking-wide text-brand">Additional Configurations</p>
@@ -726,6 +764,7 @@ export default function ProductEditor() {
                   </div>
                 )}
               </section>
+              )}
 
               {/* SECTION 3 — Chassis Stock */}
               <section>
@@ -813,11 +852,13 @@ export default function ProductEditor() {
           {tab === "Specs" && (
             <div className="max-w-3xl space-y-7">
               <p className="text-[12px] text-neutral-400">Structured spec fields — dropdowns only.</p>
-              <Group title="Processor">
-                <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Family</span><select value={f.specs.family ?? ""} onChange={(e) => { updateSpec("family", e.target.value); updateSpec("procModel", ""); }} className={inputCls}><option value="">— Select —</option>{PROCESSOR_FAMILIES.map((o) => <option key={o}>{o}</option>)}</select></label>
-                <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Model</span><select value={f.specs.procModel ?? ""} onChange={(e) => updateSpec("procModel", e.target.value)} className={inputCls}><option value="">— Select —</option>{(f.specs.family ? PROCESSOR_MODELS[f.specs.family] || [] : []).map((o) => <option key={o}>{o}</option>)}</select></label>
-                <Drop ctx={ctx} label="Processor Generation" options={GENERATIONS} specKey="gen" />
-              </Group>
+              {showField("processor") && (
+                <Group title="Processor">
+                  <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Family</span><select value={f.specs.family ?? ""} onChange={(e) => { updateSpec("family", e.target.value); updateSpec("procModel", ""); }} className={inputCls}><option value="">— Select —</option>{PROCESSOR_FAMILIES.map((o) => <option key={o}>{o}</option>)}</select></label>
+                  <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Model</span><select value={f.specs.procModel ?? ""} onChange={(e) => updateSpec("procModel", e.target.value)} className={inputCls}><option value="">— Select —</option>{(f.specs.family ? PROCESSOR_MODELS[f.specs.family] || [] : []).map((o) => <option key={o}>{o}</option>)}</select></label>
+                  <Drop ctx={ctx} label="Processor Generation" options={GENERATIONS} specKey="gen" />
+                </Group>
+              )}
               {/* Display — laptops/monitors/desktops. Hidden for desktop towers
                   (Workstations/Servers): those have no screen. */}
               {!["Workstations", "Servers"].includes(f.category) && (
@@ -828,14 +869,31 @@ export default function ProductEditor() {
                   <Drop ctx={ctx} label="Refresh Rate" options={REFRESH_RATES} specKey="refresh" />
                 </Group>
               )}
-              <Group title="Memory & Storage">
-                <Drop ctx={ctx} label="RAM Type" options={MASTER_TABLES["RAM Type"]} specKey="ramType" />
-                <Drop ctx={ctx} label="Storage Type" options={STORAGE_TYPES} specKey="storageType" />
-                {["Laptops", "Workstations", "Desktops"].includes(f.category) && (
-                  <Drop ctx={ctx} label="RAM Expandability" options={MASTER_TABLES["RAM Expandability"]} specKey="ramExpandability" />
-                )}
-              </Group>
-              <Group title="Operating System"><Drop ctx={ctx} label="OS" options={OS_OPTIONS} specKey="os" /></Group>
+              {showField("ram") && (
+                <Group title="Memory & Storage">
+                  <Drop ctx={ctx} label="RAM Type" options={MASTER_TABLES["RAM Type"]} specKey="ramType" />
+                  <Drop ctx={ctx} label="Storage Type" options={STORAGE_TYPES} specKey="storageType" />
+                  {["Laptops", "Workstations", "Desktops"].includes(f.category) && (
+                    <Drop ctx={ctx} label="RAM Expandability" options={MASTER_TABLES["RAM Expandability"]} specKey="ramExpandability" />
+                  )}
+                </Group>
+              )}
+              {showField("os") && (
+                <Group title="Operating System"><Drop ctx={ctx} label="OS" options={OS_OPTIONS} specKey="os" /></Group>
+              )}
+              {/* Chassis / Form Factor — laptops & desktops (servers & workstations
+                  have their own Form Factor pickers in their hardware groups). */}
+              {["Laptops", "Desktops"].includes(f.category) && (
+                <Group title="Chassis Type / Form Factor" cols={1}>
+                  <label className="block">
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Chassis Type / Form Factor</span>
+                    <select value={f.specs.formFactor ?? ""} onChange={(e) => updateSpec("formFactor", e.target.value)} className={inputCls}>
+                      <option value="">— Select —</option>
+                      {(f.category === "Laptops" ? LAPTOP_CHASSIS : DESKTOP_CHASSIS).map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </label>
+                </Group>
+              )}
               {f.category === "Servers" && (
                 <Group title="Server Configuration">
                   <Drop ctx={ctx} label="Form Factor" options={MASTER_TABLES["Server Form Factor"]} specKey="formFactor" />
