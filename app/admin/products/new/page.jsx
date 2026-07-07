@@ -161,6 +161,7 @@ function dbToForm(p) {
       brightness: a.brightness ?? "", responseTime: a.responseTime ?? "", hdr: !!a.hdr,
       aspectRatio: a.aspectRatio || "", vesaMount: !!a.vesaMount, builtInSpeakers: !!a.builtInSpeakers,
       driveBays: a.driveBays ?? "", raid: a.raid || "", redundantPower: !!a.redundantPower,
+      processorCount: p.processorCount ?? 1,
       // Reconstruct the Family + Model dropdowns from attrs.processor (handles
       // bulk-imported full names). editorSpecs (an explicit prior admin choice)
       // is spread last so it still wins when present.
@@ -202,6 +203,8 @@ function formToDb(f, orig) {
     category: f.category,
     listedPrice: lp,
     price: lp,
+    // Physical CPU count — only servers/workstations expose the field; others stay 1.
+    processorCount: ["Servers", "Workstations"].includes(f.category) ? (Number(f.specs.processorCount) || 1) : 1,
     mrp: f.mrp !== "" && Number(f.mrp) > 0 ? Number(f.mrp) : undefined,
     defaultRam: { capacity: f.defaultRam.capacity, type: f.defaultRam.type, isOnboard: !!f.defaultRam.isOnboard, cost: Number(f.defaultRam.cost) || 0 },
     defaultSsd: { capacity: f.defaultSsd.capacity, cost: Number(f.defaultSsd.cost) || 0 },
@@ -857,6 +860,13 @@ export default function ProductEditor() {
                   <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Family</span><select value={f.specs.family ?? ""} onChange={(e) => { updateSpec("family", e.target.value); updateSpec("procModel", ""); }} className={inputCls}><option value="">— Select —</option>{PROCESSOR_FAMILIES.map((o) => <option key={o}>{o}</option>)}</select></label>
                   <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Model</span><select value={f.specs.procModel ?? ""} onChange={(e) => updateSpec("procModel", e.target.value)} className={inputCls}><option value="">— Select —</option>{(f.specs.family ? PROCESSOR_MODELS[f.specs.family] || [] : []).map((o) => <option key={o}>{o}</option>)}</select></label>
                   <Drop ctx={ctx} label="Processor Generation" options={GENERATIONS} specKey="gen" />
+                  {["Servers", "Workstations"].includes(f.category) && (
+                    <label className="block">
+                      <span className="mb-1 block text-[12px] font-semibold text-neutral-600">No. of Processors</span>
+                      <input type="number" min={1} step={1} value={f.specs.processorCount ?? 1} onChange={(e) => updateSpec("processorCount", Number(e.target.value) || 1)} className={inputCls} />
+                      <span className="mt-1 block text-[11px] text-neutral-400">Physical CPU sockets (1, 2, 4). Shown as “N × &lt;processor&gt;” when above 1.</span>
+                    </label>
+                  )}
                 </Group>
               )}
               {/* Display — laptops/monitors/desktops. Hidden for desktop towers
