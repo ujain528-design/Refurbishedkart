@@ -93,17 +93,6 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
 
   // Re-render Razorpay's affordability widget when the price changes (variant switch).
   useEffect(() => {
-    // TEMP DEBUG — remove after diagnosing the affordability widget.
-    // eslint-disable-next-line no-console
-    console.log("[razorpay-widget]", {
-      total,
-      showWidget: total > 5000,
-      dataAmountPaise: String(total * 100),
-      keyPresent: !!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      keyValue: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "(undefined at build)",
-      renderFn: typeof window !== "undefined" ? typeof window.renderAffordabilityWidget : "no window",
-      widgetDivInDom: typeof document !== "undefined" ? !!document.querySelector(".razorpay-affordability-widget") : "no document",
-    });
     if (typeof window !== "undefined" && typeof window.renderAffordabilityWidget === "function") {
       window.renderAffordabilityWidget();
     }
@@ -193,15 +182,9 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
         src="https://cdn.razorpay.com/widgets/affordability/affordability.js"
         strategy="lazyOnload"
         onLoad={() => {
-          // TEMP DEBUG — remove after diagnosing. Force a render once the script is
-          // actually loaded (the div already exists by then, so the auto-scan can't miss it).
-          // eslint-disable-next-line no-console
-          console.log("[razorpay-widget] script onLoad; renderFn:", typeof window.renderAffordabilityWidget);
+          // Force a render once the script is actually loaded — the widget div already
+          // exists by then, so the auto-scan can't miss it (fixes the lazyOnload race).
           if (typeof window.renderAffordabilityWidget === "function") window.renderAffordabilityWidget();
-        }}
-        onError={() => {
-          // eslint-disable-next-line no-console
-          console.log("[razorpay-widget] script FAILED to load (blocked/offline/CSP?)");
         }}
       />
 
