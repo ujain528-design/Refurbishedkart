@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { formatINR } from "@/lib/admin-data";
 import { paymentMethodLabel, RETURN_REASONS } from "@/lib/data";
-import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, adminShipOrder } from "@/lib/api";
+import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, adminShipOrder, adminSyncShiprocket } from "@/lib/api";
 import { WhatsAppIcon } from "@/components/Icons";
 import { isPaymentPending, isCancelled, formatCountdown, cancellationReasonLabel, PAY_WARNING_MS } from "@/lib/orderStatus";
 
@@ -123,6 +123,21 @@ export default function Orders() {
       setShipErr(e.message || "Shipment failed");
     } finally {
       setShipping(false);
+    }
+  };
+
+  const [syncing, setSyncing] = useState(false);
+  const doSync = async () => {
+    setSyncing(true); setShipErr("");
+    try {
+      const order = await adminSyncShiprocket(view.id);
+      setView((v) => ({ ...v, ...order }));
+      toast("Synced from Shiprocket");
+      load();
+    } catch (e) {
+      setShipErr(e.message || "Sync failed");
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -387,7 +402,14 @@ export default function Orders() {
             {/* ── Shiprocket shipping ── */}
             {(view.shiprocketShipmentId || view.awbCode) ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                <p className="mb-1.5 text-[12px] font-bold uppercase tracking-wide text-emerald-700">Shipment · Shiprocket</p>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <p className="text-[12px] font-bold uppercase tracking-wide text-emerald-700">Shipment · Shiprocket</p>
+                  {view.shiprocketOrderId && (
+                    <button onClick={doSync} disabled={syncing} className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
+                      {syncing ? "Syncing…" : "↻ Sync Status"}
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-y-1 gap-x-3 text-[13px]">
                   {view.shiprocketOrderId && (<><span className="text-neutral-500">Shiprocket Order ID</span><span className="text-right font-semibold text-ink">{view.shiprocketOrderId}</span></>)}
                   {view.awbCode ? (<><span className="text-neutral-500">AWB</span><span className="text-right font-mono font-semibold text-ink">{view.awbCode}</span></>) : null}
