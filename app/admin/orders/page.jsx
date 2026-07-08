@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { formatINR } from "@/lib/admin-data";
 import { paymentMethodLabel, RETURN_REASONS } from "@/lib/data";
-import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn } from "@/lib/api";
+import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, adminShipOrder } from "@/lib/api";
 import { WhatsAppIcon } from "@/components/Icons";
 import { isPaymentPending, isCancelled, formatCountdown, cancellationReasonLabel, PAY_WARNING_MS } from "@/lib/orderStatus";
 
@@ -106,6 +106,25 @@ export default function Orders() {
   const [retForm, setRetForm] = useState(null);
   // COD balance-collection confirmation (must be ticked to mark COD delivered).
   const [codBalanceConfirmed, setCodBalanceConfirmed] = useState(false);
+  // Shiprocket shipment creation.
+  const [shipping, setShipping] = useState(false);
+  const [shipErr, setShipErr] = useState("");
+  const [shipConfirm, setShipConfirm] = useState(false);
+
+  const doShip = async () => {
+    setShipping(true); setShipErr("");
+    try {
+      const { order } = await adminShipOrder(view.id);
+      setView((v) => ({ ...v, ...order }));
+      setShipConfirm(false);
+      toast("Shipment created via Shiprocket");
+      load();
+    } catch (e) {
+      setShipErr(e.message || "Shipment failed");
+    } finally {
+      setShipping(false);
+    }
+  };
 
   const load = useCallback(() => {
     setLoad("loading");
@@ -129,7 +148,7 @@ export default function Orders() {
     return () => clearInterval(t);
   }, []);
 
-  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courierName || o.courier || "", trackingNumber: o.trackingNumber || "", trackingUrl: o.trackingUrl || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); };
+  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courierName || o.courier || "", trackingNumber: o.trackingNumber || "", trackingUrl: o.trackingUrl || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); setShipErr(""); setShipConfirm(false); };
 
   // Effective cancellation reason from the dropdown (+ free-text when "Other").
   const effectiveCancelReason = (f) => (f.cancelReason === OTHER_REASON ? f.cancelOther.trim() : f.cancelReason);
@@ -365,6 +384,38 @@ export default function Orders() {
                 <span className="text-neutral-600">Remaining (on delivery)</span><span className="text-right font-semibold text-ink">{formatINR(view.codRemaining)}</span>
               </div>
             )}
+            {/* ── Shiprocket shipping ── */}
+            {view.awbCode ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <p className="mb-1.5 text-[12px] font-bold uppercase tracking-wide text-emerald-700">Shipment · Shiprocket</p>
+                <div className="grid grid-cols-2 gap-y-1 gap-x-3 text-[13px]">
+                  {view.shiprocketOrderId && (<><span className="text-neutral-500">Shiprocket Order ID</span><span className="text-right font-semibold text-ink">{view.shiprocketOrderId}</span></>)}
+                  <span className="text-neutral-500">AWB</span><span className="text-right font-mono font-semibold text-ink">{view.awbCode}</span>
+                  {view.courierName && (<><span className="text-neutral-500">Courier</span><span className="text-right font-semibold text-ink">{view.courierName}</span></>)}
+                  {view.shiprocketStatus && (<><span className="text-neutral-500">Status</span><span className="text-right text-neutral-600">{view.shiprocketStatus}</span></>)}
+                </div>
+                {view.trackingUrl && (
+                  <a href={view.trackingUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block rounded-full bg-emerald-600 px-4 py-1.5 text-[13px] font-bold text-white hover:bg-emerald-700">Track Shipment →</a>
+                )}
+              </div>
+            ) : ["Confirmed", "Processing"].includes(view.status) ? (
+              <div className="rounded-lg border border-black/10 p-3">
+                {!shipConfirm ? (
+                  <button onClick={() => { setShipConfirm(true); setShipErr(""); }} className="w-full rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-700">
+                    📦 Ship via Shiprocket
+                  </button>
+                ) : (
+                  <div>
+                    <p className="text-[13px] font-medium text-ink">Create a Shiprocket shipment for <b>#{view.id}</b>? This assigns a courier + AWB and schedules pickup.</p>
+                    <div className="mt-2.5 flex gap-2">
+                      <button onClick={doShip} disabled={shipping} className="rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{shipping ? "Creating shipment…" : "Confirm & Ship"}</button>
+                      <button onClick={() => setShipConfirm(false)} disabled={shipping} className={btnGhost}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                {shipErr && <p className="mt-2 text-[12px] font-semibold text-red-600">{shipErr}</p>}
+              </div>
+            ) : null}
             {view.status === "cod_failed" ? (
               <div className="rounded-lg border border-dashed border-red-200 bg-red-50 p-3 text-[13px] font-medium text-red-600">
                 COD delivery failed. Both-side courier charges are deducted from the upfront amount; refund any balance to the customer manually.
