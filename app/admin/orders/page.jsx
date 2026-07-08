@@ -385,17 +385,21 @@ export default function Orders() {
               </div>
             )}
             {/* ── Shiprocket shipping ── */}
-            {view.awbCode ? (
+            {(view.shiprocketShipmentId || view.awbCode) ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
                 <p className="mb-1.5 text-[12px] font-bold uppercase tracking-wide text-emerald-700">Shipment · Shiprocket</p>
                 <div className="grid grid-cols-2 gap-y-1 gap-x-3 text-[13px]">
                   {view.shiprocketOrderId && (<><span className="text-neutral-500">Shiprocket Order ID</span><span className="text-right font-semibold text-ink">{view.shiprocketOrderId}</span></>)}
-                  <span className="text-neutral-500">AWB</span><span className="text-right font-mono font-semibold text-ink">{view.awbCode}</span>
+                  {view.awbCode ? (<><span className="text-neutral-500">AWB</span><span className="text-right font-mono font-semibold text-ink">{view.awbCode}</span></>) : null}
                   {view.courierName && (<><span className="text-neutral-500">Courier</span><span className="text-right font-semibold text-ink">{view.courierName}</span></>)}
                   {view.shiprocketStatus && (<><span className="text-neutral-500">Status</span><span className="text-right text-neutral-600">{view.shiprocketStatus}</span></>)}
                 </div>
-                {view.trackingUrl && (
-                  <a href={view.trackingUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block rounded-full bg-emerald-600 px-4 py-1.5 text-[13px] font-bold text-white hover:bg-emerald-700">Track Shipment →</a>
+                {view.awbCode ? (
+                  view.trackingUrl && (
+                    <a href={view.trackingUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block rounded-full bg-emerald-600 px-4 py-1.5 text-[13px] font-bold text-white hover:bg-emerald-700">Track Shipment →</a>
+                  )
+                ) : (
+                  <p className="mt-2 text-[12px] text-emerald-800">Log into Shiprocket to assign a courier. The AWB &amp; tracking link will appear here automatically once assigned.</p>
                 )}
               </div>
             ) : ["Confirmed", "Processing"].includes(view.status) ? (
@@ -406,9 +410,9 @@ export default function Orders() {
                   </button>
                 ) : (
                   <div>
-                    <p className="text-[13px] font-medium text-ink">Create a Shiprocket shipment for <b>#{view.id}</b>? This assigns a courier + AWB and schedules pickup.</p>
+                    <p className="text-[13px] font-medium text-ink">Create this order in Shiprocket for <b>#{view.id}</b>? You&apos;ll then assign a courier in the Shiprocket dashboard.</p>
                     <div className="mt-2.5 flex gap-2">
-                      <button onClick={doShip} disabled={shipping} className="rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{shipping ? "Creating shipment…" : "Confirm & Ship"}</button>
+                      <button onClick={doShip} disabled={shipping} className="rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{shipping ? "Creating…" : "Confirm & Create"}</button>
                       <button onClick={() => setShipConfirm(false)} disabled={shipping} className={btnGhost}>Cancel</button>
                     </div>
                   </div>
