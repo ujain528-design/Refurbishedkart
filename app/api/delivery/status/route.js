@@ -6,7 +6,7 @@ import { sendOrderDispatchedEmail, sendOrderDeliveredEmail } from "@/lib/server/
 export const dynamic = "force-dynamic";
 
 /* Shiprocket status webhook. Register at:
-   https://refurbishedkart.com/api/shiprocket/webhook
+   https://refurbishedkart.com/api/delivery/status
    Optional shared-secret: set SHIPROCKET_WEBHOOK_TOKEN and Shiprocket's "x-api-key"
    header must match. If the env var is unset, the endpoint accepts unauthenticated
    posts (fine for testing; set the token before going live). */
