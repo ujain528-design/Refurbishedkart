@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { PageHeader, Tabs, Toggle, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { MASTER_TABLES, SPEC_FIELDS, CATEGORY_SPEC_SCHEMA } from "@/lib/admin-data";
 import { CATEGORY_SLUGS } from "@/lib/data";
-import { adminGetMasterData, adminAddMasterDataValue, adminToggleMasterDataValue } from "@/lib/api";
+import { adminGetMasterData, adminAddMasterDataValue, adminToggleMasterDataValue, adminGetCustomFieldValues, adminDeleteCustomFieldValue } from "@/lib/api";
 
 const CORE_FIELDS = ["brand", "model", "price", "category", "status", "description"];
 
@@ -138,14 +138,60 @@ function CategorySpecSchema() {
   );
 }
 
+// Admin-added custom dropdown values (from the product editor's "Add custom value").
+// View + delete only — values are created from the editor, grouped here by field.
+function CustomFieldValues() {
+  const toast = useToast();
+  const [rows, setRows] = useState([]);
+  const [status, setStatus] = useState("loading");
+
+  const load = useCallback(() => {
+    setStatus("loading");
+    adminGetCustomFieldValues({}).then((r) => { setRows(r); setStatus("ready"); }).catch(() => setStatus("error"));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const remove = async (id) => {
+    try { await adminDeleteCustomFieldValue(id); setRows((r) => r.filter((x) => x.id !== id)); toast("Custom value deleted"); }
+    catch (e) { toast(e.message || "Delete failed", "error"); }
+  };
+
+  const byField = {};
+  for (const r of rows) { (byField[r.field] = byField[r.field] || []).push(r); }
+
+  if (status === "loading") return <p className="px-5 py-10 text-center text-sm text-neutral-400">Loading…</p>;
+  if (status === "error") return <div className="px-5 py-10 text-center"><p className="text-sm text-neutral-500">Couldn&apos;t load custom values.</p><button onClick={load} className="mt-3 rounded-full bg-brand px-5 py-2 text-[13px] font-bold text-white">Retry</button></div>;
+  if (rows.length === 0) return <div className="rounded-card border border-dashed border-black/10 bg-neutral-50 p-10 text-center text-sm text-neutral-500">No custom values yet. They appear here after an admin adds one via “Add custom value…” in the product editor.</div>;
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(byField).map(([field, list]) => (
+        <div key={field} className="rounded-card border border-black/5 bg-white shadow-card">
+          <div className="border-b border-black/5 px-5 py-3"><h2 className="text-sm font-bold capitalize text-ink">{field}</h2></div>
+          <div className="divide-y divide-black/5">
+            {list.map((v) => (
+              <div key={v.id} className="flex flex-wrap items-center gap-2 px-5 py-2.5">
+                <span className="text-sm font-medium text-ink">{v.value}</span>
+                {v.family && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand">{v.family}</span>}
+                {Array.isArray(v.category) && v.category.length > 0 && <span className="text-[11px] text-neutral-400">{v.category.join(", ")}</span>}
+                <button onClick={() => remove(v.id)} className="ml-auto text-[13px] font-bold text-red-600 hover:underline">Delete</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function MasterData() {
   const [tab, setTab] = useState("Master Tables");
   return (
     <div>
       <PageHeader title="Master Data" subtitle="Dropdown values & per-category spec schema." />
-      <Tabs tabs={["Master Tables", "Category Spec Schema"]} active={tab} onChange={setTab} />
+      <Tabs tabs={["Master Tables", "Custom Field Values", "Category Spec Schema"]} active={tab} onChange={setTab} />
       <div className="mt-6">
-        {tab === "Master Tables" ? <MasterTables /> : <CategorySpecSchema />}
+        {tab === "Master Tables" ? <MasterTables /> : tab === "Custom Field Values" ? <CustomFieldValues /> : <CategorySpecSchema />}
       </div>
     </div>
   );

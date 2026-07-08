@@ -10,6 +10,7 @@ import {
 } from "@/lib/admin-data";
 import { CATEGORY_SLUGS } from "@/lib/data";
 import PortsGrid from "@/components/admin/PortsGrid";
+import SelectWithCustom from "@/components/admin/SelectWithCustom";
 import { normalizePorts } from "@/lib/ports";
 import { adminGetProduct, adminCreateProduct, adminUpdateProduct, adminUpdateStock, adminGetPricingConfig, adminUploadImage } from "@/lib/api";
 import ImageSearch from "@/components/admin/ImageSearch";
@@ -858,7 +859,15 @@ export default function ProductEditor() {
               {showField("processor") && (
                 <Group title="Processor">
                   <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Family</span><select value={f.specs.family ?? ""} onChange={(e) => { updateSpec("family", e.target.value); updateSpec("procModel", ""); }} className={inputCls}><option value="">— Select —</option>{PROCESSOR_FAMILIES.map((o) => <option key={o}>{o}</option>)}</select></label>
-                  <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Processor Model</span><select value={f.specs.procModel ?? ""} onChange={(e) => updateSpec("procModel", e.target.value)} className={inputCls}><option value="">— Select —</option>{(f.specs.family ? PROCESSOR_MODELS[f.specs.family] || [] : []).map((o) => <option key={o}>{o}</option>)}</select></label>
+                  <SelectWithCustom
+                    field="processor"
+                    family={f.specs.family || ""}
+                    value={f.specs.procModel ?? ""}
+                    onChange={(v) => updateSpec("procModel", v)}
+                    options={f.specs.family ? PROCESSOR_MODELS[f.specs.family] || [] : []}
+                    label="Processor Model"
+                    category={f.category}
+                  />
                   <Drop ctx={ctx} label="Processor Generation" options={GENERATIONS} specKey="gen" />
                   {["Servers", "Workstations"].includes(f.category) && (
                     <label className="block">
@@ -881,27 +890,29 @@ export default function ProductEditor() {
               )}
               {showField("ram") && (
                 <Group title="Memory & Storage">
-                  <Drop ctx={ctx} label="RAM Type" options={MASTER_TABLES["RAM Type"]} specKey="ramType" />
-                  <Drop ctx={ctx} label="Storage Type" options={STORAGE_TYPES} specKey="storageType" />
+                  <SelectWithCustom field="ramType" value={f.specs.ramType ?? ""} onChange={(v) => updateSpec("ramType", v)} options={MASTER_TABLES["RAM Type"]} label="RAM Type" category={f.category} />
+                  <SelectWithCustom field="storageType" value={f.specs.storageType ?? ""} onChange={(v) => updateSpec("storageType", v)} options={STORAGE_TYPES} label="Storage Type" category={f.category} />
                   {["Laptops", "Workstations", "Desktops"].includes(f.category) && (
                     <Drop ctx={ctx} label="RAM Expandability" options={MASTER_TABLES["RAM Expandability"]} specKey="ramExpandability" />
                   )}
                 </Group>
               )}
               {showField("os") && (
-                <Group title="Operating System"><Drop ctx={ctx} label="OS" options={OS_OPTIONS} specKey="os" /></Group>
+                <Group title="Operating System"><SelectWithCustom field="os" value={f.specs.os ?? ""} onChange={(v) => updateSpec("os", v)} options={OS_OPTIONS} label="OS" category={f.category} /></Group>
               )}
               {/* Chassis / Form Factor — laptops & desktops (servers & workstations
                   have their own Form Factor pickers in their hardware groups). */}
               {["Laptops", "Desktops"].includes(f.category) && (
                 <Group title="Chassis Type / Form Factor" cols={1}>
-                  <label className="block">
-                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Chassis Type / Form Factor</span>
-                    <select value={f.specs.formFactor ?? ""} onChange={(e) => updateSpec("formFactor", e.target.value)} className={inputCls}>
-                      <option value="">— Select —</option>
-                      {(f.category === "Laptops" ? LAPTOP_CHASSIS : DESKTOP_CHASSIS).map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </label>
+                  <SelectWithCustom
+                    field="formFactor"
+                    family={f.category}
+                    value={f.specs.formFactor ?? ""}
+                    onChange={(v) => updateSpec("formFactor", v)}
+                    options={f.category === "Laptops" ? LAPTOP_CHASSIS : DESKTOP_CHASSIS}
+                    label="Chassis Type / Form Factor"
+                    category={f.category}
+                  />
                 </Group>
               )}
               {f.category === "Servers" && (
@@ -941,10 +952,14 @@ export default function ProductEditor() {
               )}
               {["Laptops", "Workstations"].includes(f.category) && (
                 <Group title="Graphics" cols={1}>
-                  <label className="block">
-                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">GPU (integrated or dedicated)</span>
-                    <input value={f.specs.gpu ?? ""} onChange={(e) => updateSpec("gpu", e.target.value)} placeholder="e.g. NVIDIA Quadro P2000 / Intel Iris Xe" className={inputCls} />
-                  </label>
+                  <SelectWithCustom
+                    field="gpu"
+                    value={f.specs.gpu ?? ""}
+                    onChange={(v) => updateSpec("gpu", v)}
+                    options={[]}
+                    label="GPU (integrated or dedicated)"
+                    category={f.category}
+                  />
                 </Group>
               )}
               {f.category === "Monitors" && (
