@@ -6,6 +6,7 @@ import { calcPrice } from "@/lib/server/products";
 import { getStoreSettings, deliveryRules } from "@/lib/server/settings";
 import { computeLineTaxes, SELLER_STATE } from "@/lib/data";
 import { sendOrderConfirmationEmail, sendOrderAdminNotification } from "@/lib/server/mailer";
+import { validateCoupon } from "@/lib/server/couponEngine";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +26,14 @@ export async function POST(req) {
     // GST is a flat store-wide rate (defGst); HSN is still per-product. Both are
     // stamped on the line so the invoice/admin render authoritatively.
     const lines = [];
+    const couponItems = []; // {category, brand} per line — for coupon restrictions
     for (const it of items) {
       const q = await calcPrice(it.productId, it.ram, it.ssd);
       if (q.error) return NextResponse.json({ error: `Product ${it.productId} unavailable` }, { status: 409 });
       if (q.sellable < (it.qty || 1)) return NextResponse.json({ error: `${q.product.name} is out of stock` }, { status: 409 });
       const hsnCode = q.product.hsnCode || defHsn;
       lines.push({ productId: q.product.id, name: q.product.name, ram: q.ram, ssd: q.ssd, qty: it.qty || 1, unitPrice: q.unitPrice, gstRate: defGst, hsnCode });
+      couponItems.push({ category: q.product.category, brand: q.product.brand });
     }
     const subtotal = lines.reduce((a, l) => a + l.unitPrice * l.qty, 0);
 
@@ -40,26 +43,19 @@ export async function POST(req) {
     // valid when applied but has since expired/been disabled is rejected so the
     // customer is never silently charged full price (and can't sneak a stale
     // discount through either).
+    // Re-validate through the full coupon engine (segments, per-customer limit,
+    // category/brand restrictions, date window, discount cap, etc.). The engine is
+    // the single source of truth — same code the /apply and /auto endpoints use — so
+    // a coupon that was valid when applied but has since expired/been disabled/used
+    // up is rejected here and the discount is recomputed authoritatively. The total
+    // usage slot is still only CLAIMED at payment confirmation (couponUsage), never
+    // here, so an abandoned order can't burn a slot.
     let discount = 0, appliedCode = null;
     if (couponCode) {
-      const c = await Coupon.findOne({ code: String(couponCode).toUpperCase(), active: true }).lean();
-      const expired = c?.expiry && new Date(c.expiry).getTime() < Date.now();
-      if (!c || expired) {
-        return NextResponse.json({ error: "Coupon no longer valid, please remove and retry." }, { status: 400 });
-      }
-      if (subtotal < (c.minSubtotal || 0)) {
-        return NextResponse.json({ error: `This coupon needs a minimum order of ₹${c.minSubtotal}. Please remove it or add more to your cart.` }, { status: 400 });
-      }
-      // Usage limit (null/0 → unlimited). READ-ONLY at order creation — the slot
-      // is NOT claimed here. It's claimed atomically only when payment is confirmed
-      // (lib/server/couponUsage.claimCouponSlotOnce), so an abandoned/unpaid order
-      // never burns a slot. This check just blocks placing an order against a coupon
-      // that's already exhausted.
-      if (Number(c.usageLimit) > 0 && (c.used || 0) >= c.usageLimit) {
-        return NextResponse.json({ error: "This coupon has reached its usage limit." }, { status: 400 });
-      }
-      discount = c.type === "flat" ? c.value : Math.round(subtotal * (c.value / 100));
-      appliedCode = c.code;
+      const r = await validateCoupon(couponCode, auth.sub, subtotal, couponItems, "");
+      if (!r.valid) return NextResponse.json({ error: r.message }, { status: 400 });
+      discount = r.discount;
+      appliedCode = r.coupon.code;
     }
     const { freeDeliveryAbove, deliveryFee } = deliveryRules(settings);
     // Free-shipping threshold uses the PRODUCT SUBTOTAL **before** the coupon

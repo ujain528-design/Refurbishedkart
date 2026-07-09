@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Coupon } from "@/lib/server/models";
 import { requireAdmin } from "@/lib/server/adminAuth";
+import { couponFieldsFromBody } from "@/lib/server/couponFields";
 
 export const dynamic = "force-dynamic";
 
@@ -23,15 +24,9 @@ export async function POST(req) {
   try {
     await dbConnect();
     const d = await req.json();
-    const coupon = await Coupon.create({
-      code: String(d.code || "").toUpperCase(),
-      type: d.type === "flat" ? "flat" : "percent",
-      value: Number(d.value),
-      minSubtotal: Number(d.minSubtotal || d.min || 0),
-      expiry: d.expiry ? new Date(d.expiry) : undefined,
-      usageLimit: d.usageLimit ?? d.limit ?? undefined,
-      active: d.active !== false,
-    });
+    const fields = couponFieldsFromBody(d);
+    if (!fields.code) return NextResponse.json({ error: "Coupon code is required" }, { status: 400 });
+    const coupon = await Coupon.create(fields);
     return NextResponse.json({ coupon }, { status: 201 });
   } catch (e) {
     const msg = e.code === 11000 ? "Coupon code already exists" : e.message;

@@ -7,7 +7,23 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { cartConfigFor } from "@/lib/pdp";
-import { applyCoupon as applyCouponApi } from "@/lib/api";
+import { applyCoupon as applyCouponApi, getAutoCoupon } from "@/lib/api";
+
+const FREE_SHIP_THRESHOLD = 7999;
+const SHIPPING_FEE = 199;
+
+// Discount a coupon yields against the current subtotal. Mirrors the server
+// engine (lib/server/couponEngine.computeDiscount) so the cart preview matches
+// what's charged. The order route re-validates server-side authoritatively.
+function couponDiscount(c, subtotal) {
+  if (!c) return 0;
+  const t = Number(subtotal) || 0;
+  if (c.type === "flat") return Math.max(0, Math.min(Number(c.value) || 0, t));
+  if (c.type === "free_shipping") return t < FREE_SHIP_THRESHOLD ? SHIPPING_FEE : 0;
+  let d = Math.round((t * (Number(c.value) || 0)) / 100);
+  if (Number(c.maxDiscount) > 0) d = Math.min(d, Number(c.maxDiscount));
+  return Math.max(0, d);
+}
 
 const STORAGE_KEY = "rk_cart_v2"; // v2: rich lines with stored price
 const COUPON_KEY = "rk_coupon_v1";
@@ -21,6 +37,8 @@ export function CartProvider({ children }) {
   const [lines, setLines] = useState([]);
   const [couponData, setCouponData] = useState(null);
   const [ready, setReady] = useState(false);
+  const [autoTried, setAutoTried] = useState(false);
+  const [autoApplied, setAutoApplied] = useState(false);
 
   useEffect(() => {
     try {
@@ -59,20 +77,36 @@ export function CartProvider({ children }) {
   const count = items.reduce((a, it) => a + (it.outOfStock ? 0 : it.qty), 0);
   const subtotal = items.reduce((a, it) => a + (it.outOfStock ? 0 : it.lineTotal), 0);
   const coupon = couponData;
-  const discount = couponData
-    ? couponData.type === "flat" ? Math.min(couponData.value, subtotal) : Math.round(subtotal * (couponData.value / 100))
-    : 0;
+  const discount = couponDiscount(couponData, subtotal);
 
   async function applyCoupon(raw) {
     const code = String(raw || "").trim().toUpperCase();
     if (!code) return { ok: false, error: "Enter a coupon code" };
     const res = await applyCouponApi(code, subtotal);
     if (!res?.valid) return { ok: false, error: res?.error || "Invalid coupon code" };
-    setCouponData({ code: res.code, type: res.type, value: res.value });
+    setAutoApplied(false);
+    setCouponData({ code: res.code, type: res.type, value: res.value, maxDiscount: res.maxDiscount || 0 });
     return { ok: true };
   }
-  function clearCoupon() { setCouponData(null); }
-  function clearCart() { setLines([]); setCouponData(null); }
+  function clearCoupon() { setCouponData(null); setAutoApplied(false); setAutoTried(true); }
+  function clearCart() { setLines([]); setCouponData(null); setAutoApplied(false); }
+
+  // Auto-apply: once the cart is loaded, if the customer hasn't already got a
+  // coupon on, ask the server for the best auto-apply coupon they qualify for and
+  // apply it. Runs at most once per session (autoTried) so we don't re-apply a
+  // coupon the customer just removed. Silent + best-effort — a logged-out visitor
+  // or no match simply leaves the cart untouched.
+  useEffect(() => {
+    if (!ready || autoTried || couponData || subtotal <= 0) return;
+    let alive = true;
+    setAutoTried(true);
+    getAutoCoupon(subtotal, items[0]?.category || "").then((best) => {
+      if (!alive || !best) return;
+      setCouponData({ code: best.code, type: best.type, value: best.value, maxDiscount: best.maxDiscount || 0 });
+      setAutoApplied(true);
+    });
+    return () => { alive = false; };
+  }, [ready, autoTried, couponData, subtotal, items]);
 
   function orderItems() {
     return items.filter((it) => !it.outOfStock).map((it) => ({ productId: it.productId, ram: it.ram, ssd: it.ssd, qty: it.qty }));
@@ -111,7 +145,7 @@ export function CartProvider({ children }) {
 
   return (
     <CartContext.Provider
-      value={{ ready, items, count, subtotal, coupon, discount, addItem, setQty, removeItem, applyCoupon, clearCoupon, clearCart, orderItems, MAX_QTY }}
+      value={{ ready, items, count, subtotal, coupon, discount, autoApplied, addItem, setQty, removeItem, applyCoupon, clearCoupon, clearCart, orderItems, MAX_QTY }}
     >
       {children}
     </CartContext.Provider>

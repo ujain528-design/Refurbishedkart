@@ -47,7 +47,7 @@ function TrashIcon(props) {
 }
 
 export default function CartView() {
-  const { ready, items, subtotal, discount, coupon, applyCoupon, clearCoupon, setQty, removeItem, MAX_QTY } = useCart();
+  const { ready, items, subtotal, discount, coupon, autoApplied, applyCoupon, clearCoupon, setQty, removeItem, MAX_QTY } = useCart();
   const { isLoggedIn } = useAuth();
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -220,7 +220,7 @@ export default function CartView() {
               <div className="pt-1">
                 {coupon ? (
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-brand-soft px-3 py-2">
-                    <span className="text-[13px] font-semibold text-brand">✓ {coupon.code} applied — {formatINR(discount)} off</span>
+                    <span className="text-[13px] font-semibold text-brand">{autoApplied ? "🎉 Discount applied automatically! " : "✓ "}{coupon.code} — {formatINR(discount)} off</span>
                     <button
                       onClick={() => { clearCoupon(); setCode(""); setCouponError(""); }}
                       aria-label="Remove coupon"
