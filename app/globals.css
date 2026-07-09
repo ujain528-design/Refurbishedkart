@@ -238,13 +238,8 @@
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
   }
-  @keyframes panelDown {
-    from { transform: translateY(-100%); }
-    to { transform: translateY(0); }
-  }
   .animate-panel-up { animation: panelUp 0.3s ease both; }
   .animate-panel-right { animation: panelRight 0.3s ease both; }
-  .animate-panel-down { animation: panelDown 0.28s ease both; }
 
   /* Inspection inline button: background fades F1F8E9 ↔ DCEDC8 (via overlay
      opacity) every 1.5s, and the chevron slides 4px back and forth. */

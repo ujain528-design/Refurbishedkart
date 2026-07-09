@@ -8,10 +8,9 @@ import { SearchIcon, UserIcon, ShieldIcon, CloseIcon, ChevronRight } from "@/com
 import { useAuth } from "@/lib/AuthContext";
 
 /* App-style mobile bottom navigation (below lg). Five equal tap targets:
-   Home (/), Products (category sheet), Search (top overlay), Policies (sheet),
-   Account (/account | /login). CSS-only motion (picker-fade-in + animate-panel-up
-   / animate-panel-down, all disabled under prefers-reduced-motion). Hidden on
-   desktop. */
+   Home (/), Products (category sheet), Search (frosted overlay above the navbar),
+   Policies (sheet), Account (/account | /login). CSS-only motion (picker-fade-in +
+   animate-panel-up, disabled under prefers-reduced-motion). Hidden on desktop. */
 
 const HomeIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -63,8 +62,19 @@ export default function MobileBottomNav() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef(null);
+  const navRef = useRef(null);
+  const [navH, setNavH] = useState(64); // measured navbar height → search panel rests just above it
 
   const anyOpen = !!sheet || searchOpen;
+
+  // Measure the bottom navbar so the search panel can sit flush on top of it
+  // (accounts for the safe-area inset, which varies by device).
+  useEffect(() => {
+    const measure = () => setNavH(navRef.current?.offsetHeight || 64);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   // Scroll-lock + ESC while any overlay is open.
   useEffect(() => {
@@ -111,6 +121,7 @@ export default function MobileBottomNav() {
   return (
     <>
       <nav
+        ref={navRef}
         aria-label="Primary"
         className="fixed inset-x-0 bottom-0 z-[60] flex border-t border-[#E8E4DF] bg-warm-bg shadow-[0_-2px_16px_rgba(0,0,0,0.06)] lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -150,29 +161,40 @@ export default function MobileBottomNav() {
         </div>
       )}
 
-      {/* Search overlay (top of screen) */}
+      {/* Search overlay — frosted panel that slides up from just above the navbar */}
       {searchOpen && (
         <div className="picker-fade-in fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-label="Search products">
           <div className="absolute inset-0 bg-ink/50" onClick={closeSearch} />
-          <div className="animate-panel-down absolute inset-x-0 top-0 bg-white shadow-card-hover" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+          <div
+            className="animate-panel-up absolute inset-x-0 rounded-t-2xl border-t border-white/60 bg-white/90 shadow-[0_-8px_32px_rgba(0,0,0,0.16)] backdrop-blur-xl"
+            style={{ bottom: navH }}
+          >
+            {/* decorative drag handle */}
+            <div className="flex justify-center pt-2.5"><span className="h-1 w-10 rounded-full bg-neutral-300" aria-hidden="true" /></div>
+            <button
+              type="button"
+              aria-label="Close search"
+              onClick={closeSearch}
+              className="absolute right-2 top-1.5 rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ink"
+            >
+              <CloseIcon style={{ width: 18, height: 18 }} />
+            </button>
             <form onSubmit={submitSearch} className="flex items-center gap-2 px-4 py-3">
-              <div className="flex flex-1 items-center gap-2 rounded-xl border border-warm-border bg-neutral-50 px-3">
-                <SearchIcon style={{ width: 18, height: 18 }} className="shrink-0 text-neutral-400" />
-                <input
-                  ref={inputRef}
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search laptops, desktops, brands…"
-                  enterKeyHint="search"
-                  className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-neutral-400 focus:outline-none"
-                />
-              </div>
-              <button type="submit" className="shrink-0 rounded-xl bg-brand px-4 py-3 text-[14px] font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-40" disabled={!query.trim()}>
+              <input
+                ref={inputRef}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search laptops, desktops..."
+                enterKeyHint="search"
+                className="w-full rounded-full border border-black/10 bg-[#f5f5f5] px-5 py-3 text-[15px] text-neutral-800 placeholder:text-neutral-400 focus:border-brand/40 focus:outline-none focus:ring-2 focus:ring-brand/15"
+              />
+              <button
+                type="submit"
+                disabled={!query.trim()}
+                className="shrink-0 rounded-full bg-brand px-5 py-3 text-[14px] font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-40"
+              >
                 Search
-              </button>
-              <button type="button" aria-label="Close search" onClick={closeSearch} className="shrink-0 rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ink">
-                <CloseIcon style={{ width: 20, height: 20 }} />
               </button>
             </form>
           </div>
