@@ -10,7 +10,13 @@ export async function GET() {
     if (!s.announcementActive || !s.announcementText) {
       return NextResponse.json({ active: false, text: "", link: null });
     }
-    return NextResponse.json({ active: true, text: s.announcementText, link: s.announcementLink || null });
+    return NextResponse.json({
+      active: true,
+      text: s.announcementText,
+      link: s.announcementLink || null,
+      announcementBg: s.announcementBg || "#2D5016",
+      announcementTextColor: s.announcementTextColor || "#FFFFFF",
+    });
   } catch (e) {
     return NextResponse.json({ active: false, text: "", link: null, error: e.message }, { status: 500 });
   }

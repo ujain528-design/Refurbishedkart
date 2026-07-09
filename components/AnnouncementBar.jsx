@@ -107,12 +107,15 @@ export default function AnnouncementBar() {
       {ann.link
         ? <Link href={ann.link} className="px-5 hover:underline">{ann.text}</Link>
         : <span className="px-5">{ann.text}</span>}
-      <span className="px-1 text-white/50" aria-hidden="true">·</span>
+      <span className="px-1 opacity-50" aria-hidden="true">·</span>
     </span>
   );
 
   return (
-    <div className="ticker-wrap fixed inset-x-0 top-0 z-[60] flex h-9 items-center overflow-hidden bg-brand text-[13px] font-semibold text-white">
+    <div
+      className="ticker-wrap fixed inset-x-0 top-0 z-[60] flex h-9 items-center overflow-hidden text-[13px] font-semibold"
+      style={{ background: ann.announcementBg || "#2D5016", color: ann.announcementTextColor || "#ffffff" }}
+    >
       <div className="ticker-track">
         {[0, 1].map((half) => (
           <span key={half} className="flex items-center" aria-hidden={half === 1}>

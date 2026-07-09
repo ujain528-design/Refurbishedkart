@@ -152,14 +152,13 @@ export default function Settings() {
 
         {tab === "Appearance" && (
           <div className="space-y-5 rounded-card border border-black/5 bg-white p-5 shadow-card">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div><Label>Primary Colour</Label><input type="color" value={s.primaryColor || "#1B5E20"} onChange={(e) => set("primaryColor", e.target.value)} className="h-9 w-full rounded border border-black/10" /></div>
-              <div><Label>Secondary Colour</Label><input type="color" value={s.secondaryColor || "#B71C1C"} onChange={(e) => set("secondaryColor", e.target.value)} className="h-9 w-full rounded border border-black/10" /></div>
-            </div>
             <div className="rounded-lg bg-neutral-50 p-4">
               <div className="flex items-center justify-between"><span className="text-sm font-semibold text-ink">Announcement Bar</span><Toggle on={s.announcementActive !== false} onChange={(v) => set("announcementActive", v)} /></div>
               <Field label="Announcement Text"><input className={`${inputCls} mt-2`} value={s.announcementText || ""} onChange={(e) => set("announcementText", e.target.value)} /></Field>
-              <div className="mt-2"><Label>Announcement Background</Label><input type="color" value={s.announcementBg || "#1B5E20"} onChange={(e) => set("announcementBg", e.target.value)} className="h-9 w-24 rounded border border-black/10" /></div>
+              <div className="mt-2 grid gap-4 sm:grid-cols-2">
+                <div><Label>Announcement Background</Label><input type="color" value={s.announcementBg || "#2D5016"} onChange={(e) => set("announcementBg", e.target.value)} className="h-9 w-24 rounded border border-black/10" /></div>
+                <div><Label>Announcement Text Colour</Label><input type="color" value={s.announcementTextColor || "#FFFFFF"} onChange={(e) => set("announcementTextColor", e.target.value)} className="h-9 w-24 rounded border border-black/10" /></div>
+              </div>
             </div>
 
             <HeroCarouselManager slides={s.heroSlides || []} onChange={(v) => set("heroSlides", v)} uploadImage={adminUploadImage} />

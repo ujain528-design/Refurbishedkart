@@ -1,16 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { NAV_CATEGORIES } from "@/lib/data";
 import { SearchIcon, UserIcon, ShieldIcon, CloseIcon, ChevronRight } from "@/components/Icons";
 import { useAuth } from "@/lib/AuthContext";
 
-/* App-style mobile bottom navigation (below lg). Four equal tap targets:
-   Products (category sheet), Policies (sheet), Account (/account | /login),
-   Search (/search). CSS-only motion (reuses picker-fade-in + animate-panel-up,
-   both disabled under prefers-reduced-motion). Hidden on desktop. */
+/* App-style mobile bottom navigation (below lg). Five equal tap targets:
+   Home (/), Products (category sheet), Search (top overlay), Policies (sheet),
+   Account (/account | /login). CSS-only motion (picker-fade-in + animate-panel-up
+   / animate-panel-down, all disabled under prefers-reduced-motion). Hidden on
+   desktop. */
+
+const HomeIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M3 10.5 12 3l9 7.5" />
+    <path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" />
+  </svg>
+);
 
 const GridIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -22,10 +30,12 @@ const GridIcon = (props) => (
 );
 
 const POLICIES = [
-  { label: "Return Policy", href: "/return-policy" },
   { label: "Warranty", href: "/warranty" },
-  { label: "Privacy Policy", href: "/privacy-policy" },
-  { label: "Terms of Service", href: "/terms" },
+  { label: "Returns", href: "/return-policy" },
+  { label: "Shipping", href: "/shipping" },
+  { label: "Privacy", href: "/privacy-policy" },
+  { label: "Terms", href: "/terms" },
+  { label: "About Us", href: "/about" },
   { label: "Contact Us", href: "/contact" },
 ];
 
@@ -47,27 +57,52 @@ function NavItem({ active, label, onClick, href, children }) {
 
 export default function MobileBottomNav() {
   const pathname = usePathname() || "/";
+  const router = useRouter();
   const { isLoggedIn } = useAuth();
   const [sheet, setSheet] = useState(null); // "products" | "policies" | null
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const inputRef = useRef(null);
 
-  // Scroll-lock + ESC while a sheet is open.
+  const anyOpen = !!sheet || searchOpen;
+
+  // Scroll-lock + ESC while any overlay is open.
   useEffect(() => {
-    if (!sheet) return;
-    const onKey = (e) => e.key === "Escape" && setSheet(null);
+    if (!anyOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") { setSheet(null); setSearchOpen(false); } };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
-  }, [sheet]);
+  }, [anyOpen]);
+
+  // Auto-focus the search field when the overlay opens.
+  useEffect(() => {
+    if (searchOpen) {
+      const t = setTimeout(() => inputRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+  }, [searchOpen]);
+
+  const openSearch = () => { setSheet(null); setSearchOpen(true); };
+  const closeSearch = () => { setSearchOpen(false); setQuery(""); };
+  const submitSearch = (e) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q) return;
+    closeSearch();
+    router.push(`/search?q=${encodeURIComponent(q)}`);
+  };
 
   // Hide the bottom nav on purchase-flow pages (cart/checkout) so their fixed
   // bottom CTA (e.g. the "Place Order" bar) isn't covered by it. (After all hooks.)
   if (["/checkout", "/cart", "/payment-pending"].some((p) => pathname.startsWith(p))) return null;
 
+  const isHome = pathname === "/";
   const isProducts = ["/products", "/shop", "/collections"].some((p) => pathname.startsWith(p));
   const isPolicies = POLICIES.some((p) => p.href === pathname);
   const isAccount = pathname.startsWith("/account") || pathname.startsWith("/login");
-  const isSearch = pathname.startsWith("/search");
+  const isSearch = searchOpen || pathname.startsWith("/search");
 
   const sheetItems = sheet === "products"
     ? NAV_CATEGORIES.map((c) => ({ label: c.name, href: `/products/${c.name.toLowerCase()}` }))
@@ -80,12 +115,14 @@ export default function MobileBottomNav() {
         className="fixed inset-x-0 bottom-0 z-[60] flex border-t border-[#E8E4DF] bg-warm-bg shadow-[0_-2px_16px_rgba(0,0,0,0.06)] lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
+        <NavItem active={isHome} label="Home" href="/"><HomeIcon style={{ width: 22, height: 22 }} /></NavItem>
         <NavItem active={isProducts} label="Products" onClick={() => setSheet("products")}><GridIcon style={{ width: 22, height: 22 }} /></NavItem>
+        <NavItem active={isSearch} label="Search" onClick={openSearch}><SearchIcon style={{ width: 22, height: 22 }} /></NavItem>
         <NavItem active={isPolicies} label="Policies" onClick={() => setSheet("policies")}><ShieldIcon style={{ width: 22, height: 22 }} /></NavItem>
         <NavItem active={isAccount} label="Account" href={isLoggedIn ? "/account" : "/login"}><UserIcon style={{ width: 22, height: 22 }} /></NavItem>
-        <NavItem active={isSearch} label="Search" href="/search"><SearchIcon style={{ width: 22, height: 22 }} /></NavItem>
       </nav>
 
+      {/* Category / Policies bottom sheet */}
       {sheet && (
         <div className="picker-fade-in fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-label={sheet === "products" ? "Browse categories" : "Policies and info"}>
           <div className="absolute inset-0 bg-ink/50" onClick={() => setSheet(null)} />
@@ -109,6 +146,35 @@ export default function MobileBottomNav() {
                 </Link>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search overlay (top of screen) */}
+      {searchOpen && (
+        <div className="picker-fade-in fixed inset-0 z-[80] lg:hidden" role="dialog" aria-modal="true" aria-label="Search products">
+          <div className="absolute inset-0 bg-ink/50" onClick={closeSearch} />
+          <div className="animate-panel-down absolute inset-x-0 top-0 bg-white shadow-card-hover" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+            <form onSubmit={submitSearch} className="flex items-center gap-2 px-4 py-3">
+              <div className="flex flex-1 items-center gap-2 rounded-xl border border-warm-border bg-neutral-50 px-3">
+                <SearchIcon style={{ width: 18, height: 18 }} className="shrink-0 text-neutral-400" />
+                <input
+                  ref={inputRef}
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search laptops, desktops, brands…"
+                  enterKeyHint="search"
+                  className="w-full bg-transparent py-3 text-[15px] text-ink placeholder:text-neutral-400 focus:outline-none"
+                />
+              </div>
+              <button type="submit" className="shrink-0 rounded-xl bg-brand px-4 py-3 text-[14px] font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-40" disabled={!query.trim()}>
+                Search
+              </button>
+              <button type="button" aria-label="Close search" onClick={closeSearch} className="shrink-0 rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-ink">
+                <CloseIcon style={{ width: 20, height: 20 }} />
+              </button>
+            </form>
           </div>
         </div>
       )}
