@@ -101,6 +101,8 @@ export function CartProvider({ children }) {
     let alive = true;
     setAutoTried(true);
     getAutoCoupon(subtotal, items[0]?.category || "").then((best) => {
+      // eslint-disable-next-line no-console
+      if (process.env.NODE_ENV !== "production") console.log("auto-apply result:", best);
       if (!alive || !best) return;
       setCouponData({ code: best.code, type: best.type, value: best.value, maxDiscount: best.maxDiscount || 0 });
       setAutoApplied(true);
