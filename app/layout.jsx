@@ -34,7 +34,7 @@ export const metadata = {
     template: "%s | RefurbishedKart",
   },
   description:
-    "Buy certified refurbished laptops, desktops, monitors and servers in India. GST invoice, 7-day returns, warranty on every order. Best prices guaranteed.",
+    "RefurbishedKart — The Confidence of New, in a Refurbished Shell. Buy certified refurbished laptops, desktops & servers with warranty. GST invoice, 7-day returns, free delivery across India.",
   keywords: [
     "refurbished laptops",
     "used laptops india",

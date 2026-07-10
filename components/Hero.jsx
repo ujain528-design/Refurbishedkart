@@ -153,8 +153,13 @@ export default function Hero() {
         </div>
       )}
 
+      {/* Brand slogan — elegant italic tagline (no quotes in the hero) */}
+      <p className="picker-fade-in mx-auto mt-10 max-w-2xl px-6 text-center font-display text-xl font-light italic leading-snug tracking-[-0.01em] text-brand sm:text-2xl md:mt-12 md:text-[1.75rem]">
+        The Confidence of New, in a Refurbished Shell.
+      </p>
+
       {/* Trust badges */}
-      <div className="mx-auto mt-12 flex max-w-7xl flex-wrap items-center justify-center gap-3 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto mt-8 flex max-w-7xl flex-wrap items-center justify-center gap-3 px-4 sm:px-6 lg:px-8">
         {TRUST_BADGES.map((badge) => (
           <span key={badge} className="rounded-full border border-warm-border bg-white px-4 py-2 text-[13px] font-semibold text-brand">{badge}</span>
         ))}

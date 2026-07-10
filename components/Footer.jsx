@@ -47,6 +47,9 @@ export default function Footer() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo_rk.webp" alt="RefurbishedKart" className="h-auto w-44 max-w-full" />
             </Link>
+            <p className="mt-3 text-[13px] italic leading-snug text-brand-accent/80">
+              The Confidence of New, in a Refurbished Shell.
+            </p>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/50">
               Certified refurbished laptops, desktops and enterprise hardware —
               tested, warrantied and delivered across India.

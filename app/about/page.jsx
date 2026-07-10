@@ -52,6 +52,17 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* 1b — Brand slogan pull quote */}
+        <section className="py-14 lg:py-20">
+          <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+            <span className="mx-auto block h-px w-16 bg-brand/30" aria-hidden="true" />
+            <blockquote className="my-7 font-display text-2xl font-light italic leading-snug tracking-[-0.01em] text-brand sm:text-3xl lg:my-9 lg:text-4xl">
+              &ldquo;The Confidence of New, in a Refurbished Shell.&rdquo;
+            </blockquote>
+            <span className="mx-auto block h-px w-16 bg-brand/30" aria-hidden="true" />
+          </div>
+        </section>
+
         {/* 2 — Our story */}
         <section className="py-12 lg:py-20">
           <div className="mx-auto max-w-3xl px-4 sm:px-6">
