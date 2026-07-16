@@ -12,7 +12,7 @@ import { CATEGORY_SLUGS } from "@/lib/data";
 import PortsGrid from "@/components/admin/PortsGrid";
 import SelectWithCustom from "@/components/admin/SelectWithCustom";
 import { normalizePorts } from "@/lib/ports";
-import { adminGetProduct, adminCreateProduct, adminUpdateProduct, adminUpdateStock, adminGetPricingConfig, adminUploadImage } from "@/lib/api";
+import { adminGetProduct, adminCreateProduct, adminUpdateProduct, adminUpdateStock, adminGetPricingConfig, adminUploadImage, adminGetMasterData } from "@/lib/api";
 import ImageSearch from "@/components/admin/ImageSearch";
 import { calculateDeviceCost, calculateUpgradePrice, priceForExtraCapacity, getSsdPrice } from "@/lib/server/pricing-core";
 import { generateProductTitle } from "@/lib/generateTitle";
@@ -345,6 +345,12 @@ export default function ProductEditor() {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [pricingCfg, setPricingCfg] = useState({ ram: {}, ssd: {} });
+  // Brand options come from Admin → Master Data → Brands (live), NOT the hardcoded
+  // MASTER_TABLES list. We seed with the hardcoded list so the dropdown is never
+  // empty, then replace it with the fetched active brands. On fetch failure the
+  // hardcoded fallback stays.
+  const [brandOptions, setBrandOptions] = useState(MASTER_TABLES.Brands);
+  const [brandsLoading, setBrandsLoading] = useState(true);
   const debounce = useRef(null);
   const hydrated = useRef(false);
   const origRef = useRef(null);
@@ -373,6 +379,16 @@ export default function ProductEditor() {
       hydrated.current = true;
     })();
     adminGetPricingConfig().then((c) => alive && setPricingCfg({ ram: c.ram || {}, ssd: c.ssd || {} })).catch(() => {});
+    // Live brand list from Master Data → Brands (active rows only). Falls back to
+    // the hardcoded MASTER_TABLES.Brands if the fetch fails or returns nothing.
+    adminGetMasterData("Brands")
+      .then((rows) => {
+        if (!alive) return;
+        const active = (rows || []).filter((r) => r.active !== false).map((r) => r.value).filter(Boolean);
+        if (active.length) setBrandOptions(active);
+      })
+      .catch(() => {})
+      .finally(() => { if (alive) setBrandsLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
@@ -587,7 +603,13 @@ export default function ProductEditor() {
         <div className="mt-6">
           {tab === "Basic Info" && (
             <div className="grid max-w-2xl gap-4 sm:grid-cols-2">
-              <VField ctx={ctx} k="brand" label="Brand" options={["", ...MASTER_TABLES.Brands]} />
+              <VField
+                ctx={ctx}
+                k="brand"
+                label="Brand"
+                options={["", ...(f.brand && !brandOptions.includes(f.brand) ? [f.brand, ...brandOptions] : brandOptions)]}
+                hint={brandsLoading ? "Loading brands from Master Data…" : undefined}
+              />
               <VField ctx={ctx} k="model" label="Model" placeholder="ThinkPad T14" />
               <VField ctx={ctx} k="category" label="Category" options={Object.values(CATEGORY_SLUGS)} />
               <label className="block"><span className="mb-1 block text-[12px] font-semibold text-neutral-600">Status</span><select value={f.status} onChange={(e) => update("status", e.target.value)} className={inputCls}><option>Draft</option><option>Active</option><option>Out of Stock</option></select></label>
