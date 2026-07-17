@@ -292,8 +292,31 @@ export default function Orders() {
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-3 text-[12px] text-neutral-500">{itemsText(o)}</td>
-                  <td className="px-3 py-3 font-semibold text-ink">{formatINR(o.total)}</td>
+                  <td className="px-3 py-3 text-[12px]">
+                    {(o.lines || []).length === 1 ? (
+                      <a
+                        href={`/products/${String(o.lines[0].category || "laptops").toLowerCase()}/${o.lines[0].productId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-brand hover:underline"
+                      >
+                        {o.lines[0].name}
+                      </a>
+                    ) : (o.lines || []).length > 1 ? (
+                      <span className="text-neutral-600">{o.lines[0].name} <span className="text-neutral-400">+{o.lines.length - 1} more</span></span>
+                    ) : (
+                      <span className="text-neutral-400">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 font-semibold text-ink">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {formatINR(o.total)}
+                      {o.couponCode && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">🏷️ {o.couponCode}</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-3 py-3 text-neutral-500">{paymentMethodLabel(o.paymentMethod)}</td>
                   <td className="px-3 py-3">
                     <StatusBadge order={o} now={now} />
@@ -317,6 +340,12 @@ export default function Orders() {
               {isCancelled(view.status) && view.cancellationReason && (
                 <span className="text-[12px] font-semibold text-red-600">Reason: {cancellationReasonLabel(view.cancellationReason)}</span>
               )}
+              <button
+                onClick={() => window.open(`/invoice/${view.id}`, "_blank", "noopener")}
+                className="ml-auto rounded-full border border-brand/30 bg-brand-soft px-3 py-1.5 text-[12px] font-bold text-brand hover:bg-brand-soft/70"
+              >
+                🖨 Print Invoice
+              </button>
             </div>
 
             {view.couponSlotUnavailable && (
@@ -397,6 +426,20 @@ export default function Orders() {
                 <span className="col-span-2 text-[11px] font-bold uppercase tracking-wide text-amber-700">Cash on Delivery</span>
                 <span className="text-neutral-600">Upfront paid (10%)</span><span className="text-right font-semibold text-ink">{formatINR(view.codUpfront)}</span>
                 <span className="text-neutral-600">Remaining (on delivery)</span><span className="text-right font-semibold text-ink">{formatINR(view.codRemaining)}</span>
+              </div>
+            )}
+            {view.paymentMethod !== "COD" && view.razorpayPaymentId && (
+              <div className="grid grid-cols-2 gap-y-1.5 gap-x-3 rounded-lg border border-black/5 bg-neutral-50/60 p-3">
+                <span className="col-span-2 text-[11px] font-bold uppercase tracking-wide text-neutral-400">Online Payment</span>
+                <span className="text-neutral-600">Razorpay Payment ID</span>
+                <a
+                  href={`https://dashboard.razorpay.com/app/payments/${view.razorpayPaymentId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate text-right font-mono font-semibold text-brand hover:underline"
+                >
+                  {view.razorpayPaymentId} ↗
+                </a>
               </div>
             )}
             {/* ── Shiprocket shipping ── */}

@@ -11,6 +11,7 @@ import InspectionPanel from "@/components/pdp/InspectionPanel";
 import CheckpointCards from "@/components/pdp/CheckpointCards";
 import { useCart } from "@/lib/CartContext";
 import { useWishlist } from "@/lib/WishlistContext";
+import ShareButton from "@/components/ShareButton";
 import { useAuth } from "@/lib/AuthContext";
 import { calculatePrice } from "@/lib/api";
 
@@ -162,6 +163,7 @@ export default function PurchasePanel({ product, rating = 4.5, ratingCount = 127
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-card border transition-all duration-200 ${wish ? "border-red-300 text-red-500" : "border-warm-border text-neutral-400 hover:border-red-300 hover:text-red-500"}`}>
             <HeartIcon style={{ width: 20, height: 20, fill: wish ? "currentColor" : "none" }} />
           </button>
+          <ShareButton title={product.name} variant="pdp" className="shrink-0" />
         </div>
       </div>
       {unavailable ? (

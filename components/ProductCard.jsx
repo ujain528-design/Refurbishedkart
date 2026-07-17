@@ -7,6 +7,7 @@ import { BrokenDeviceIcon } from "@/components/Icons";
 // "Laptops" → "Laptop" for natural alt text.
 const singular = (c) => (c ? String(c).replace(/s$/, "") : "Product");
 import WishlistButton from "@/components/WishlistButton";
+import ShareButton from "@/components/ShareButton";
 import AddToCartButton from "@/components/AddToCartButton";
 
 export default function ProductCard({ product, className = "w-[200px] shrink-0 snap-start sm:w-[240px] lg:w-[260px]" }) {
@@ -102,6 +103,14 @@ export default function ProductCard({ product, className = "w-[200px] shrink-0 s
 
         {/* wishlist stays active even when out of stock */}
         <WishlistButton productId={product.id} />
+
+        {/* share — appears on hover, below the wishlist button */}
+        <ShareButton
+          title={product.name}
+          url={href}
+          variant="card"
+          className="absolute right-3 top-14 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100"
+        />
 
       </div>
 

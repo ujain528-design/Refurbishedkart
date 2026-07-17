@@ -33,7 +33,7 @@ function formAsProduct(f) {
       screen: f.specs?.size || "",
       touchscreen: !!f.touch,
       os: f.specs?.serverOs || f.specs?.os || "",
-      warranty: f.specs?.warranty || "",
+      warranty: f.warrantyPeriod || f.specs?.warranty || "",
       formFactor: f.specs?.formFactor || "",
       resolution: f.specs?.res || "",
       panel: f.specs?.panel || "",
@@ -237,7 +237,7 @@ function formToDb(f, orig) {
       condition: f.condition || "Excellent",
       ramType: f.specs.ramType || a.ramType,
       os: f.specs.serverOs || f.specs.os || a.os, // servers use Server OS dropdown
-      warranty: f.specs.warranty || a.warranty,
+      warranty: f.warrantyPeriod || a.warranty,
       gen: f.specs.gen || a.gen,
       screen: f.specs.size || a.screen,
       touchscreen: f.touch,
@@ -351,6 +351,11 @@ export default function ProductEditor() {
   // hardcoded fallback stays.
   const [brandOptions, setBrandOptions] = useState(MASTER_TABLES.Brands);
   const [brandsLoading, setBrandsLoading] = useState(true);
+  // Live Master Data-backed option lists (RAM Type / Storage Type / OS / Warranty).
+  // Seeded with the hardcoded fallbacks so dropdowns are never empty; replaced with
+  // the active rows fetched from Admin → Master Data. Fetch failure keeps fallbacks.
+  const [md, setMd] = useState({ ramType: RAM_TYPES, storageType: STORAGE_TYPES, os: OS_OPTIONS, warranty: WARRANTY_PERIODS });
+  const [mdLoading, setMdLoading] = useState(true);
   const debounce = useRef(null);
   const hydrated = useRef(false);
   const origRef = useRef(null);
@@ -389,6 +394,25 @@ export default function ProductEditor() {
       })
       .catch(() => {})
       .finally(() => { if (alive) setBrandsLoading(false); });
+    // Live option lists for RAM Type / Storage Type / Operating System / Warranty
+    // Period — fetched in parallel. Each falls back to its seeded hardcoded list.
+    const MD_TABLES = [["RAM Type", "ramType"], ["Storage Type", "storageType"], ["Operating System", "os"], ["Warranty Period", "warranty"]];
+    Promise.all(
+      MD_TABLES.map(([table]) =>
+        adminGetMasterData(table)
+          .then((rows) => (rows || []).filter((r) => r.active !== false).map((r) => r.value).filter(Boolean))
+          .catch(() => null)
+      )
+    )
+      .then((results) => {
+        if (!alive) return;
+        setMd((prev) => {
+          const next = { ...prev };
+          results.forEach((vals, i) => { if (vals && vals.length) next[MD_TABLES[i][1]] = vals; });
+          return next;
+        });
+      })
+      .finally(() => { if (alive) setMdLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
@@ -521,6 +545,8 @@ export default function ProductEditor() {
   };
 
   const ctx = { f, errors, touched, update, updateSpec, blur };
+  // Keep a stored value selectable even if it's no longer in the (Master Data) list.
+  const withVal = (opts, v) => (v && !opts.includes(v) ? [v, ...opts] : opts);
 
   const restoreDraft = () => { const { __savedAt, ...data } = restore.data; setF({ ...EMPTY, ...data }); setDirty(true); setRestore(null); toast("Draft restored"); };
   const startFresh = () => { localStorage.removeItem(STORAGE_KEY); setRestore(null); };
@@ -629,13 +655,10 @@ export default function ProductEditor() {
                     <span className="mt-1 block text-[11px] text-neutral-400">Refurbished grade shown on the product page &amp; in compare.</span>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Warranty Period</span>
+                    <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Warranty Period{mdLoading && <span className="ml-2 text-[11px] font-normal text-neutral-400">loading…</span>}</span>
                     <select value={f.warrantyPeriod} onChange={(e) => update("warrantyPeriod", e.target.value)} className={inputCls}>
                       <option value="">Use store default</option>
-                      <option value="3 months">3 months</option>
-                      <option value="6 months">6 months</option>
-                      <option value="1 year">1 year</option>
-                      <option value="2 years">2 years</option>
+                      {withVal(md.warranty, f.warrantyPeriod).map((o) => <option key={o} value={o}>{o}</option>)}
                     </select>
                   </label>
                   <label className="block">
@@ -705,8 +728,9 @@ export default function ProductEditor() {
                     <p className="mb-2 text-[12px] font-semibold text-neutral-600">Default RAM</p>
                     <div className="flex gap-2">
                       <select value={f.defaultRam.capacity} onChange={(e) => setDefaultRam("capacity", e.target.value)} className={`${inputCls} max-w-[90px]`}>{RAM_CAPS.map((o) => <option key={o}>{o}</option>)}</select>
-                      <select value={f.defaultRam.type} onChange={(e) => setDefaultRam("type", e.target.value)} className={`${inputCls} max-w-[120px]`}>{RAM_TYPES.map((o) => <option key={o}>{o}</option>)}</select>
+                      <select value={f.defaultRam.type} onChange={(e) => setDefaultRam("type", e.target.value)} className={`${inputCls} max-w-[120px]`}>{withVal(md.ramType, f.defaultRam.type).map((o) => <option key={o}>{o}</option>)}</select>
                     </div>
+                    {mdLoading && <p className="mt-1 text-[11px] text-neutral-400">Loading RAM types from Master Data…</p>}
                     <label className="mt-3 flex items-center justify-between"><span className="text-[13px] text-neutral-600">Onboard (soldered)</span><Toggle on={f.defaultRam.isOnboard} onChange={(v) => setDefaultRam("isOnboard", v)} /></label>
                     <label className="mt-3 block"><span className="mb-1 block text-[11px] font-semibold text-neutral-500">Cost ₹ (auto · overridable)</span>
                       <input type="number" value={f.defaultRam.cost} onChange={(e) => setDefaultRam("cost", Number(e.target.value) || 0)} className={inputCls} /></label>
@@ -757,7 +781,7 @@ export default function ProductEditor() {
                         <label className="block"><span className="mb-1 block text-[11px] font-semibold text-neutral-500">RAM</span>
                           <select value={c.ramCap} onChange={(e) => updateConfig(i, "ramCap", e.target.value)} className={`${inputCls} max-w-[85px]`}>{RAM_CAPS.map((o) => <option key={o}>{o}</option>)}</select></label>
                         <label className="block"><span className="mb-1 block text-[11px] font-semibold text-neutral-500">Type</span>
-                          <select value={c.ramType} onChange={(e) => updateConfig(i, "ramType", e.target.value)} className={`${inputCls} max-w-[110px]`}>{RAM_TYPES.map((o) => <option key={o}>{o}</option>)}</select></label>
+                          <select value={c.ramType} onChange={(e) => updateConfig(i, "ramType", e.target.value)} className={`${inputCls} max-w-[110px]`}>{withVal(md.ramType, c.ramType).map((o) => <option key={o}>{o}</option>)}</select></label>
                         <label className="block"><span className="mb-1 block text-[11px] font-semibold text-neutral-500">SSD</span>
                           <select value={c.ssd} onChange={(e) => updateConfig(i, "ssd", e.target.value)} className={`${inputCls} max-w-[85px]`}>{SSD_CAPS.map((o) => <option key={o}>{o}</option>)}</select></label>
                         <div className="pb-2.5"><span className="mb-1 block text-[11px] font-semibold text-neutral-500">Delta</span>
@@ -912,15 +936,15 @@ export default function ProductEditor() {
               )}
               {showField("ram") && (
                 <Group title="Memory & Storage">
-                  <SelectWithCustom field="ramType" value={f.specs.ramType ?? ""} onChange={(v) => updateSpec("ramType", v)} options={MASTER_TABLES["RAM Type"]} label="RAM Type" category={f.category} />
-                  <SelectWithCustom field="storageType" value={f.specs.storageType ?? ""} onChange={(v) => updateSpec("storageType", v)} options={STORAGE_TYPES} label="Storage Type" category={f.category} />
+                  <SelectWithCustom field="ramType" value={f.specs.ramType ?? ""} onChange={(v) => updateSpec("ramType", v)} options={md.ramType} label="RAM Type" category={f.category} syncing={mdLoading} />
+                  <SelectWithCustom field="storageType" value={f.specs.storageType ?? ""} onChange={(v) => updateSpec("storageType", v)} options={md.storageType} label="Storage Type" category={f.category} syncing={mdLoading} />
                   {["Laptops", "Workstations", "Desktops"].includes(f.category) && (
                     <Drop ctx={ctx} label="RAM Expandability" options={MASTER_TABLES["RAM Expandability"]} specKey="ramExpandability" />
                   )}
                 </Group>
               )}
               {showField("os") && (
-                <Group title="Operating System"><SelectWithCustom field="os" value={f.specs.os ?? ""} onChange={(v) => updateSpec("os", v)} options={OS_OPTIONS} label="OS" category={f.category} /></Group>
+                <Group title="Operating System"><SelectWithCustom field="os" value={f.specs.os ?? ""} onChange={(v) => updateSpec("os", v)} options={md.os} label="OS" category={f.category} syncing={mdLoading} /></Group>
               )}
               {/* Chassis / Form Factor — laptops & desktops (servers & workstations
                   have their own Form Factor pickers in their hardware groups). */}
@@ -1039,7 +1063,7 @@ export default function ProductEditor() {
                 </Group>
               )}
               <Group title="Ports" cols={1}><PortsGrid value={f.ports} onChange={(v) => update("ports", v)} /></Group>
-              <Group title="Warranty"><Drop ctx={ctx} label="Warranty Period" options={WARRANTY_PERIODS} specKey="warranty" /></Group>
+              {/* Warranty Period is set once in Basic Info → Warranty & Tax (single source). */}
             </div>
           )}
 

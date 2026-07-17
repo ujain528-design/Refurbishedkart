@@ -10,7 +10,7 @@ const lc = (s) => String(s ?? "").trim().toLowerCase();
 /* A <select> that also lets an admin add a custom value which is saved to the DB and
    offered on future products. Custom values are scoped to `field` + `family` (e.g.
    processor model under family "Intel Xeon"), shown grouped under "Custom". */
-export default function SelectWithCustom({ field, family = "", value = "", onChange, options = [], label, category = "" }) {
+export default function SelectWithCustom({ field, family = "", value = "", onChange, options = [], label, category = "", syncing = false }) {
   const [custom, setCustom] = useState([]); // string[] of DB custom values for this field+family
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -66,7 +66,7 @@ export default function SelectWithCustom({ field, family = "", value = "", onCha
       {label && (
         <span className="mb-1 block text-[12px] font-semibold text-neutral-600">
           {label}
-          {loading && <span className="ml-2 text-[11px] font-normal text-neutral-400">loading…</span>}
+          {(loading || syncing) && <span className="ml-2 text-[11px] font-normal text-neutral-400">loading…</span>}
         </span>
       )}
       {!adding ? (
