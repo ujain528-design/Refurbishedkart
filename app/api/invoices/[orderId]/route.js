@@ -2,6 +2,7 @@ import fs from "fs";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Order } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
+import { requireAdmin } from "@/lib/server/adminAuth";
 import { invoiceFilePath, generateInvoice } from "@/lib/server/invoiceGenerator";
 import { log, logError } from "@/lib/logger";
 
@@ -14,18 +15,21 @@ export const dynamic = "force-dynamic";
      - customer → only their own orders (order.userId === auth.sub)
    404 if the order doesn't exist; 403 if it belongs to someone else. */
 export async function GET(req, { params }) {
-  const auth = userFromRequest(req);
-  if (!auth) return Response.json({ error: "Login required" }, { status: 401 });
-
   const { orderId } = params;
   await dbConnect();
   const order = await Order.findOne({ orderId }).lean();
   log("[invoice] download request:", orderId, "order found:", !!order);
   if (!order) return Response.json({ error: "Order not found" }, { status: 404 });
 
-  const isAdmin = auth.role === "admin" || auth.role === "superadmin";
-  if (!isAdmin && order.userId !== auth.sub) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
+  // Authorize by EITHER a customer Bearer token (must own the order) OR the admin
+  // session cookie — so both the customer "Download Invoice" and the admin
+  // "Download Invoice" (a cookie-authenticated fetch) can stream the same PDF.
+  const auth = userFromRequest(req);
+  let isAdmin = auth?.role === "admin" || auth?.role === "superadmin";
+  if (!isAdmin) { const { error } = requireAdmin(req); if (!error) isAdmin = true; }
+  const owns = auth && order.userId === auth.sub;
+  if (!isAdmin && !owns) {
+    return Response.json({ error: auth ? "Forbidden" : "Login required" }, { status: auth ? 403 : 401 });
   }
 
   const invoiceNumber = order.invoiceNumber || order.orderId;

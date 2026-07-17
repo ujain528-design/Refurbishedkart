@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { formatINR, INDIAN_STATES, paymentMethodLabel, RETURN_REASONS } from "@/lib/data";
 import {
-  getOrders,
+  getOrders, downloadInvoice,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
   getUserProfile, updateProfile,
   getReturns, createReturn, uploadReturnPhoto, submitReturnBankDetails,
@@ -137,12 +137,21 @@ function OrdersTab() {
   const [orders, setOrders] = useState([]);
   const [returnsByOrder, setReturnsByOrder] = useState({});
   const [open, setOpen] = useState(null);
+  const [downloading, setDownloading] = useState(null);
   const [returnFor, setReturnFor] = useState(null); // order object whose modal is open
   const [now, setNow] = useState(Date.now());       // ticks every second for live countdowns
 
-  // Open the print-friendly HTML invoice in a new tab (works via the /invoice page,
-  // which fetches the order with the customer's token).
-  const openInvoice = (id) => window.open(`/invoice/${id}`, "_blank", "noopener");
+  // Download the GST invoice PDF (Bearer-authenticated blob from /api/invoices).
+  const doDownload = async (id) => {
+    setDownloading(id);
+    try {
+      await downloadInvoice(id);
+    } catch (e) {
+      alert(e.message || "Invoice isn't available for this order yet.");
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   const load = useCallback(() => {
     setStatus("loading");
@@ -326,10 +335,11 @@ function OrdersTab() {
                     )}
                     {INVOICE_STATUSES.includes(o.status) && (
                       <button
-                        onClick={() => openInvoice(o.id)}
-                        className="rounded-full border border-brand/30 px-4 py-2 text-[12px] font-bold text-brand hover:bg-brand-soft"
+                        onClick={() => doDownload(o.id)}
+                        disabled={downloading === o.id}
+                        className="rounded-full border border-brand/30 px-4 py-2 text-[12px] font-bold text-brand hover:bg-brand-soft disabled:opacity-50"
                       >
-                        Download Invoice
+                        {downloading === o.id ? "Preparing…" : "Download Invoice"}
                       </button>
                     )}
                   </div>

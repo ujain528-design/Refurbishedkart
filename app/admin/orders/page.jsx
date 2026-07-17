@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { formatINR } from "@/lib/admin-data";
 import { paymentMethodLabel, RETURN_REASONS } from "@/lib/data";
-import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, adminShipOrder, adminSyncShiprocket } from "@/lib/api";
+import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, adminShipOrder, adminSyncShiprocket, adminDownloadInvoice } from "@/lib/api";
 import { WhatsAppIcon } from "@/components/Icons";
 import { isPaymentPending, isCancelled, formatCountdown, cancellationReasonLabel, PAY_WARNING_MS } from "@/lib/orderStatus";
 
@@ -124,6 +124,15 @@ export default function Orders() {
     } finally {
       setShipping(false);
     }
+  };
+
+  // Invoice PDF download (same generator + endpoint as the customer account).
+  const [invoiceDownloading, setInvoiceDownloading] = useState(false);
+  const downloadInvoicePdf = async () => {
+    setInvoiceDownloading(true);
+    try { await adminDownloadInvoice(view.id); }
+    catch (e) { toast(e.message || "Invoice isn't available for this order yet.", "error"); }
+    finally { setInvoiceDownloading(false); }
   };
 
   const [syncing, setSyncing] = useState(false);
@@ -341,10 +350,11 @@ export default function Orders() {
                 <span className="text-[12px] font-semibold text-red-600">Reason: {cancellationReasonLabel(view.cancellationReason)}</span>
               )}
               <button
-                onClick={() => window.open(`/invoice/${view.id}`, "_blank", "noopener")}
-                className="ml-auto rounded-full border border-brand/30 bg-brand-soft px-3 py-1.5 text-[12px] font-bold text-brand hover:bg-brand-soft/70"
+                onClick={downloadInvoicePdf}
+                disabled={invoiceDownloading}
+                className="ml-auto rounded-full border border-brand/30 bg-brand-soft px-3 py-1.5 text-[12px] font-bold text-brand hover:bg-brand-soft/70 disabled:opacity-50"
               >
-                🖨 Print Invoice
+                {invoiceDownloading ? "Preparing…" : "⬇ Download Invoice"}
               </button>
             </div>
 
