@@ -31,7 +31,6 @@ export default function ShareButton({ title = "", url = "", variant = "pdp", cla
     if (!url) return window.location.href;
     return url.startsWith("/") ? window.location.origin + url : url;
   };
-  const shareText = `Check out this refurbished ${title} on RefurbishedKart!`;
 
   const copy = async (u) => {
     try {
@@ -52,7 +51,9 @@ export default function ShareButton({ title = "", url = "", variant = "pdp", cla
     e.stopPropagation();
     const u = resolveUrl();
     if (typeof navigator !== "undefined" && navigator.share) {
-      try { await navigator.share({ title, text: shareText, url: u }); } catch { /* user cancelled */ }
+      // URL only (+ title) — passing `text` too makes some apps paste the message
+      // and the URL as one blob, breaking the link.
+      try { await navigator.share({ title, url: u }); } catch { /* user cancelled */ }
       return;
     }
     if (variant === "card") { copy(u); return; }

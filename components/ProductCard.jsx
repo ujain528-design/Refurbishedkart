@@ -104,13 +104,16 @@ export default function ProductCard({ product, className = "w-[200px] shrink-0 s
         {/* wishlist stays active even when out of stock */}
         <WishlistButton productId={product.id} />
 
-        {/* share — appears on hover, below the wishlist button */}
-        <ShareButton
-          title={product.name}
-          url={href}
-          variant="card"
-          className="absolute right-3 top-14 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100"
-        />
+        {/* share — appears on hover, below the wishlist button. Only shown when the
+            product has a slug, so we never share a numeric-id URL that 404s. */}
+        {product.slug && (
+          <ShareButton
+            title={product.name}
+            url={`/products/${(product.category || "laptops").toLowerCase()}/${product.slug}`}
+            variant="card"
+            className="absolute right-3 top-14 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100"
+          />
+        )}
 
       </div>
 
