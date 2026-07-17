@@ -111,10 +111,42 @@ export default function Orders() {
   const [shipErr, setShipErr] = useState("");
   const [shipConfirm, setShipConfirm] = useState(false);
 
+  // ── Serial numbers — mandatory to ship (manual status change + Shiprocket) ──
+  const [serials, setSerials] = useState([]); // one string per order line
+  const buildSerials = () => (view?.lines || []).map((l, i) => ({
+    productId: l.productId,
+    productName: l.name,
+    variant: [l.ram, l.ssd].filter(Boolean).join("/"),
+    serialNumber: (serials[i] || "").trim(),
+  }));
+  const serialsComplete = (view?.lines || []).length > 0 && (view.lines || []).every((_, i) => (serials[i] || "").trim());
+  const serialFields = view ? (
+    <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
+      <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-amber-700">Serial Numbers (required for shipping)</p>
+      <div className="space-y-2.5">
+        {(view.lines || []).map((l, i) => {
+          const variant = [l.ram, l.ssd ? `${l.ssd} SSD` : ""].filter(Boolean).join(" | ");
+          return (
+            <div key={i}>
+              <label className="mb-0.5 block text-[12px] font-semibold text-ink">{l.name}{variant ? ` | ${variant}` : ""}</label>
+              <input
+                className={inputCls}
+                placeholder="Serial Number"
+                value={serials[i] || ""}
+                onChange={(e) => setSerials((s) => { const n = [...s]; n[i] = e.target.value; return n; })}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
+
   const doShip = async () => {
+    if (!serialsComplete) { setShipErr("Enter a serial number for every item before shipping."); return; }
     setShipping(true); setShipErr("");
     try {
-      const { order } = await adminShipOrder(view.id);
+      const { order } = await adminShipOrder(view.id, buildSerials());
       setView((v) => ({ ...v, ...order }));
       setShipConfirm(false);
       toast("Shipment created via Shiprocket");
@@ -172,7 +204,7 @@ export default function Orders() {
     return () => clearInterval(t);
   }, []);
 
-  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courierName || o.courier || "", trackingNumber: o.trackingNumber || "", trackingUrl: o.trackingUrl || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); setShipErr(""); setShipConfirm(false); };
+  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courierName || o.courier || "", trackingNumber: o.trackingNumber || "", trackingUrl: o.trackingUrl || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); setShipErr(""); setShipConfirm(false); setSerials((o.lines || []).map((_, i) => o.serialNumbers?.[i]?.serialNumber || "")); };
 
   // Effective cancellation reason from the dropdown (+ free-text when "Other").
   const effectiveCancelReason = (f) => (f.cancelReason === OTHER_REASON ? f.cancelOther.trim() : f.cancelReason);
@@ -208,6 +240,10 @@ export default function Orders() {
     // on every path (this dropdown as well as the COD "Mark as Delivered" button).
     const codDeliverConfirm = view.paymentMethod === "COD" && form.status === "Delivered";
     if (codDeliverConfirm && !codBalanceConfirmed) { toast("Confirm the COD balance was collected"); return; }
+    // Shipping requires a serial number for every item.
+    if (form.status === "Shipped" && form.status !== view.status && !serialsComplete) {
+      toast("Enter a serial number for every item before shipping", "error"); return;
+    }
     setSaving(true);
     try {
       // When shipping, save the shipment details WITH the status change so the
@@ -217,6 +253,7 @@ export default function Orders() {
         extra.courierName = form.courier;
         extra.trackingNumber = form.trackingNumber;
         extra.trackingUrl = form.trackingUrl;
+        extra.serialNumbers = buildSerials();
       }
       if (form.status !== view.status) {
         await adminUpdateOrderStatus(view.id, form.status, form.status === "Cancelled" ? reason : undefined, extra);
@@ -486,8 +523,9 @@ export default function Orders() {
                 ) : (
                   <div>
                     <p className="text-[13px] font-medium text-ink">Create this order in Shiprocket for <b>#{view.id}</b>? You&apos;ll then assign a courier in the Shiprocket dashboard.</p>
+                    <div className="mt-3">{serialFields}</div>
                     <div className="mt-2.5 flex gap-2">
-                      <button onClick={doShip} disabled={shipping} className="rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{shipping ? "Creating…" : "Confirm & Create"}</button>
+                      <button onClick={doShip} disabled={shipping || !serialsComplete} className="rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{shipping ? "Creating…" : "Confirm & Create"}</button>
                       <button onClick={() => setShipConfirm(false)} disabled={shipping} className={btnGhost}>Cancel</button>
                     </div>
                   </div>
@@ -541,6 +579,7 @@ export default function Orders() {
                 {form.status === "Shipped" && (
                   <p className="rounded-md bg-brand-soft/60 px-2.5 py-1.5 text-[12px] font-semibold text-brand">Shipment details — saved before the dispatch email is sent to the customer.</p>
                 )}
+                {form.status === "Shipped" && serialFields}
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Courier Name"><input className={inputCls} placeholder="Delhivery" value={form.courier} onChange={(e) => setForm((f) => ({ ...f, courier: e.target.value }))} /></Field>
                   <Field label="Tracking Number"><input className={inputCls} value={form.trackingNumber} onChange={(e) => setForm((f) => ({ ...f, trackingNumber: e.target.value }))} /></Field>
@@ -548,7 +587,7 @@ export default function Orders() {
                 <Field label="Tracking URL (optional)"><input className={inputCls} placeholder="https://…" value={form.trackingUrl} onChange={(e) => setForm((f) => ({ ...f, trackingUrl: e.target.value }))} /></Field>
                 <button
                   onClick={save}
-                  disabled={saving || (form.status === "Cancelled" && !effectiveCancelReason(form)) || (view.paymentMethod === "COD" && form.status === "Delivered" && !codBalanceConfirmed)}
+                  disabled={saving || (form.status === "Cancelled" && !effectiveCancelReason(form)) || (view.paymentMethod === "COD" && form.status === "Delivered" && !codBalanceConfirmed) || (form.status === "Shipped" && form.status !== view.status && !serialsComplete)}
                   className={`${btnPrimary} disabled:opacity-50`}
                 >
                   {saving ? "Saving…" : "Save Changes"}

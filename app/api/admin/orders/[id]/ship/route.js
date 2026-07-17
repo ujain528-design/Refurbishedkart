@@ -17,6 +17,12 @@ export async function POST(req, { params }) {
   if (error) return error;
   try {
     await dbConnect();
+    const { serialNumbers } = await req.json().catch(() => ({}));
+    // Serial numbers are MANDATORY to ship (same rule as the manual ship flow).
+    const serials = Array.isArray(serialNumbers) ? serialNumbers : [];
+    if (!serials.length || serials.some((s) => !String(s?.serialNumber || "").trim())) {
+      return NextResponse.json({ error: "A serial number is required for every item before shipping." }, { status: 400 });
+    }
     const order = await Order.findOne({ orderId: params.id });
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
     if (order.shiprocketShipmentId) {
@@ -25,6 +31,12 @@ export async function POST(req, { params }) {
     if (!SHIPPABLE.includes(order.status)) {
       return NextResponse.json({ error: `Order status "${order.status}" can't be shipped yet.` }, { status: 409 });
     }
+    order.serialNumbers = serials.map((s) => ({
+      productId: Number(s.productId) || undefined,
+      productName: String(s.productName || ""),
+      variant: String(s.variant || ""),
+      serialNumber: String(s.serialNumber || "").trim(),
+    }));
 
     // Create the Shiprocket order → shipment. Do NOT assign AWB or schedule pickup.
     const { shiprocketOrderId, shipmentId } = await createOrder(order.toObject());

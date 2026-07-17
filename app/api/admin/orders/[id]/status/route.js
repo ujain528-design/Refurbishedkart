@@ -37,8 +37,16 @@ export async function PUT(req, { params }) {
   if (error) return error;
   try {
     await dbConnect();
-    const { status, cancellationReason, codBalanceCollected, courierName, trackingNumber, trackingUrl, refundAmount } = await req.json();
+    const { status, cancellationReason, codBalanceCollected, courierName, trackingNumber, trackingUrl, refundAmount, serialNumbers } = await req.json();
     if (!VALID.includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    // Serial numbers are MANDATORY to ship: every item must carry a non-empty serial.
+    let serials = null;
+    if (status === "Shipped") {
+      serials = Array.isArray(serialNumbers) ? serialNumbers : [];
+      if (!serials.length || serials.some((s) => !String(s?.serialNumber || "").trim())) {
+        return NextResponse.json({ error: "A serial number is required for every item before shipping." }, { status: 400 });
+      }
+    }
     // Cancellation requires a reason (shown to the customer on their order). All
     // other status changes don't need one.
     const reason = typeof cancellationReason === "string" ? cancellationReason.trim() : "";
@@ -60,6 +68,12 @@ export async function PUT(req, { params }) {
       if (courierName !== undefined) { patch.courierName = courierName; patch.courier = courierName; }
       if (trackingNumber !== undefined) patch.trackingNumber = trackingNumber;
       if (trackingUrl !== undefined) patch.trackingUrl = trackingUrl;
+      patch.serialNumbers = serials.map((s) => ({
+        productId: Number(s.productId) || undefined,
+        productName: String(s.productName || ""),
+        variant: String(s.variant || ""),
+        serialNumber: String(s.serialNumber || "").trim(),
+      }));
     }
     if (status === "Refunded" && refundAmount !== undefined) patch.refundAmount = Number(refundAmount) || 0;
     // COD delivery outcome → codStatus. Marking a COD order Delivered means the

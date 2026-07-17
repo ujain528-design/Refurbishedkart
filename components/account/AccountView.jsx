@@ -42,7 +42,9 @@ const statusLabel = (s) => STATUS_LABEL[s] || s;
 // auto-expired from payment_pending after the 30-minute window.
 const wasPaid = (o) => !!(o?.paidAt || o?.razorpayPaymentId || o?.codAdvancePaid);
 // Invoice exists only once payment is confirmed (not for pending_payment / cancelled).
-const INVOICE_STATUSES = ["Confirmed", "Packed", "Shipped", "Delivered", "Returned"];
+// Invoice is only available to the customer once the order has shipped (it carries
+// device serial numbers captured at ship time). Hidden before that.
+const INVOICE_STATUSES = ["Shipped", "Delivered", "Refunded", "refunded"];
 const variantText = (it) => (it.ram ? `${it.ram}GB${it.ssd ? ` · ${it.ssd} SSD` : ""}` : it.ssd ? it.ssd : "");
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
 
