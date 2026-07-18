@@ -32,6 +32,14 @@ export async function GET(req, { params }) {
     return Response.json({ error: auth ? "Forbidden" : "Login required" }, { status: auth ? 403 : 401 });
   }
 
+  // Customers can only download the invoice once the order has been dispatched
+  // (it carries serial numbers captured at ship time). Admins are exempt. Blocks
+  // direct-URL access for pending/confirmed/packed/cancelled orders.
+  const INVOICE_OK = ["shipped", "delivered", "refunded"];
+  if (!isAdmin && !INVOICE_OK.includes(String(order.status || "").toLowerCase())) {
+    return Response.json({ error: "Invoice not available until order is shipped" }, { status: 403 });
+  }
+
   const invoiceNumber = order.invoiceNumber || order.orderId;
   const filePath = invoiceFilePath(invoiceNumber);
 
