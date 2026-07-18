@@ -32,7 +32,7 @@ export async function POST(req) {
       if (q.error) return NextResponse.json({ error: `Product ${it.productId} unavailable` }, { status: 409 });
       if (q.sellable < (it.qty || 1)) return NextResponse.json({ error: `${q.product.name} is out of stock` }, { status: 409 });
       const hsnCode = q.product.hsnCode || defHsn;
-      lines.push({ productId: q.product.id, name: q.product.name, ram: q.ram, ssd: q.ssd, qty: it.qty || 1, unitPrice: q.unitPrice, gstRate: defGst, hsnCode });
+      lines.push({ productId: q.product.id, name: q.product.name, category: q.product.category, ram: q.ram, ssd: q.ssd, qty: it.qty || 1, unitPrice: q.unitPrice, gstRate: defGst, hsnCode });
       couponItems.push({ category: q.product.category, brand: q.product.brand });
     }
     const subtotal = lines.reduce((a, l) => a + l.unitPrice * l.qty, 0);

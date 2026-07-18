@@ -33,23 +33,21 @@ export async function GET(req, { params }) {
   }
 
   const invoiceNumber = order.invoiceNumber || order.orderId;
-  let filePath = invoiceFilePath(invoiceNumber);
-  log("[invoice] looking for file:", filePath, "exists:", fs.existsSync(filePath));
+  const filePath = invoiceFilePath(invoiceNumber);
 
-  // Lazily (re)generate if the PDF is missing — e.g. orders placed before the
-  // invoice feature, or a file lost on redeploy. Never block on failure.
-  if (!fs.existsSync(filePath)) {
-    try {
-      log("[invoice] file missing — regenerating for", invoiceNumber);
-      await generateInvoice(order);
-      log("[invoice] regeneration done, exists now:", fs.existsSync(filePath));
-    } catch (e) {
-      logError("[invoice] (re)generation FAILED:", e.message, e.stack);
-    }
-    if (!fs.existsSync(filePath)) {
-      return Response.json({ error: "Invoice not available" }, { status: 404 });
-    }
+  // ALWAYS regenerate from the current order so the PDF reflects the latest data
+  // (e.g. serial numbers added after shipping). The old "only if missing" cache
+  // served stale invoices to existing orders. On a generation error, fall back to
+  // any previously-cached file rather than failing the download.
+  try {
+    await generateInvoice(order);
+  } catch (e) {
+    logError("[invoice] generation FAILED:", e.message, e.stack);
   }
+  if (!fs.existsSync(filePath)) {
+    return Response.json({ error: "Invoice not available" }, { status: 404 });
+  }
+  log("[invoice] serving:", filePath);
 
   const buffer = await fs.promises.readFile(filePath);
   return new Response(buffer, {
