@@ -144,12 +144,14 @@ export default function Orders() {
 
   // Save serial numbers on an already-shipped/delivered order (no status change).
   const [savingSerials, setSavingSerials] = useState(false);
+  const [notifyCustomer, setNotifyCustomer] = useState(true); // uncheck → silent save (no email)
   const saveSerials = async () => {
     setSavingSerials(true);
+    const silent = !notifyCustomer;
     try {
-      const updated = await adminUpdateSerials(view.id, buildSerials(), "Your invoice has been updated with device serial numbers.");
+      const updated = await adminUpdateSerials(view.id, buildSerials(), "Your invoice has been updated with device serial numbers.", silent);
       setView((v) => ({ ...v, ...updated }));
-      toast("Serial numbers saved — customer notified");
+      toast(silent ? "Serial numbers saved (silent - customer not notified)" : "Serial numbers saved — customer notified");
       load();
     } catch (e) { toast(e.message || "Couldn't save serial numbers", "error"); }
     finally { setSavingSerials(false); }
@@ -217,7 +219,7 @@ export default function Orders() {
     return () => clearInterval(t);
   }, []);
 
-  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courierName || o.courier || "", trackingNumber: o.trackingNumber || "", trackingUrl: o.trackingUrl || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); setShipErr(""); setShipConfirm(false); setSerials((o.lines || []).map((_, i) => o.serialNumbers?.[i]?.serialNumber || "")); };
+  const openOrder = (o) => { setView(o); setForm({ status: o.status, courier: o.courierName || o.courier || "", trackingNumber: o.trackingNumber || "", trackingUrl: o.trackingUrl || "", cancelReason: "", cancelOther: "" }); setRetForm(null); setCodBalanceConfirmed(false); setShipErr(""); setShipConfirm(false); setSerials((o.lines || []).map((_, i) => o.serialNumbers?.[i]?.serialNumber || "")); setNotifyCustomer(true); };
 
   // Effective cancellation reason from the dropdown (+ free-text when "Other").
   const effectiveCancelReason = (f) => (f.cancelReason === OTHER_REASON ? f.cancelOther.trim() : f.cancelReason);
@@ -625,6 +627,10 @@ export default function Orders() {
             {["Shipped", "Delivered"].includes(view.status) && (
               <div>
                 {renderSerials("Edit Serial Numbers")}
+                <label className="mt-2 flex items-center gap-2 text-[13px] text-neutral-600">
+                  <input type="checkbox" checked={notifyCustomer} onChange={(e) => setNotifyCustomer(e.target.checked)} className="accent-brand" />
+                  Notify customer via email
+                </label>
                 <button onClick={saveSerials} disabled={savingSerials} className={`${btnPrimary} mt-2 w-full disabled:opacity-50`}>
                   {savingSerials ? "Saving…" : "Save Serial Numbers"}
                 </button>
