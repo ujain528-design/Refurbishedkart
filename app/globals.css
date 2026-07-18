@@ -241,6 +241,25 @@
   .animate-panel-up { animation: panelUp 0.3s ease both; }
   .animate-panel-right { animation: panelRight 0.3s ease both; }
 
+  /* Floating WhatsApp button — size + position + attention pulse. The pulse ring
+     is layered over a steady drop shadow so both remain visible. */
+  @keyframes whatsappPulse {
+    0% { box-shadow: 0 6px 20px rgba(0,0,0,0.18), 0 0 0 0 rgba(37,211,102,0.5); }
+    70% { box-shadow: 0 6px 20px rgba(0,0,0,0.18), 0 0 0 10px rgba(37,211,102,0); }
+    100% { box-shadow: 0 6px 20px rgba(0,0,0,0.18), 0 0 0 0 rgba(37,211,102,0); }
+  }
+  .wa-fab {
+    width: 48px; height: 48px;
+    right: 16px; bottom: 80px;               /* mobile: clear the bottom navbar */
+    animation: whatsappPulse 2s infinite;
+  }
+  @media (min-width: 640px) {
+    .wa-fab { width: 56px; height: 56px; right: 24px; bottom: 24px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wa-fab { animation: none; }
+  }
+
   /* Inspection inline button: background fades F1F8E9 ↔ DCEDC8 (via overlay
      opacity) every 1.5s, and the chevron slides 4px back and forth. */
   @keyframes bgFade {
