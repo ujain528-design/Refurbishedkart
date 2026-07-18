@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import { formatINR, INDIAN_STATES, paymentMethodLabel, RETURN_REASONS } from "@/lib/data";
 import {
-  getOrders, downloadInvoice,
+  getOrders, downloadInvoice, markInvoiceSeen,
   getAddresses, addAddress, updateAddress, deleteAddress, setDefaultAddress,
   getUserProfile, updateProfile,
   getReturns, createReturn, uploadReturnPhoto, submitReturnBankDetails,
@@ -155,6 +155,22 @@ function OrdersTab() {
     }
   };
 
+  // Invoice-update popup: the customer must DOWNLOAD to dismiss (no auto-close, no
+  // separate dismiss). Only after a successful download do we mark it seen + advance
+  // to the next pending order's popup.
+  const downloadAndDismiss = async (o) => {
+    setDownloading(o.id);
+    try {
+      await downloadInvoice(o.id);
+      await markInvoiceSeen(o.id).catch(() => {});
+      setOrders((list) => list.map((x) => (x.id === o.id ? { ...x, invoiceUpdateSeen: true } : x)));
+    } catch (e) {
+      alert(e.message || "Invoice isn't available for this order yet.");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   const load = useCallback(() => {
     setStatus("loading");
     Promise.all([getOrders(), getReturns().catch(() => [])])
@@ -202,8 +218,31 @@ function OrdersTab() {
       </EmptyState>
     );
 
+  // Orders with an unseen invoice update — shown one at a time (must download to dismiss).
+  const invoiceUpdate = orders.find((o) => o.invoiceUpdatedAt && !o.invoiceUpdateSeen) || null;
+
   return (
     <div className="space-y-4">
+      {invoiceUpdate && (
+        <div className="animate-panel-right fixed right-3 top-20 z-[70] w-[92vw] max-w-sm rounded-xl border-l-4 border-brand bg-white p-4 shadow-card-hover sm:right-4" role="alert">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl leading-none" aria-hidden="true">📄</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-ink">Invoice Updated</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-neutral-600">
+                Your invoice for Order #{invoiceUpdate.id} has been updated with serial numbers.
+              </p>
+              <button
+                onClick={() => downloadAndDismiss(invoiceUpdate)}
+                disabled={downloading === invoiceUpdate.id}
+                className="mt-3 w-full rounded-full bg-brand px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+              >
+                {downloading === invoiceUpdate.id ? "Preparing…" : "Download Invoice"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {orders.map((o) => {
         const lines = o.lines || [];
         // Payment-pending lifecycle: live countdown + Pay Now until the 30-min deadline.

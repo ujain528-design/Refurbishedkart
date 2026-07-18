@@ -147,9 +147,9 @@ export default function Orders() {
   const saveSerials = async () => {
     setSavingSerials(true);
     try {
-      const updated = await adminUpdateSerials(view.id, buildSerials());
+      const updated = await adminUpdateSerials(view.id, buildSerials(), "Your invoice has been updated with device serial numbers.");
       setView((v) => ({ ...v, ...updated }));
-      toast("Serial numbers saved");
+      toast("Serial numbers saved — customer notified");
       load();
     } catch (e) { toast(e.message || "Couldn't save serial numbers", "error"); }
     finally { setSavingSerials(false); }
