@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { formatINR } from "@/lib/admin-data";
 import { paymentMethodLabel, RETURN_REASONS } from "@/lib/data";
-import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, adminShipOrder, adminSyncShiprocket, adminDownloadInvoice } from "@/lib/api";
+import { adminGetOrders, adminUpdateOrderStatus, adminUpdateTracking, adminCreateReturn, adminShipOrder, adminSyncShiprocket, adminDownloadInvoice, adminUpdateSerials } from "@/lib/api";
 import { WhatsAppIcon } from "@/components/Icons";
 import { isPaymentPending, isCancelled, formatCountdown, cancellationReasonLabel, PAY_WARNING_MS } from "@/lib/orderStatus";
 
@@ -120,9 +120,9 @@ export default function Orders() {
     serialNumber: (serials[i] || "").trim(),
   }));
   const serialsComplete = (view?.lines || []).length > 0 && (view.lines || []).every((_, i) => (serials[i] || "").trim());
-  const serialFields = view ? (
+  const renderSerials = (title = "Serial Numbers (required for shipping)") => view ? (
     <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
-      <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-amber-700">Serial Numbers (required for shipping)</p>
+      <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-amber-700">{title}</p>
       <div className="space-y-2.5">
         {(view.lines || []).map((l, i) => {
           const variant = [l.ram, l.ssd ? `${l.ssd} SSD` : ""].filter(Boolean).join(" | ");
@@ -141,6 +141,19 @@ export default function Orders() {
       </div>
     </div>
   ) : null;
+
+  // Save serial numbers on an already-shipped/delivered order (no status change).
+  const [savingSerials, setSavingSerials] = useState(false);
+  const saveSerials = async () => {
+    setSavingSerials(true);
+    try {
+      const updated = await adminUpdateSerials(view.id, buildSerials());
+      setView((v) => ({ ...v, ...updated }));
+      toast("Serial numbers saved");
+      load();
+    } catch (e) { toast(e.message || "Couldn't save serial numbers", "error"); }
+    finally { setSavingSerials(false); }
+  };
 
   const doShip = async () => {
     if (!serialsComplete) { setShipErr("Enter a serial number for every item before shipping."); return; }
@@ -523,7 +536,7 @@ export default function Orders() {
                 ) : (
                   <div>
                     <p className="text-[13px] font-medium text-ink">Create this order in Shiprocket for <b>#{view.id}</b>? You&apos;ll then assign a courier in the Shiprocket dashboard.</p>
-                    <div className="mt-3">{serialFields}</div>
+                    <div className="mt-3">{renderSerials()}</div>
                     <div className="mt-2.5 flex gap-2">
                       <button onClick={doShip} disabled={shipping || !serialsComplete} className="rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{shipping ? "Creating…" : "Confirm & Create"}</button>
                       <button onClick={() => setShipConfirm(false)} disabled={shipping} className={btnGhost}>Cancel</button>
@@ -579,7 +592,7 @@ export default function Orders() {
                 {form.status === "Shipped" && (
                   <p className="rounded-md bg-brand-soft/60 px-2.5 py-1.5 text-[12px] font-semibold text-brand">Shipment details — saved before the dispatch email is sent to the customer.</p>
                 )}
-                {form.status === "Shipped" && serialFields}
+                {form.status === "Shipped" && form.status !== view.status && renderSerials()}
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="Courier Name"><input className={inputCls} placeholder="Delhivery" value={form.courier} onChange={(e) => setForm((f) => ({ ...f, courier: e.target.value }))} /></Field>
                   <Field label="Tracking Number"><input className={inputCls} value={form.trackingNumber} onChange={(e) => setForm((f) => ({ ...f, trackingNumber: e.target.value }))} /></Field>
@@ -604,6 +617,17 @@ export default function Orders() {
                 {isCancelled(view.status)
                   ? "This order is cancelled — fulfillment and Shiprocket are locked."
                   : "Awaiting payment — fulfillment unlocks automatically once payment is confirmed."}
+              </div>
+            )}
+
+            {/* Edit serial numbers after the fact — for orders shipped before serials
+                were mandatory, or to correct a typo. Saves without changing status. */}
+            {["Shipped", "Delivered"].includes(view.status) && (
+              <div>
+                {renderSerials("Edit Serial Numbers")}
+                <button onClick={saveSerials} disabled={savingSerials} className={`${btnPrimary} mt-2 w-full disabled:opacity-50`}>
+                  {savingSerials ? "Saving…" : "Save Serial Numbers"}
+                </button>
               </div>
             )}
 
