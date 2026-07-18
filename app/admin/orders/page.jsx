@@ -36,6 +36,19 @@ const FILTERS = [
   { label: "Coupon Issues", value: null, couponIssues: true },
 ];
 
+// Client-side status filter (dropdown) — separate from the server-backed tabs above.
+const STATUS_OPTS = [
+  ["", "All Statuses"],
+  ["payment_pending", "Pending Payment"],
+  ["Confirmed", "Confirmed"],
+  ["Packed", "Packed"],
+  ["Shipped", "Shipped"],
+  ["Delivered", "Delivered"],
+  ["Cancelled", "Cancelled"],
+  ["return_requested", "Return Requested"],
+  ["Refunded", "Refunded"],
+];
+
 // Only paid orders can be fulfilled (status changes / Shiprocket). Pending-payment
 // and cancelled orders have their fulfillment controls locked.
 const isFulfillable = (s) => !isPaymentPending(s) && !isCancelled(s);
@@ -97,6 +110,17 @@ export default function Orders() {
   const toast = useToast();
   const [orders, setOrders] = useState([]);
   const [filter, setFilter] = useState("All"); // FILTERS label
+  // Client-side filter bar state (applies on top of the server-backed status tabs).
+  const [showFilters, setShowFilters] = useState(false);
+  const [fSearch, setFSearch] = useState("");
+  const [fStatus, setFStatus] = useState("");
+  const [fPay, setFPay] = useState("");
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  const [fMin, setFMin] = useState("");
+  const [fMax, setFMax] = useState("");
+  const [fCoupon, setFCoupon] = useState("");
+  const [fHasCoupon, setFHasCoupon] = useState(false);
   const [now, setNow] = useState(Date.now());  // ticks for pending-payment countdowns
   const [load_, setLoad] = useState("loading");
   const [view, setView] = useState(null);
@@ -305,6 +329,34 @@ export default function Orders() {
     URL.revokeObjectURL(url);
   };
 
+  // ── Client-side filtering (applies instantly on the already-loaded orders) ──
+  const inc = (v, q) => String(v ?? "").toLowerCase().includes(q);
+  const filtered = orders.filter((o) => {
+    if (fSearch.trim()) {
+      const q = fSearch.trim().toLowerCase();
+      if (![customerOf(o), emailOf(o), phoneOf(o), String(o.id)].some((v) => inc(v, q))) return false;
+    }
+    if (fStatus) {
+      if (fStatus === "payment_pending") { if (!isPaymentPending(o.status)) return false; }
+      else if (fStatus === "Cancelled") { if (!isCancelled(o.status)) return false; }
+      else if (String(o.status ?? "").toLowerCase() !== fStatus.toLowerCase()) return false;
+    }
+    if (fPay) {
+      const cod = String(o.paymentMethod || "").toUpperCase() === "COD";
+      if (fPay === "COD" ? !cod : cod) return false;
+    }
+    if (fFrom && new Date(o.createdAt).getTime() < new Date(`${fFrom}T00:00:00`).getTime()) return false;
+    if (fTo && new Date(o.createdAt).getTime() > new Date(`${fTo}T23:59:59`).getTime()) return false;
+    const tot = Number(o.total) || 0;
+    if (fMin !== "" && tot < Number(fMin)) return false;
+    if (fMax !== "" && tot > Number(fMax)) return false;
+    if (fCoupon.trim() && !inc(o.couponCode, fCoupon.trim().toLowerCase())) return false;
+    if (fHasCoupon && !o.couponCode) return false;
+    return true;
+  });
+  const activeCount = [fSearch.trim(), fStatus, fPay, fFrom, fTo, fMin !== "" ? "m" : "", fMax !== "" ? "x" : "", fCoupon.trim(), fHasCoupon ? "c" : ""].filter(Boolean).length;
+  const clearFilters = () => { setFSearch(""); setFStatus(""); setFPay(""); setFFrom(""); setFTo(""); setFMin(""); setFMax(""); setFCoupon(""); setFHasCoupon(false); };
+
   return (
     <div>
       <PageHeader title="Orders" subtitle={`${orders.length} orders`} action={<button onClick={exportCsv} className={btnGhost}>Export CSV</button>} />
@@ -323,6 +375,62 @@ export default function Orders() {
         ))}
       </div>
 
+      {/* ── Advanced filter bar (client-side, on top of the tabs) ── */}
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setShowFilters((s) => !s)} className="rounded-full border border-black/10 px-4 py-2 text-[13px] font-bold text-ink transition-colors hover:border-brand">
+            🔍 Filters{activeCount ? ` (${activeCount} active)` : ""}
+          </button>
+          {activeCount > 0 && (
+            <button onClick={clearFilters} className="rounded-full px-3 py-2 text-[13px] font-bold text-red-600 hover:underline">Clear All Filters</button>
+          )}
+          <span className="ml-auto text-[12px] text-neutral-400">Showing {filtered.length} of {orders.length} orders</span>
+        </div>
+
+        {showFilters && (
+          <div className="mt-3 grid gap-3 rounded-card border border-black/5 bg-white p-4 shadow-card sm:grid-cols-2 lg:grid-cols-3">
+            <label className="block sm:col-span-2 lg:col-span-3">
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Search</span>
+              <input value={fSearch} onChange={(e) => setFSearch(e.target.value)} placeholder="Search name, email, phone, order #..." className={inputCls} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Status</span>
+              <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} className={inputCls}>
+                {STATUS_OPTS.map(([v, l]) => <option key={l} value={v}>{l}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Payment Method</span>
+              <select value={fPay} onChange={(e) => setFPay(e.target.value)} className={inputCls}>
+                <option value="">All</option><option value="Online">Online</option><option value="COD">COD</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Coupon Code</span>
+              <input value={fCoupon} onChange={(e) => setFCoupon(e.target.value)} placeholder="e.g. SAVE10" className={inputCls} />
+            </label>
+            <div>
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Date Range</span>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} className={inputCls} aria-label="From date" />
+                <input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} className={inputCls} aria-label="To date" />
+              </div>
+            </div>
+            <div>
+              <span className="mb-1 block text-[12px] font-semibold text-neutral-600">Amount Range (₹)</span>
+              <div className="grid grid-cols-2 gap-2">
+                <input type="number" min={0} value={fMin} onChange={(e) => setFMin(e.target.value)} placeholder="Min" className={inputCls} aria-label="Min amount" />
+                <input type="number" min={0} value={fMax} onChange={(e) => setFMax(e.target.value)} placeholder="Max" className={inputCls} aria-label="Max amount" />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-neutral-700 sm:pt-6">
+              <input type="checkbox" checked={fHasCoupon} onChange={(e) => setFHasCoupon(e.target.checked)} className="accent-brand" />
+              Only orders with a coupon
+            </label>
+          </div>
+        )}
+      </div>
+
       {load_ === "loading" ? (
         <p className="py-16 text-center text-sm text-neutral-400">Loading orders…</p>
       ) : load_ === "error" ? (
@@ -330,8 +438,8 @@ export default function Orders() {
           <p className="text-sm font-semibold text-neutral-600">Couldn't load orders.</p>
           <button onClick={load} className="mt-4 rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-white hover:bg-brand-dark">Retry</button>
         </div>
-      ) : orders.length === 0 ? (
-        <div className="rounded-card border border-dashed border-black/10 bg-neutral-50 p-12 text-center text-sm text-neutral-500">No orders match this filter.</div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-card border border-dashed border-black/10 bg-neutral-50 p-12 text-center text-sm text-neutral-500">{orders.length === 0 ? "No orders match this filter." : "No orders match your filters."}</div>
       ) : (
         <div className="overflow-x-auto rounded-card border border-black/5 bg-white shadow-card">
           <table className="w-full text-sm">
@@ -339,7 +447,7 @@ export default function Orders() {
               <th className="px-4 py-3">Order</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Items</th><th className="px-3 py-3">Total</th><th className="px-3 py-3">Payment</th><th className="px-3 py-3">Status</th><th className="px-3 py-3">Date</th>
             </tr></thead>
             <tbody>
-              {orders.map((o, i) => (
+              {filtered.map((o, i) => (
                 <tr key={o.id} onClick={() => openOrder(o)} className={`cursor-pointer hover:bg-brand-softer/40 ${i % 2 ? "bg-neutral-50/60" : ""}`}>
                   <td className="px-4 py-3 font-semibold text-brand">#{o.id}</td>
                   <td className="px-3 py-3 text-ink">
