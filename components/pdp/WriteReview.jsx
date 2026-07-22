@@ -8,7 +8,7 @@ import ReviewForm from "@/components/ReviewForm";
 
 /* PDP "Write a Review" block. Renders one of four states based on the customer's
    login + purchase + prior-review status (all verified server-side). */
-export default function WriteReview({ productId }) {
+export default function WriteReview({ productId, productImages = [] }) {
   const { ready, isLoggedIn } = useAuth();
   const [elig, setElig] = useState(null);
   const [submitted, setSubmitted] = useState(false);
@@ -41,7 +41,7 @@ export default function WriteReview({ productId }) {
   return (
     <div className="mt-6 rounded-card border border-warm-border bg-white p-5">
       <p className="mb-3 text-sm font-bold text-ink">Write a Review</p>
-      <ReviewForm productId={productId} onSubmitted={() => setSubmitted(true)} />
+      <ReviewForm productId={productId} productImages={productImages} onSubmitted={() => setSubmitted(true)} />
     </div>
   );
 }

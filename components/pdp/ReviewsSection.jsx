@@ -83,7 +83,18 @@ export default function ReviewsSection({ reviews }) {
                 <div className="mt-2.5">
                   <Stars rating={r.rating} />
                 </div>
+                {r.title && <p className="mt-2 text-sm font-bold text-ink">{r.title}</p>}
                 <p className="mt-2.5 text-sm leading-relaxed text-neutral-600">{r.text}</p>
+                {Array.isArray(r.images) && r.images.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {r.images.map((src, k) => (
+                      <a key={k} href={src} target="_blank" rel="noopener noreferrer" className="block h-20 w-20 overflow-hidden rounded-lg border border-black/10 transition-opacity hover:opacity-90">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={src} alt={`Review photo ${k + 1}`} className="h-full w-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </article>
             ))}
           </div>

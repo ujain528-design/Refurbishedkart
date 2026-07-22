@@ -217,7 +217,7 @@ export default function PDPClient({ category, id }) {
 
           <ReviewsSection reviews={reviewsData.reviews} />
           <div className="max-w-3xl">
-            <WriteReview productId={product.id} />
+            <WriteReview productId={product.id} productImages={product.images || []} />
           </div>
         </div>
       </section>

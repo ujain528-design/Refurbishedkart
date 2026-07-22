@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 import { dbConnect } from "@/lib/server/mongoose";
 import { Review, Order, Product } from "@/lib/server/models";
 import { userFromRequest } from "@/lib/server/jwt";
 
 export const dynamic = "force-dynamic";
+
+const REVIEW_DIR = path.join(process.cwd(), "public", "uploads", "reviews");
+const IMG_EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+const MAX_IMG_BYTES = 5 * 1024 * 1024; // 5MB per uploaded image
+const MAX_IMAGES = 3; // combined uploaded + selected product images
 
 // True if the user has a DELIVERED order that contains this product.
 async function hasPurchased(userId, productId) {
@@ -42,10 +49,17 @@ export async function POST(req) {
   if (!auth) return NextResponse.json({ error: "Login required" }, { status: 401 });
   try {
     await dbConnect();
-    const { productId, rating, title, body } = await req.json();
-    const pid = Number(productId);
-    const stars = Number(rating);
-    const text = String(body || "").trim();
+    // multipart/form-data (fields + optional uploaded photos)
+    const form = await req.formData();
+    const pid = Number(form.get("productId"));
+    const stars = Number(form.get("rating"));
+    const text = String(form.get("body") || "").trim();
+    const title = String(form.get("title") || "");
+    let productImages = [];
+    try { productImages = JSON.parse(form.get("productImages") || "[]"); } catch { productImages = []; }
+    productImages = (Array.isArray(productImages) ? productImages : []).filter((s) => typeof s === "string" && s).slice(0, MAX_IMAGES);
+    const files = form.getAll("photos").filter((f) => f && typeof f !== "string");
+
     if (!pid) return NextResponse.json({ error: "Invalid product" }, { status: 400 });
     if (!(stars >= 1 && stars <= 5)) return NextResponse.json({ error: "Please select a star rating" }, { status: 400 });
     if (text.length < 20) return NextResponse.json({ error: "Review must be at least 20 characters" }, { status: 400 });
@@ -56,6 +70,21 @@ export async function POST(req) {
     const dup = await Review.findOne({ productId: pid, userId: auth.sub }).select("_id").lean();
     if (dup) return NextResponse.json({ error: "You've already reviewed this product" }, { status: 409 });
 
+    // Save uploaded photos (product-image URLs are stored as-is, no re-upload).
+    const uploaded = [];
+    const remaining = Math.max(0, MAX_IMAGES - productImages.length);
+    if (files.length && remaining > 0) await mkdir(REVIEW_DIR, { recursive: true });
+    for (let i = 0; i < Math.min(files.length, remaining); i++) {
+      const file = files[i];
+      const ext = IMG_EXT[file.type];
+      if (!ext) return NextResponse.json({ error: "Only JPEG, PNG or WebP images are allowed" }, { status: 400 });
+      if (file.size > MAX_IMG_BYTES) return NextResponse.json({ error: "Each image must be 5MB or less" }, { status: 400 });
+      const name = `review-${auth.sub}-${Date.now()}-${i}.${ext}`;
+      await writeFile(path.join(REVIEW_DIR, name), Buffer.from(await file.arrayBuffer()));
+      uploaded.push(`/uploads/reviews/${name}`);
+    }
+    const images = [...uploaded, ...productImages].slice(0, MAX_IMAGES);
+
     const product = await Product.findOne({ id: pid }).select("name").lean();
     const review = await Review.create({
       productId: pid,
@@ -65,6 +94,7 @@ export async function POST(req) {
       rating: stars,
       title: String(title || "").trim().slice(0, 100) || undefined,
       text,
+      images,
       verifiedPurchase: true,
       status: "pending",
     });

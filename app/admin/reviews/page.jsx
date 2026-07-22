@@ -55,7 +55,20 @@ export default function Reviews() {
                   <td className="px-4 py-3 font-semibold text-ink">{r.productName}</td>
                   <td className="px-3 py-3 text-neutral-600">{r.reviewer}</td>
                   <td className="px-3 py-3"><Stars n={r.rating} /></td>
-                  <td className="px-3 py-3 max-w-[220px] truncate text-[12px] text-neutral-500" title={r.text}>{r.text}</td>
+                  <td className="px-3 py-3 max-w-[220px] text-[12px] text-neutral-500">
+                    {r.title && <p className="font-semibold text-ink">{r.title}</p>}
+                    <p className="truncate" title={r.text}>{r.text}</p>
+                    {Array.isArray(r.images) && r.images.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {r.images.map((src, k) => (
+                          <a key={k} href={src} target="_blank" rel="noopener noreferrer" className="block h-12 w-12 overflow-hidden rounded border border-black/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={src} alt={`Review photo ${k + 1}`} className="h-full w-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-3 py-3"><Badge>{r.status}</Badge></td>
                   <td className="px-3 py-3">{r.status === "approved" ? <Toggle on={!!r.featured} onChange={(v) => feature(r.id, v)} /> : <span className="text-neutral-300">—</span>}</td>
                   <td className="px-3 py-3">

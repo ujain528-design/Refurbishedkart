@@ -258,7 +258,7 @@ function OrdersTab() {
               </div>
               <button onClick={() => setReviewFor(null)} aria-label="Close" className="shrink-0 rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-ink">✕</button>
             </div>
-            <ReviewForm productId={reviewFor.productId} onSubmitted={() => setReviewedPids((s) => [...s, reviewFor.productId])} />
+            <ReviewForm productId={reviewFor.productId} productImages={reviewFor.productImages || []} onSubmitted={() => setReviewedPids((s) => [...s, reviewFor.productId])} />
           </div>
         </div>
       )}
@@ -340,7 +340,7 @@ function OrdersTab() {
                         <p className="text-[13px] font-bold text-ink">{formatINR(it.unitPrice * it.qty)}</p>
                         {delivered && it.productId != null && (
                           <button
-                            onClick={() => !reviewed && setReviewFor({ productId: it.productId, productName: it.name })}
+                            onClick={() => !reviewed && setReviewFor({ productId: it.productId, productName: it.name, productImages: it.images || (it.image ? [it.image] : []) })}
                             disabled={reviewed}
                             className="w-full rounded-full border border-brand/30 px-4 py-1.5 text-[12px] font-bold text-brand transition-colors hover:bg-brand-soft disabled:opacity-50 sm:w-auto"
                           >
