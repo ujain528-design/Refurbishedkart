@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { ErrorState, EmptyState } from "@/components/ui/States";
 import { ChevronDown, BrokenDeviceIcon } from "@/components/Icons";
+import ReviewForm from "@/components/ReviewForm";
 import { isPaymentPending, isCancelled, cancellationReasonLabel, formatCountdown, PAY_WARNING_MS } from "@/lib/orderStatus";
 
 const TABS = [
@@ -142,6 +143,8 @@ function OrdersTab() {
   const [downloading, setDownloading] = useState(null);
   const [returnFor, setReturnFor] = useState(null); // order object whose modal is open
   const [now, setNow] = useState(Date.now());       // ticks every second for live countdowns
+  const [reviewFor, setReviewFor] = useState(null); // { productId, productName } for the review modal
+  const [reviewedPids, setReviewedPids] = useState([]); // products reviewed this session
 
   // Download the GST invoice PDF (Bearer-authenticated blob from /api/invoices).
   const doDownload = async (id) => {
@@ -243,6 +246,23 @@ function OrdersTab() {
           </div>
         </div>
       )}
+
+      {reviewFor && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Write a review">
+          <div className="absolute inset-0 bg-ink/50" onClick={() => setReviewFor(null)} />
+          <div className="relative w-full max-w-md rounded-card bg-white p-5 shadow-card-hover">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Write a Review</p>
+                <p className="truncate text-sm font-bold text-ink">{reviewFor.productName}</p>
+              </div>
+              <button onClick={() => setReviewFor(null)} aria-label="Close" className="shrink-0 rounded-full p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-ink">✕</button>
+            </div>
+            <ReviewForm productId={reviewFor.productId} onSubmitted={() => setReviewedPids((s) => [...s, reviewFor.productId])} />
+          </div>
+        </div>
+      )}
+
       {orders.map((o) => {
         const lines = o.lines || [];
         // Payment-pending lifecycle: live countdown + Pay Now until the 30-min deadline.
@@ -305,18 +325,31 @@ function OrdersTab() {
                   </div>
                 )}
                 <div className="space-y-3">
-                  {lines.map((it, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-neutral-100">
-                        <BrokenDeviceIcon style={{ width: 22, height: 22 }} className="text-neutral-300" />
+                  {lines.map((it, i) => {
+                    const delivered = o.status === "Delivered" || !!o.deliveredAt;
+                    const reviewed = reviewedPids.includes(it.productId);
+                    return (
+                      <div key={i} className="flex flex-wrap items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-neutral-100">
+                          <BrokenDeviceIcon style={{ width: 22, height: 22 }} className="text-neutral-300" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-semibold text-ink">{it.name}</p>
+                          <p className="text-[12px] text-neutral-500">{variantText(it)} · Qty {it.qty}</p>
+                        </div>
+                        <p className="text-[13px] font-bold text-ink">{formatINR(it.unitPrice * it.qty)}</p>
+                        {delivered && it.productId != null && (
+                          <button
+                            onClick={() => !reviewed && setReviewFor({ productId: it.productId, productName: it.name })}
+                            disabled={reviewed}
+                            className="w-full rounded-full border border-brand/30 px-4 py-1.5 text-[12px] font-bold text-brand transition-colors hover:bg-brand-soft disabled:opacity-50 sm:w-auto"
+                          >
+                            {reviewed ? "Review Submitted" : "Write a Review"}
+                          </button>
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-semibold text-ink">{it.name}</p>
-                        <p className="text-[12px] text-neutral-500">{variantText(it)} · Qty {it.qty}</p>
-                      </div>
-                      <p className="text-[13px] font-bold text-ink">{formatINR(it.unitPrice * it.qty)}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {returnsByOrder[o.id] && (
                   <div className="mt-4 rounded-lg border border-black/5 bg-neutral-50 px-3 py-2.5">

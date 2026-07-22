@@ -6,6 +6,7 @@ import ProductRow from "@/components/ProductRow";
 import Gallery from "@/components/pdp/Gallery";
 import PurchasePanel from "@/components/pdp/PurchasePanel";
 import ReviewsSection from "@/components/pdp/ReviewsSection";
+import WriteReview from "@/components/pdp/WriteReview";
 import CompareModal from "@/components/pdp/CompareModal";
 import RichDescription from "@/components/pdp/RichDescription";
 import { ErrorState } from "@/components/ui/States";
@@ -215,6 +216,9 @@ export default function PDPClient({ category, id }) {
           )}
 
           <ReviewsSection reviews={reviewsData.reviews} />
+          <div className="max-w-3xl">
+            <WriteReview productId={product.id} />
+          </div>
         </div>
       </section>
 
@@ -236,7 +240,7 @@ export default function PDPClient({ category, id }) {
         ref={compareBtnRef}
         type="button"
         onClick={() => setCompareOpen(true)}
-        className="fixed bottom-[76px] right-4 z-40 flex items-center gap-2 rounded-full border border-warm-border bg-white px-5 py-3 text-sm font-bold text-ink shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition-colors hover:border-ink lg:bottom-5 lg:right-5"
+        className="fixed bottom-[140px] right-4 z-40 flex items-center gap-2 rounded-full border border-warm-border bg-white px-5 py-3 text-sm font-bold text-ink shadow-[0_6px_20px_rgba(0,0,0,0.12)] transition-colors hover:border-ink lg:bottom-[96px] lg:right-5"
         aria-haspopup="dialog"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }} aria-hidden="true">
