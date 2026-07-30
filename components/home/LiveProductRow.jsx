@@ -8,17 +8,17 @@ import { getProducts } from "@/lib/api";
 
 /* Fetches a homepage product row by tag. Independent loading/error per row so
    one failing row doesn't blank the page. */
-export default function LiveProductRow({ title, subtitle, eyebrow, tag, viewAllHref, limit = 8, className = "" }) {
+export default function LiveProductRow({ title, subtitle, eyebrow, tag, category, viewAllHref, limit = 8, className = "" }) {
   const [state, setState] = useState({ status: "loading", products: [] });
 
   const load = useCallback(() => {
     let alive = true;
     setState((s) => ({ ...s, status: "loading" }));
-    getProducts({ tags: tag, limit })
+    getProducts({ tags: tag, category: category || undefined, limit })
       .then((products) => alive && setState({ status: "ready", products }))
       .catch(() => alive && setState({ status: "error", products: [] }));
     return () => { alive = false; };
-  }, [tag, limit]);
+  }, [tag, category, limit]);
 
   useEffect(load, [load]);
 

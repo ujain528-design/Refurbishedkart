@@ -4,7 +4,7 @@ import ShopByCategory from "@/components/ShopByCategory";
 import HeroCarousel from "@/components/HeroCarousel";
 import PromoSlot from "@/components/PromoSlot";
 import Reveal from "@/components/Reveal";
-import LiveProductRow from "@/components/home/LiveProductRow";
+import HomepageZone from "@/components/home/HomepageZone";
 import FlashSaleHomeSection from "@/components/flash/FlashSaleHomeSection";
 import BrandStrip from "@/components/BrandStrip";
 import BudgetCards from "@/components/BudgetCards";
@@ -109,16 +109,11 @@ export default function HomePage() {
         {/* Promo slot: After Categories */}
         <PromoSlot placement="after-categories" />
 
-        {/* PRD §4.1 default rows, now fetched live from the DB by tag.
-            Catalogue tag is "student" (not "best-for-students"). */}
+        {/* DB-driven homepage zone — admin-managed sections (product rows, banners,
+            category grids, announcements) replace the old hardcoded product rows.
+            Managed at /admin/homepage. Everything else on this page stays fixed. */}
         <div className="pt-10">
-          <LiveProductRow
-            eyebrow="Handpicked for you"
-            title="Bestsellers"
-            subtitle="The machines our customers keep coming back for."
-            tag="bestseller"
-            viewAllHref="/shop/bestseller"
-          />
+          <HomepageZone />
         </div>
 
         {/* Promo slot: After Bestsellers */}
@@ -129,25 +124,6 @@ export default function HomePage() {
 
         {/* Hero carousel — hero-placement banners only. Self-hides when empty. */}
         <HeroCarousel />
-
-        {/* soft green-tint band for the curated rows */}
-        <div style={{ background: "#EDF2E8" }}>
-          <LiveProductRow
-            eyebrow="On a budget"
-            title="Best for Students"
-            subtitle="Budget-friendly picks that survive a full semester of abuse."
-            tag="student"
-            viewAllHref="/shop/student"
-          />
-          <LiveProductRow
-            eyebrow="Just in"
-            title="New Arrivals"
-            subtitle="Fresh off the refurbishment line this week."
-            tag="new-arrival"
-            className="pb-20"
-            viewAllHref="/shop/new-arrival"
-          />
-        </div>
 
         <Reveal><BrandStrip /></Reveal>
 

@@ -8,6 +8,7 @@ import { adminGetReturns } from "@/lib/api";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/homepage", label: "Homepage" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/bulk-upload", label: "Bulk Upload" },
   { href: "/admin/banners", label: "Hero Banners" },
