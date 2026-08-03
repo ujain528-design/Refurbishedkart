@@ -169,9 +169,14 @@ export default function ListingClient({ categorySlug, categoryName, query, produ
     setPrice(pmin <= pmax ? [pmin, pmax] : [lo, hi]);
   }, [bounds, products.length, minPriceParam, maxPriceParam]);
 
+  // Apply ?brand= from the URL. Resolve it (slug or any case, e.g. "dell") to the
+  // product's actual brand casing ("Dell") once products load, so the exact-match
+  // facet filter works. Falls back to the raw param if there's no match yet.
   useEffect(() => {
-    if (brandParam) setSelected((s) => ({ ...s, brand: [brandParam] }));
-  }, [brandParam]);
+    if (!brandParam) return;
+    const match = products.find((p) => String(p.brand || "").toLowerCase() === brandParam.toLowerCase());
+    setSelected((s) => ({ ...s, brand: [match ? match.brand : brandParam] }));
+  }, [brandParam, products]);
 
   useEffect(() => {
     document.body.style.overflow = drawerOpen ? "hidden" : "";

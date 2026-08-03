@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PolicyStrip from "@/components/PolicyStrip";
@@ -7,6 +6,7 @@ import BulkEnquiryModal from "@/components/BulkEnquiryModal";
 import BulkEnquiryTrigger from "@/components/BulkEnquiryTrigger";
 import FaqAccordion from "@/components/FaqAccordion";
 import BrandProducts from "@/components/brand/BrandProducts";
+import GenericBrandView from "@/components/brand/GenericBrandView";
 import BRANDS, { getBrand, getAllBrandSlugs } from "@/lib/brandContent";
 
 const SITE = "https://refurbishedkart.com";
@@ -33,7 +33,8 @@ function SectionHeading({ children }) {
 
 export default function BrandPage({ params }) {
   const brand = getBrand(params.brand);
-  if (!brand) notFound();
+  // Unknown brand (no curated SEO entry) → generic product listing instead of 404.
+  if (!brand) return <GenericBrandView slug={params.brand} />;
 
   const name = brand.displayName;
   const others = getAllBrandSlugs().filter((s) => s !== brand.slug).map((s) => BRANDS[s]);

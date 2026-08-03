@@ -26,7 +26,7 @@ export default function BrandProducts({ brand, displayName }) {
   if (status === "error" || products.length === 0) {
     return (
       <div className="mt-7 rounded-card border border-dashed border-black/10 bg-neutral-50 p-10 text-center text-sm text-neutral-500">
-        Check back soon — we&apos;re adding more {displayName} devices.
+        No products available for {displayName} currently.
       </div>
     );
   }
