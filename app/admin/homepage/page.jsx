@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, Modal, Field, Toggle, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { adminGetHomepage, adminPublishHomepage, adminUploadImage } from "@/lib/api";
+import { bannerCtaError } from "@/lib/bannerCtas";
 
 const TYPES = [
   { value: "product_row", label: "Product Row" },
@@ -17,7 +18,7 @@ const tmpId = () => `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}
 const blank = (type) => {
   const base = { id: tmpId(), type, title: "", active: true, order: 0 };
   if (type === "product_row") return { ...base, title: "New Product Row", tag: "", category: "", maxProducts: 8 };
-  if (type === "banner") return { ...base, title: "New Banner", heading: "", subheading: "", ctaText: "", ctaLink: "", bgColor: "#1C1C1E", imageUrl: "" };
+  if (type === "banner") return { ...base, title: "New Banner", heading: "", subheading: "", ctaText: "", ctaLink: "", ctaSecondaryText: "", ctaSecondaryLink: "", clickEnabled: false, clickUrl: "", bgColor: "#1C1C1E", imageUrl: "" };
   if (type === "category_grid") return { ...base, title: "Shop by Category", categories: [] };
   return { ...base, title: "Announcement", text: "", bgColor: "#2D5016", textColor: "#FFFFFF" };
 };
@@ -37,6 +38,7 @@ export default function HomepageBuilder() {
   const [publishing, setPublishing] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [editErr, setEditErr] = useState("");
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(() => {
@@ -56,10 +58,14 @@ export default function HomepageBuilder() {
   const move = (i, dir) => mutate((d) => { const j = i + dir; if (j < 0 || j >= d.length) return d; const c = [...d]; [c[i], c[j]] = [c[j], c[i]]; return c; });
   const toggleActive = (id) => mutate((d) => d.map((s) => (s.id === id ? { ...s, active: !s.active } : s)));
   const del = (id) => { if (window.confirm("Delete this section? It's removed when you publish.")) mutate((d) => d.filter((s) => s.id !== id)); };
-  const addSection = (type) => { setAddOpen(false); setEditing(blank(type)); };
-  const set = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
+  const addSection = (type) => { setAddOpen(false); setEditErr(""); setEditing(blank(type)); };
+  const set = (k, v) => { setEditErr(""); setEditing((e) => ({ ...e, [k]: v })); };
   const toggleCat = (c) => setEditing((e) => { const cur = e.categories || []; return { ...e, categories: cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c] }; });
   const saveEdit = () => {
+    if (editing.type === "banner") {
+      const problem = bannerCtaError(editing);
+      if (problem) { setEditErr(problem); return; }
+    }
     mutate((d) => (d.some((s) => s.id === editing.id) ? d.map((s) => (s.id === editing.id ? editing : s)) : [...d, editing]));
     setEditing(null);
   };
@@ -131,7 +137,7 @@ export default function HomepageBuilder() {
                 <p className="truncate text-[12px] text-neutral-500">{summary(s)}</p>
               </div>
               <Toggle on={s.active} onChange={() => toggleActive(s.id)} />
-              <button onClick={() => setEditing({ ...s })} className="text-[13px] font-bold text-brand hover:underline">Edit</button>
+              <button onClick={() => { setEditErr(""); setEditing({ ...s }); }} className="text-[13px] font-bold text-brand hover:underline">Edit</button>
               <button onClick={() => del(s.id)} className="text-[13px] font-bold text-red-600 hover:underline">Delete</button>
             </div>
           ))}
@@ -164,10 +170,35 @@ export default function HomepageBuilder() {
               <>
                 <Field label="Heading"><input className={inputCls} value={editing.heading || ""} onChange={(e) => set("heading", e.target.value)} /></Field>
                 <Field label="Subheading"><input className={inputCls} value={editing.subheading || ""} onChange={(e) => set("subheading", e.target.value)} /></Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="CTA Button Text"><input className={inputCls} value={editing.ctaText || ""} onChange={(e) => set("ctaText", e.target.value)} /></Field>
-                  <Field label="CTA Button Link"><input className={inputCls} placeholder="/products/laptops" value={editing.ctaLink || ""} onChange={(e) => set("ctaLink", e.target.value)} /></Field>
+
+                {/* What a click does: optional buttons OR the whole banner as a link. */}
+                <div className="rounded-lg border border-black/10 p-3">
+                  <p className="mb-1 text-[12px] font-semibold text-neutral-600">When a visitor clicks this banner</p>
+                  <div className="inline-flex rounded-lg border border-black/10 p-0.5">
+                    <button type="button" onClick={() => set("clickEnabled", false)}
+                      className={`rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors ${!editing.clickEnabled ? "bg-brand text-white" : "text-neutral-500 hover:text-ink"}`}>
+                      Buttons (optional)
+                    </button>
+                    <button type="button" onClick={() => set("clickEnabled", true)}
+                      className={`rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors ${editing.clickEnabled ? "bg-brand text-white" : "text-neutral-500 hover:text-ink"}`}>
+                      Whole banner clickable
+                    </button>
+                  </div>
+                  {!editing.clickEnabled ? (
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <Field label="Button 1 Text"><input className={inputCls} value={editing.ctaText || ""} onChange={(e) => set("ctaText", e.target.value)} /></Field>
+                      <Field label="Button 1 Link"><input className={inputCls} placeholder="/products/laptops" value={editing.ctaLink || ""} onChange={(e) => set("ctaLink", e.target.value)} /></Field>
+                      <Field label="Button 2 Text"><input className={inputCls} placeholder="(optional)" value={editing.ctaSecondaryText || ""} onChange={(e) => set("ctaSecondaryText", e.target.value)} /></Field>
+                      <Field label="Button 2 Link"><input className={inputCls} placeholder="(optional)" value={editing.ctaSecondaryLink || ""} onChange={(e) => set("ctaSecondaryLink", e.target.value)} /></Field>
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <Field label="Banner Link"><input className={inputCls} placeholder="/flash-sale or https://…" value={editing.clickUrl || ""} onChange={(e) => set("clickUrl", e.target.value)} /></Field>
+                      <span className="mt-1 block text-[11px] text-neutral-400">The whole banner becomes one link. Buttons are hidden in this mode.</span>
+                    </div>
+                  )}
                 </div>
+
                 <div className="flex items-center gap-3">
                   <Field label="Background Colour"><input type="color" value={editing.bgColor || "#1C1C1E"} onChange={(e) => set("bgColor", e.target.value)} className="h-9 w-16 rounded border border-black/10" /></Field>
                   <label className="text-[13px] font-semibold text-brand">
@@ -184,9 +215,16 @@ export default function HomepageBuilder() {
                   <div className="relative px-5 py-8">
                     {editing.heading && <p className="text-lg font-extrabold text-white">{editing.heading}</p>}
                     {editing.subheading && <p className="mt-1 text-sm text-white/85">{editing.subheading}</p>}
-                    {editing.ctaText && <span className="mt-3 inline-block rounded-full bg-white px-4 py-1.5 text-[13px] font-bold text-ink">{editing.ctaText}</span>}
+                    {!editing.clickEnabled && ((editing.ctaText && editing.ctaLink) || (editing.ctaSecondaryText && editing.ctaSecondaryLink)) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {editing.ctaText && editing.ctaLink && <span className="inline-block rounded-lg bg-white px-4 py-1.5 text-[13px] font-bold text-ink">{editing.ctaText}</span>}
+                        {editing.ctaSecondaryText && editing.ctaSecondaryLink && <span className="inline-block rounded-lg border border-white/50 px-4 py-1.5 text-[13px] font-bold text-white">{editing.ctaSecondaryText}</span>}
+                      </div>
+                    )}
+                    {editing.clickEnabled && <span className="mt-3 inline-block rounded bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-white">Whole banner → {editing.clickUrl || "(no link yet)"}</span>}
                   </div>
                 </div>
+                {editErr && <p className="text-[12px] font-semibold text-red-600">{editErr}</p>}
               </>
             )}
 

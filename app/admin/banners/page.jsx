@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { PageHeader, Badge, Toggle, Modal, Field, useToast, inputCls, btnPrimary, btnGhost } from "@/components/admin/ui";
 import { adminGetBanners, adminCreateBanner, adminUpdateBanner, adminDeleteBanner, adminUploadImage, adminGetCollections } from "@/lib/api";
-import { PLACEMENT_OPTIONS, PLACEMENT_LABELS } from "@/lib/promoBanners";
+import { PLACEMENT_OPTIONS, PLACEMENT_LABELS, bannerCtaConfig } from "@/lib/promoBanners";
+import { bannerCtaError } from "@/lib/bannerCtas";
 
-const BLANK = { headline: "", sub: "", ctaText: "", ctaLink: "", order: 0, clickable: true, active: true, backgroundImage: "", backgroundColor: "#2D5016", placement: "hero" };
+const BLANK = { headline: "", sub: "", ctaText: "", ctaLink: "", ctaSecondaryText: "", ctaSecondaryLink: "", clickEnabled: false, clickUrl: "", order: 0, active: true, backgroundImage: "", backgroundColor: "#2D5016", placement: "hero" };
 
 function Label({ children }) {
   return <span className="mb-1 block text-[12px] font-semibold text-neutral-600">{children}</span>;
@@ -29,9 +30,23 @@ export default function Banners() {
   useEffect(() => { adminGetCollections().then(setCollections).catch(() => setCollections([])); }, []);
 
   const [uploading, setUploading] = useState(false);
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const openNew = () => { setForm(BLANK); setEditing({}); };
-  const openEdit = (b) => { setForm({ headline: b.headline || "", sub: b.sub || "", ctaText: b.cta?.label || "", ctaLink: b.cta?.href || "", order: b.order ?? 0, clickable: b.clickable !== false, active: b.active !== false, backgroundImage: b.backgroundImage || "", backgroundColor: b.backgroundColor || "#2D5016", placement: b.placement || "hero" }); setEditing(b); };
+  const [formErr, setFormErr] = useState("");
+  const set = (k, v) => { setFormErr(""); setForm((f) => ({ ...f, [k]: v })); };
+  const openNew = () => { setForm(BLANK); setFormErr(""); setEditing({}); };
+  const openEdit = (b) => {
+    const cfg = bannerCtaConfig(b);
+    setForm({
+      headline: b.headline || "", sub: b.sub || "",
+      ctaText: cfg.ctaText, ctaLink: cfg.ctaLink,
+      ctaSecondaryText: cfg.ctaSecondaryText, ctaSecondaryLink: cfg.ctaSecondaryLink,
+      clickEnabled: cfg.clickEnabled, clickUrl: cfg.clickUrl,
+      order: b.order ?? 0, active: b.active !== false,
+      backgroundImage: b.backgroundImage || "", backgroundColor: b.backgroundColor || "#2D5016",
+      placement: b.placement || "hero",
+    });
+    setFormErr("");
+    setEditing(b);
+  };
 
   const uploadImage = async (file) => {
     if (!file) return;
@@ -42,9 +57,20 @@ export default function Banners() {
   };
 
   const save = async () => {
+    const problem = bannerCtaError(form);
+    if (problem) { setFormErr(problem); return; }
     setSaving(true);
     try {
-      const payload = { headline: form.headline, sub: form.sub, cta: { label: form.ctaText, href: form.ctaLink }, order: Number(form.order) || 0, clickable: form.clickable, active: form.active, backgroundImage: form.backgroundImage || "", backgroundColor: form.backgroundColor || "#2D5016", placement: form.placement || "hero" };
+      const payload = {
+        headline: form.headline, sub: form.sub,
+        cta: { label: form.ctaText, href: form.ctaLink },
+        ctaSecondary: { label: form.ctaSecondaryText, href: form.ctaSecondaryLink },
+        clickEnabled: !!form.clickEnabled, clickUrl: form.clickUrl || "",
+        clickable: true, // kept for backward compatibility with older readers
+        order: Number(form.order) || 0, active: form.active,
+        backgroundImage: form.backgroundImage || "", backgroundColor: form.backgroundColor || "#2D5016",
+        placement: form.placement || "hero",
+      };
       if (editing.id) await adminUpdateBanner(editing.id, payload);
       else await adminCreateBanner(payload);
       toast("Banner saved");
@@ -111,18 +137,45 @@ export default function Banners() {
           <div className="space-y-4">
             <Field label="Headline"><input className={inputCls} value={form.headline} onChange={(e) => set("headline", e.target.value)} /></Field>
             <Field label="Subtext"><input className={inputCls} value={form.sub} onChange={(e) => set("sub", e.target.value)} /></Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="CTA Text"><input className={inputCls} placeholder="Shop Now" value={form.ctaText} onChange={(e) => set("ctaText", e.target.value)} /></Field>
-              <Field label="CTA Link"><input className={inputCls} placeholder="/products/laptops" value={form.ctaLink} onChange={(e) => set("ctaLink", e.target.value)} /></Field>
-              <Field label="Display Order"><input type="number" className={inputCls} value={form.order} onChange={(e) => set("order", e.target.value)} /></Field>
+
+            {/* What a click does: optional buttons OR the whole banner as a link. */}
+            <div className="rounded-lg border border-black/10 p-3">
+              <Label>When a visitor clicks this banner</Label>
+              <div className="mt-1 inline-flex rounded-lg border border-black/10 p-0.5">
+                <button type="button" onClick={() => set("clickEnabled", false)}
+                  className={`rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors ${!form.clickEnabled ? "bg-brand text-white" : "text-neutral-500 hover:text-ink"}`}>
+                  Buttons (optional)
+                </button>
+                <button type="button" onClick={() => set("clickEnabled", true)}
+                  className={`rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors ${form.clickEnabled ? "bg-brand text-white" : "text-neutral-500 hover:text-ink"}`}>
+                  Whole banner clickable
+                </button>
+              </div>
+
+              {!form.clickEnabled ? (
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Field label="Button 1 Text"><input className={inputCls} placeholder="Shop Now" value={form.ctaText} onChange={(e) => set("ctaText", e.target.value)} /></Field>
+                  <Field label="Button 1 Link"><input className={inputCls} placeholder="/products/laptops" value={form.ctaLink} onChange={(e) => set("ctaLink", e.target.value)} /></Field>
+                  <Field label="Button 2 Text"><input className={inputCls} placeholder="(optional)" value={form.ctaSecondaryText} onChange={(e) => set("ctaSecondaryText", e.target.value)} /></Field>
+                  <Field label="Button 2 Link"><input className={inputCls} placeholder="(optional)" value={form.ctaSecondaryLink} onChange={(e) => set("ctaSecondaryLink", e.target.value)} /></Field>
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <Field label="Banner Link"><input className={inputCls} placeholder="/flash-sale or https://…" value={form.clickUrl} onChange={(e) => set("clickUrl", e.target.value)} /></Field>
+                  <span className="mt-1 block text-[11px] text-neutral-400">The whole banner becomes one link. Buttons are hidden in this mode.</span>
+                </div>
+              )}
+
+              <div className="mt-3">
+                <Label>Or link to a collection</Label>
+                <select className={inputCls} value="" onChange={(e) => { if (e.target.value) set(form.clickEnabled ? "clickUrl" : "ctaLink", `/collections/${e.target.value}`); }}>
+                  <option value="">— Pick a collection to auto-fill the link —</option>
+                  {collections.map((c) => <option key={c.id} value={c.slug}>{c.name} (/collections/{c.slug})</option>)}
+                </select>
+              </div>
             </div>
-            <div>
-              <Label>Or link to a collection</Label>
-              <select className={inputCls} value="" onChange={(e) => { if (e.target.value) set("ctaLink", `/collections/${e.target.value}`); }}>
-                <option value="">— Pick a collection to auto-fill the link —</option>
-                {collections.map((c) => <option key={c.id} value={c.slug}>{c.name} (/collections/{c.slug})</option>)}
-              </select>
-            </div>
+
+            <Field label="Display Order"><input type="number" className={inputCls} value={form.order} onChange={(e) => set("order", e.target.value)} /></Field>
             <div>
               <Label>Show at</Label>
               <select className={inputCls} value={form.placement} onChange={(e) => set("placement", e.target.value)}>
@@ -156,10 +209,9 @@ export default function Banners() {
               )}
             </div>
 
-            <div className="flex gap-6">
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.clickable} onChange={(e) => set("clickable", e.target.checked)} className="accent-brand" /> Clickable</label>
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} className="accent-brand" /> Active</label>
-            </div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} className="accent-brand" /> Active</label>
+
+            {formErr && <p className="text-[12px] font-semibold text-red-600">{formErr}</p>}
           </div>
         </Modal>
       )}

@@ -18,6 +18,10 @@ export async function GET() {
         subtitle: s.flashSaleSubtitle || "",
         ctaText: s.flashSaleCtaText || "",
         ctaLink: s.flashSaleCtaLink || "/flash-sale",
+        ctaSecondaryText: s.flashSaleCtaSecondaryText || "",
+        ctaSecondaryLink: s.flashSaleCtaSecondaryLink || "",
+        clickEnabled: !!s.flashSaleClickEnabled,
+        clickUrl: s.flashSaleClickUrl || "",
         slug: slugify(s.flashSaleSlug),
         timer: {
           active: !!s.flashTimerActive,

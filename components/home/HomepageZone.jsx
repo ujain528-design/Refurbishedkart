@@ -69,7 +69,7 @@ export default function HomepageZone() {
               />
             );
           case "banner":
-            return <BannerSection key={s.id} imageUrl={s.imageUrl} heading={s.heading} subheading={s.subheading} ctaText={s.ctaText} ctaLink={s.ctaLink} bgColor={s.bgColor} />;
+            return <BannerSection key={s.id} imageUrl={s.imageUrl} heading={s.heading} subheading={s.subheading} ctaText={s.ctaText} ctaLink={s.ctaLink} ctaSecondaryText={s.ctaSecondaryText} ctaSecondaryLink={s.ctaSecondaryLink} clickEnabled={s.clickEnabled} clickUrl={s.clickUrl} bgColor={s.bgColor} />;
           case "category_grid":
             return <CategoryGrid key={s.id} title={s.title} categories={s.categories} />;
           case "announcement":

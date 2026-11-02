@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Toggle, Field, inputCls } from "@/components/admin/ui";
 import { blankHeroSlide } from "@/lib/heroSlides";
+import { bannerCtaError } from "@/lib/bannerCtas";
+import { bannerShowsButtons } from "@/components/banner/BannerCtas";
 
 const GRADIENT_CSS = "linear-gradient(160deg, #1C1C1E 0%, #2D5016 60%, #1C1C1E 100%)";
 const reindex = (arr) => arr.map((s, i) => ({ ...s, order: i }));
@@ -21,25 +23,41 @@ function SlideThumb({ slide }) {
   return <div className="h-12 w-20 shrink-0 rounded" style={{ background: bg }} aria-hidden="true" />;
 }
 
+/* Mini button chips for the preview (text only — a button needs text + link). */
+function PreviewButtons({ s }) {
+  const b1 = s.ctaText && s.ctaLink;
+  const b2 = s.ctaSecondaryText && s.ctaSecondaryLink;
+  if (!b1 && !b2) return null;
+  return (
+    <div className="flex gap-1.5">
+      {b1 && <span className="rounded bg-brand px-2 py-0.5 text-[10px] font-bold text-white">{s.ctaText}</span>}
+      {b2 && <span className="rounded border border-white/50 px-2 py-0.5 text-[10px] font-bold text-white">{s.ctaSecondaryText}</span>}
+    </div>
+  );
+}
+
 /* Live preview of one slide (approximates the storefront hero). */
 function SlidePreview({ s }) {
-  const x = Math.max(0, Math.min(100, Number(s.overlayDarkness ?? 55))) / 100;
+  // Match the storefront: when a slide shows buttons the overlay is off.
+  const showButtons = bannerShowsButtons(s);
+  const x = showButtons ? 0 : Math.max(0, Math.min(100, Number(s.overlayDarkness ?? 55))) / 100;
   const base = s.backgroundType === "image" && s.backgroundImage
     ? { backgroundImage: `url(${s.backgroundImage})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat", backgroundColor: "#111" }
     : { background: s.backgroundType === "color" ? (s.backgroundColor || "#1C1C1E") : GRADIENT_CSS };
   return (
     <div className="relative overflow-hidden rounded-lg" style={{ aspectRatio: "16 / 5", ...base }}>
       <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, rgba(28,28,30,${x}) 0%, rgba(28,28,30,${x * 0.3}) 70%)` }} />
-      {s.heading && (
+      {s.heading ? (
         <div className="absolute inset-0 flex flex-col justify-center px-4">
           <p className="text-base font-extrabold leading-tight text-white sm:text-lg">{s.heading}</p>
           {s.subheading && <p className="mt-1 max-w-[80%] text-[11px] text-white/80">{s.subheading}</p>}
-          <div className="mt-2 flex gap-1.5">
-            {s.ctaText && <span className="rounded bg-brand px-2 py-0.5 text-[10px] font-bold text-white">{s.ctaText}</span>}
-            {s.ctaSecondaryText && <span className="rounded border border-white/50 px-2 py-0.5 text-[10px] font-bold text-white">{s.ctaSecondaryText}</span>}
-          </div>
+          {showButtons && <div className="mt-2"><PreviewButtons s={s} /></div>}
         </div>
-      )}
+      ) : showButtons ? (
+        <div className="absolute inset-x-0 bottom-0 flex items-end px-4 pb-3">
+          <PreviewButtons s={s} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -48,17 +66,21 @@ export default function HeroCarouselManager({ slides = [], onChange, uploadImage
   const [editIdx, setEditIdx] = useState(null); // index being edited
   const [draft, setDraft] = useState(null);     // working copy of the slide
   const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState("");
+  const [err, setErr] = useState("");           // inline validation error on save
 
   const list = Array.isArray(slides) ? slides : [];
 
-  const openEdit = (i) => { setDraft({ ...list[i] }); setEditIdx(i); };
-  const cancelEdit = () => { setDraft(null); setEditIdx(null); };
+  const openEdit = (i) => { setDraft({ ...list[i] }); setEditIdx(i); setErr(""); setUploadErr(""); };
+  const cancelEdit = () => { setDraft(null); setEditIdx(null); setErr(""); setUploadErr(""); };
   const saveSlide = () => {
+    const problem = bannerCtaError(draft);
+    if (problem) { setErr(problem); return; }
     const next = list.map((s, i) => (i === editIdx ? draft : s));
     onChange(reindex(next));
     cancelEdit();
   };
-  const setD = (k, v) => setDraft((d) => ({ ...d, [k]: v }));
+  const setD = (k, v) => { setErr(""); setDraft((d) => ({ ...d, [k]: v })); };
 
   const addSlide = () => {
     const next = reindex([...list, blankHeroSlide(list.length)]);
@@ -82,9 +104,10 @@ export default function HeroCarouselManager({ slides = [], onChange, uploadImage
 
   const doUpload = async (file) => {
     if (!file) return;
+    setUploadErr("");
     setUploading(true);
     try { const { url } = await uploadImage(file); if (url) setD("backgroundImage", url); }
-    catch { /* surfaced by the page toast on save */ }
+    catch (e) { setUploadErr(e?.message || "Upload failed"); }
     finally { setUploading(false); }
   };
 
@@ -104,7 +127,11 @@ export default function HeroCarouselManager({ slides = [], onChange, uploadImage
               <SlideThumb slide={s} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13px] font-semibold text-ink">{s.heading || <span className="text-neutral-400">No heading</span>}</p>
-                <p className="truncate text-[11px] text-neutral-400">{s.backgroundType}{s.clickEnabled ? " · clickable" : ""}</p>
+                <p className="truncate text-[11px] text-neutral-400">
+                  {s.backgroundType}
+                  {s.backgroundType === "image" && !s.backgroundImage ? " · no image" : ""}
+                  {" · "}{s.clickEnabled ? "whole banner clickable" : "buttons"}
+                </p>
               </div>
               <div className="flex shrink-0 flex-col items-center">
                 <button onClick={() => move(i, -1)} disabled={i === 0} className="px-1 text-neutral-400 disabled:opacity-30" aria-label="Move up">↑</button>
@@ -140,6 +167,7 @@ export default function HeroCarouselManager({ slides = [], onChange, uploadImage
                     <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={(e) => doUpload(e.target.files?.[0])} className="text-[13px]" />
                     {uploading && <span className="ml-2 text-[12px] text-neutral-400">Uploading…</span>}
                     {draft.backgroundImage && !uploading && <button onClick={() => setD("backgroundImage", "")} className="ml-2 text-[12px] font-bold text-red-600">Remove</button>}
+                    {uploadErr && <p className="mt-1.5 text-[12px] font-semibold text-red-600">{uploadErr}</p>}
                   </div>
                 )}
                 {draft.backgroundType === "color" && (
@@ -149,22 +177,40 @@ export default function HeroCarouselManager({ slides = [], onChange, uploadImage
                 <Field label="Heading"><input className={inputCls} value={draft.heading} onChange={(e) => setD("heading", e.target.value)} placeholder="Leave blank for an image-only slide (no text overlay)" /></Field>
                 <Field label="Subheading"><input className={inputCls} value={draft.subheading} onChange={(e) => setD("subheading", e.target.value)} /></Field>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="CTA Text"><input className={inputCls} value={draft.ctaText} onChange={(e) => setD("ctaText", e.target.value)} placeholder="Shop Laptops" /></Field>
-                  <Field label="CTA Link"><input className={inputCls} value={draft.ctaLink} onChange={(e) => setD("ctaLink", e.target.value)} placeholder="/products/laptops" /></Field>
-                  <Field label="Secondary CTA Text"><input className={inputCls} value={draft.ctaSecondaryText} onChange={(e) => setD("ctaSecondaryText", e.target.value)} /></Field>
-                  <Field label="Secondary CTA Link"><input className={inputCls} value={draft.ctaSecondaryLink} onChange={(e) => setD("ctaSecondaryLink", e.target.value)} /></Field>
-                </div>
-
+                {/* What a click does: optional buttons OR the whole banner as a link. */}
                 <div className="rounded-lg bg-white p-3">
-                  <label className="flex items-center justify-between"><span className="text-[13px] font-semibold text-neutral-600">Whole slide clickable</span><Toggle on={!!draft.clickEnabled} onChange={(v) => setD("clickEnabled", v)} /></label>
-                  {draft.clickEnabled && <div className="mt-2"><Field label="Click URL"><input className={inputCls} value={draft.clickUrl} onChange={(e) => setD("clickUrl", e.target.value)} placeholder="/flash-sale" /></Field></div>}
+                  <Label>When a visitor clicks this slide</Label>
+                  <div className="mt-1 inline-flex rounded-lg border border-black/10 p-0.5">
+                    <button type="button" onClick={() => setD("clickEnabled", false)}
+                      className={`rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors ${!draft.clickEnabled ? "bg-brand text-white" : "text-neutral-500 hover:text-ink"}`}>
+                      Buttons (optional)
+                    </button>
+                    <button type="button" onClick={() => setD("clickEnabled", true)}
+                      className={`rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors ${draft.clickEnabled ? "bg-brand text-white" : "text-neutral-500 hover:text-ink"}`}>
+                      Whole banner clickable
+                    </button>
+                  </div>
+
+                  {!draft.clickEnabled ? (
+                    <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                      <Field label="Button 1 Text"><input className={inputCls} value={draft.ctaText} onChange={(e) => setD("ctaText", e.target.value)} placeholder="Shop Laptops" /></Field>
+                      <Field label="Button 1 Link"><input className={inputCls} value={draft.ctaLink} onChange={(e) => setD("ctaLink", e.target.value)} placeholder="/products/laptops" /></Field>
+                      <Field label="Button 2 Text"><input className={inputCls} value={draft.ctaSecondaryText} onChange={(e) => setD("ctaSecondaryText", e.target.value)} placeholder="(optional)" /></Field>
+                      <Field label="Button 2 Link"><input className={inputCls} value={draft.ctaSecondaryLink} onChange={(e) => setD("ctaSecondaryLink", e.target.value)} placeholder="(optional)" /></Field>
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <Field label="Banner Link"><input className={inputCls} value={draft.clickUrl} onChange={(e) => setD("clickUrl", e.target.value)} placeholder="/flash-sale or https://…" /></Field>
+                      <p className="mt-1 text-[11px] text-neutral-400">The whole slide becomes one link. Buttons are hidden in this mode.</p>
+                    </div>
+                  )}
                 </div>
 
                 <label className="flex items-center justify-between"><span className="text-[13px] font-semibold text-neutral-600">Slide active (shown on site)</span><Toggle on={draft.active !== false} onChange={(v) => setD("active", v)} /></label>
 
                 <div><Label>Live Preview</Label><SlidePreview s={draft} /></div>
 
+                {err && <p className="text-[12px] font-semibold text-red-600">{err}</p>}
                 <div className="flex gap-2">
                   <button onClick={saveSlide} className="rounded-full bg-brand px-5 py-2 text-[13px] font-bold text-white hover:bg-brand-dark">Save Slide</button>
                   <button onClick={cancelEdit} className="rounded-full border border-black/10 px-5 py-2 text-[13px] font-bold text-ink hover:border-brand hover:text-brand">Cancel</button>

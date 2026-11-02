@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { TRUST_BADGES } from "@/lib/data";
 import { getPublicSettings } from "@/lib/api";
+import BannerCtas, { BannerClickLink, bannerShowsButtons } from "@/components/banner/BannerCtas";
+import { hasHref } from "@/lib/bannerCtas";
 
 /* Multi-slide hero carousel — slides come from admin Settings → Appearance → Hero
    Carousel (the public settings route migrates the legacy single hero to slide[0]).
@@ -28,7 +28,6 @@ export default function Hero() {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const touchX = useRef(null);
-  const router = useRouter();
 
   useEffect(() => {
     let alive = true;
@@ -57,10 +56,6 @@ export default function Hero() {
     if (Math.abs(dx) > 50) go(idx + (dx < 0 ? 1 : -1));
   };
 
-  const clickSlide = (s) => {
-    if (s.clickEnabled && s.clickUrl && s.clickUrl !== "#") router.push(s.clickUrl);
-  };
-
   const multi = slides.length > 1;
 
   return (
@@ -81,14 +76,17 @@ export default function Hero() {
               // First slide's heading is the page H1 (one per page); others are h2.
               const HeadingTag = i === 0 ? "h1" : "h2";
               const fill = s.backgroundType === "color" ? (s.backgroundColor || "#1C1C1E") : isImg ? "#13150f" : GRADIENT;
-              const x = clamp(s.overlayDarkness) / 100;
+              // Whole-banner mode: the slide is one real link. Otherwise buttons (if any).
+              const bannerMode = !!s.clickEnabled && hasHref(s.clickUrl);
+              const showButtons = bannerShowsButtons(s);
+              // When a slide shows buttons the dark overlay is switched off (0); every
+              // other slide keeps its configured overlay darkness.
+              const x = showButtons ? 0 : clamp(s.overlayDarkness) / 100;
               const overlay = `linear-gradient(160deg, rgba(28,28,30,${x}) 0%, rgba(45,80,22,${x * 0.4}) 55%, rgba(28,28,30,${x * 0.9}) 100%)`;
-              const clickable = s.clickEnabled && s.clickUrl && s.clickUrl !== "#";
               return (
                 <div
                   key={s.id}
-                  onClick={() => clickSlide(s)}
-                  className={`relative aspect-[16/5] min-h-[200px] w-full shrink-0 overflow-hidden ${clickable ? "cursor-pointer" : ""}`}
+                  className={`relative aspect-[16/5] min-h-[200px] w-full shrink-0 overflow-hidden ${bannerMode ? "cursor-pointer" : ""}`}
                   style={{ background: fill }}
                 >
                   {/* full poster — object-contain so the image is never cropped */}
@@ -98,24 +96,37 @@ export default function Hero() {
                   )}
                   <div className="absolute inset-0" style={{ background: overlay }} aria-hidden="true" />
 
-                  {/* text overlay — only when a heading is set */}
+                  {/* Whole-banner click — a real link covering the slide (no buttons in
+                      this mode). Arrows/dots sit above it via z-10. */}
+                  {bannerMode && <BannerClickLink url={s.clickUrl} label={s.heading || "View offer"} />}
+
+                  {/* text overlay — when a heading is set */}
                   {s.heading && (
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="mx-auto w-full max-w-7xl px-6 md:px-20">
+                    <div className="absolute inset-0 z-[2] flex items-center">
+                      <div className="pointer-events-none mx-auto w-full max-w-7xl px-6 md:px-20">
                         <div className="max-w-[600px]">
                           <HeadingTag className="font-display text-[1.6rem] font-extrabold leading-[1.08] tracking-[-0.03em] text-white sm:text-[2rem] md:text-[3.25rem]">{s.heading}</HeadingTag>
                           {s.subheading && <p className="mt-3 max-w-[460px] text-[0.9rem] leading-relaxed text-white/[0.72] sm:text-[1rem] md:mt-4 md:text-[1.05rem]">{s.subheading}</p>}
-                          {(s.ctaText || s.ctaSecondaryText) && (
-                            <div className="mt-4 flex flex-wrap items-center gap-3 md:mt-7">
-                              {s.ctaText && (
-                                <Link href={s.ctaLink || "/"} onClick={(e) => e.stopPropagation()} className="rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-dark md:px-7 md:py-3.5 md:text-base">{s.ctaText}</Link>
-                              )}
-                              {s.ctaSecondaryText && (
-                                <Link href={s.ctaSecondaryLink || "/"} onClick={(e) => e.stopPropagation()} className="rounded-lg border-[1.5px] border-white/40 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/[0.08] md:px-7 md:py-3.5 md:text-base">{s.ctaSecondaryText}</Link>
-                              )}
-                            </div>
+                          {showButtons && (
+                            <BannerCtas
+                              className="pointer-events-auto mt-4 md:mt-7"
+                              primaryText={s.ctaText} primaryLink={s.ctaLink}
+                              secondaryText={s.ctaSecondaryText} secondaryLink={s.ctaSecondaryLink}
+                            />
                           )}
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No heading but buttons set → buttons bottom-left, above the dots. */}
+                  {!s.heading && showButtons && (
+                    <div className="absolute inset-x-0 bottom-0 z-[2] flex items-end">
+                      <div className="mx-auto w-full max-w-7xl px-6 pb-12 md:px-20 md:pb-14">
+                        <BannerCtas
+                          primaryText={s.ctaText} primaryLink={s.ctaLink}
+                          secondaryText={s.ctaSecondaryText} secondaryLink={s.ctaSecondaryLink}
+                        />
                       </div>
                     </div>
                   )}
@@ -127,10 +138,10 @@ export default function Hero() {
           {/* arrows — desktop, only with >1 slide */}
           {multi && (
             <>
-              <button aria-label="Previous slide" onClick={(e) => { e.stopPropagation(); go(idx - 1); }} className="absolute left-4 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30 md:flex">
+              <button aria-label="Previous slide" onClick={(e) => { e.stopPropagation(); go(idx - 1); }} className="absolute left-4 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30 md:flex">
                 <ArrowIcon dir="left" />
               </button>
-              <button aria-label="Next slide" onClick={(e) => { e.stopPropagation(); go(idx + 1); }} className="absolute right-4 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30 md:flex">
+              <button aria-label="Next slide" onClick={(e) => { e.stopPropagation(); go(idx + 1); }} className="absolute right-4 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/30 md:flex">
                 <ArrowIcon dir="right" />
               </button>
             </>
@@ -138,7 +149,7 @@ export default function Hero() {
 
           {/* dot indicators */}
           {multi && (
-            <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2">
+            <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
               {slides.map((s, i) => (
                 <button
                   key={s.id}

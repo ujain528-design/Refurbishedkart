@@ -7,6 +7,7 @@ import { adminGetSettings, adminSaveSettings, adminGetIntegrations, adminUploadI
 import HeroCarouselManager from "@/components/admin/HeroCarouselManager";
 import AdminCredentialChange from "@/components/admin/AdminCredentialChange";
 import { resolveHeroSlides } from "@/lib/heroSlides";
+import { bannerCtaError } from "@/lib/bannerCtas";
 
 const TABS = ["General", "Policies", "Delivery", "Appearance", "Flash Sale", "Social", "SEO & Scripts", "Email Templates", "Security", "Integrations", "Admin Users"];
 
@@ -39,6 +40,7 @@ export default function Settings() {
   const [s, setS] = useState(null);
   const [status, setStatus] = useState("loading");
   const [saving, setSaving] = useState(false);
+  const [flashErr, setFlashErr] = useState("");
 
   const load = useCallback(() => {
     setStatus("loading");
@@ -56,6 +58,14 @@ export default function Settings() {
   const setTpl = (st, field, v) => setS((x) => ({ ...x, emailTemplates: { ...(x.emailTemplates || {}), [st]: { ...(x.emailTemplates?.[st] || {}), [field]: v } } }));
 
   const save = async () => {
+    // Validate the flash home-band click config (shared banner rules).
+    const fe = bannerCtaError({
+      clickEnabled: s.flashSaleClickEnabled, clickUrl: s.flashSaleClickUrl,
+      ctaText: s.flashSaleCtaText, ctaLink: s.flashSaleCtaLink,
+      ctaSecondaryText: s.flashSaleCtaSecondaryText, ctaSecondaryLink: s.flashSaleCtaSecondaryLink,
+    });
+    if (fe) { setFlashErr(fe); setTab("Flash Sale"); toast(fe, "error"); return; }
+    setFlashErr("");
     setSaving(true);
     try { const next = await adminSaveSettings(s); setS(next); toast("Settings saved"); }
     catch (e) { toast(e.message || "Save failed", "error"); }
@@ -180,7 +190,7 @@ export default function Settings() {
           </div>
         )}
 
-        {tab === "Flash Sale" && <FlashSaleCard s={s} set={set} uploadTo={uploadTo} />}
+        {tab === "Flash Sale" && <FlashSaleCard s={s} set={set} uploadTo={uploadTo} flashErr={flashErr} />}
 
         {tab === "Social" && (
           <div className="grid gap-4 rounded-card border border-black/5 bg-white p-5 shadow-card sm:grid-cols-2">
@@ -238,7 +248,7 @@ export default function Settings() {
   );
 }
 
-function FlashSaleCard({ s, set, uploadTo }) {
+function FlashSaleCard({ s, set, uploadTo, flashErr }) {
   const card = "space-y-4 rounded-lg border border-black/10 p-4";
   const colorInput = "h-9 w-full rounded border border-black/10";
   return (
@@ -325,6 +335,35 @@ function FlashSaleCard({ s, set, uploadTo }) {
         </div>
         <div><Label>Position</Label><select className={inputCls} value={s.flashHomePosition || "after-hero"} onChange={(e) => set("flashHomePosition", e.target.value)}>{FLASH_HOME_POSITIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div>
         <p className="text-[12px] text-neutral-400">Shows the sale title, countdown, CTA and up to 4 flash-sale products. Only appears while the sale is on.</p>
+
+        {/* Band click options (shared banner behaviour). Button 1 is the “CTA Button”
+            above (also used on the sale page). */}
+        <div className="rounded-lg border border-black/10 p-3">
+          <Label>When a visitor clicks the band header</Label>
+          <div className="inline-flex rounded-lg border border-black/10 p-0.5">
+            <button type="button" onClick={() => set("flashSaleClickEnabled", false)}
+              className={`rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors ${!s.flashSaleClickEnabled ? "bg-brand text-white" : "text-neutral-500 hover:text-ink"}`}>
+              Buttons (optional)
+            </button>
+            <button type="button" onClick={() => set("flashSaleClickEnabled", true)}
+              className={`rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors ${s.flashSaleClickEnabled ? "bg-brand text-white" : "text-neutral-500 hover:text-ink"}`}>
+              Whole band clickable
+            </button>
+          </div>
+          {!s.flashSaleClickEnabled ? (
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <Field label="Button 2 Text"><input className={inputCls} value={s.flashSaleCtaSecondaryText || ""} onChange={(e) => set("flashSaleCtaSecondaryText", e.target.value)} placeholder="(optional)" /></Field>
+              <Field label="Button 2 Link"><input className={inputCls} value={s.flashSaleCtaSecondaryLink || ""} onChange={(e) => set("flashSaleCtaSecondaryLink", e.target.value)} placeholder="(optional)" /></Field>
+              <p className="text-[11px] text-neutral-400 sm:col-span-2">Button 1 is the “CTA Button” above. Add a second button here, or switch to a whole-band link.</p>
+            </div>
+          ) : (
+            <div className="mt-3">
+              <Field label="Band Link"><input className={inputCls} value={s.flashSaleClickUrl || ""} onChange={(e) => set("flashSaleClickUrl", e.target.value)} placeholder="/flash-sale or https://…" /></Field>
+              <span className="mt-1 block text-[11px] text-neutral-400">The whole band header becomes one link; buttons are hidden (product cards below stay clickable).</span>
+            </div>
+          )}
+          {flashErr && <p className="mt-2 text-[12px] font-semibold text-red-600">{flashErr}</p>}
+        </div>
       </div>
     </div>
   );
